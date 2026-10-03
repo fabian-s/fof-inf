@@ -1,0 +1,397 @@
+# The CL2 covariance {#sec-app-cl2}
+
+Notation follows the main text: $\mathbf W$ holds the working weights
+$w_{gd} = (d\mu/d\eta)^2_{gd}/\{\phi V(\mu_{gd})\}$, $\mathbf S = \sum_j (\lambda_j/\phi)\mathbf S_j$,
+$\mathbf V_p = (\mathbf X^\top\mathbf W\mathbf X + \mathbf S)^{-1}$,
+$\mathbf V_e = \mathbf V_p\mathbf X^\top\mathbf W\mathbf X\mathbf V_p$, and for curve $g$
+$\tilde{\mathbf X}_g = \mathbf W_g^{1/2}\mathbf X_g$ and
+$z_{gd} = (y_{gd} - \hat\mu_{gd})/\{\phi V(\hat\mu_{gd})\}^{1/2}$.
+The stacked whitened design is $\tilde{\mathbf X}$, and
+$\tilde{\mathbf H} = \tilde{\mathbf X}\mathbf V_p\tilde{\mathbf X}^\top$ has blocks
+$\tilde{\mathbf H}_{gh}$.
+
+## Scores and the penalized bread
+
+For an exponential-family response the score of the log-likelihood contribution of $y_{gd}$ is
+$$
+\mathbf s_{gd}(\boldsymbol\theta)
+= \frac{(y_{gd} - \mu_{gd})\,(d\mu/d\eta)_{gd}}{\phi V(\mu_{gd})}\,\mathbf x_{gd}
+= z_{gd}\,\tilde{\mathbf x}_{gd},
+\qquad \tilde{\mathbf x}_{gd} = w_{gd}^{1/2}\mathbf x_{gd},
+$$ {#eq-s1-score}
+so the score of curve $g$ is $\mathbf u_g = \sum_d \mathbf s_{gd} = \tilde{\mathbf X}_g^\top\mathbf z_g$.
+The fit maximizes $\sum_{g,d}\ell_{gd}(\boldsymbol\theta) - \tfrac12\boldsymbol\theta^\top\mathbf S\boldsymbol\theta$,
+whose estimating equation is
+$$
+\sum_{g=1}^G \mathbf u_g(\hat{\boldsymbol\theta}) = \mathbf S\hat{\boldsymbol\theta}.
+$$ {#eq-s1-ee}
+The negative Hessian of the penalized log-likelihood is $\mathbf X^\top\mathbf W\mathbf X + \mathbf S = \mathbf V_p^{-1}$ (exactly for canonical links, in expectation otherwise). Linearizing @eq-s1-ee around the target $\boldsymbol\theta^*$ at which its expectation vanishes gives
+$$
+\hat{\boldsymbol\theta} - \boldsymbol\theta^* \approx \mathbf V_p \sum_{g=1}^G \{\mathbf u_g(\boldsymbol\theta^*) - \mathrm E\,\mathbf u_g(\boldsymbol\theta^*)\},
+\qquad
+\mathrm{Var}(\hat{\boldsymbol\theta}) \approx \mathbf V_p \Bigl\{\sum_{g=1}^G \mathrm{Var}\,\mathbf u_g(\boldsymbol\theta^*)\Bigr\}\mathbf V_p ,
+$$ {#eq-s1-lin}
+so $\mathbf V_p$ is the bread and only the meat $\sum_g\mathrm{Var}\,\mathbf u_g$ depends on the
+within-curve dependence. Under the working model, $\mathrm{Var}(\mathbf z_g) = \mathbf I$ and the
+meat is $\tilde{\mathbf X}^\top\tilde{\mathbf X}$, which returns $\mathbf V_e$. The unpenalized bread
+$(\mathbf X^\top\mathbf W\mathbf X)^{-1}$ linearizes a different estimator. Scores and penalty are
+both on the scale of the summed log-likelihood; a construction that averages the scores over the
+$N$ observations must use the penalty $\sum_j\lambda_j\mathbf S_j/(N\phi)$, or the bread and the
+shrinkage are mis-scaled by the factor $N$ (and by $\phi$ if it is dropped).
+
+By @eq-s1-ee the curve scores at the estimate do not sum to zero: $\sum_g \tilde{\mathbf X}_g^\top\mathbf z_g = \mathbf S\hat{\boldsymbol\theta}$.
+Unlike the unpenalized cluster sandwich [@LiangZeger1986], whose curve scores at the estimate sum
+to zero, the meat $\sum_g\mathbf U_g\mathbf U_g^\top$ below is not centred; Proposition A.1(b)
+gives the consequence.
+
+## The leverage adjustment
+
+The CL2 covariance of the main text is
+$$
+\hat{\mathbf V}_{\mathrm{CL2}} = \frac{G}{G-1}\,\mathbf V_p\Bigl(\sum_{g=1}^G\mathbf U_g\mathbf U_g^\top\Bigr)\mathbf V_p + (\mathbf V_p - \mathbf V_e),
+\qquad
+\mathbf U_g = \tilde{\mathbf X}_g^\top\mathbf R_g^{-1/2}\mathbf z_g ,
+$$ {#eq-s1-cl2}
+with $\mathbf R_g = [(\mathbf I - \tilde{\mathbf H})(\mathbf I - \tilde{\mathbf H})^\top]_{gg}$.
+Since $\tilde{\mathbf X}^\top\tilde{\mathbf X} = \mathbf V_p^{-1} - \mathbf S$,
+$(\mathbf I - \tilde{\mathbf H})^2 = \mathbf I - \tilde{\mathbf X}(2\mathbf V_p - \mathbf V_p\tilde{\mathbf X}^\top\tilde{\mathbf X}\mathbf V_p)\tilde{\mathbf X}^\top$ and
+$$
+\mathbf R_g
+= \mathbf I - \tilde{\mathbf X}_g\bigl(2\mathbf V_p - \mathbf V_p\tilde{\mathbf X}^\top\tilde{\mathbf X}\mathbf V_p\bigr)\tilde{\mathbf X}_g^\top
+= \mathbf I - \tilde{\mathbf H}_{gg} - \tilde{\mathbf X}_g\mathbf V_p\mathbf S\mathbf V_p\tilde{\mathbf X}_g^\top .
+$$ {#eq-s1-Rg}
+$\mathbf R_g$ needs only $\tilde{\mathbf X}_g$ and one $p\times p$ matrix. It is computed in the
+column space of $\tilde{\mathbf X}_g$ in $\mathbb R^{D_g}$ (dimension at most $\min(D_g, p)$), because
+$\mathbf R_g$ equals $\mathbf I$ on its orthogonal complement and $\tilde{\mathbf X}_g^\top$ annihilates
+that complement.
+
+*Relation to CR2.* The bias-reduced linearization of @BellMcCaffrey2002 chooses $\mathbf A_g$ with
+$\mathbf A_g[(\mathbf I - \mathbf H)\boldsymbol\Phi(\mathbf I - \mathbf H)^\top]_{gg}\mathbf A_g = \boldsymbol\Phi_g$
+for a working covariance $\boldsymbol\Phi$ [@McCaffreyBell2006; @PustejovskyTipton2018]. With
+$\boldsymbol\Phi = \mathbf I$ this is $\mathbf A_g = \mathbf R_g^{-1/2}$. For a projection,
+$\mathbf R_g = \mathbf I - \mathbf H_{gg}$ and the usual CR2 results. The penalized hat is not
+idempotent: the last term of @eq-s1-Rg is positive semidefinite, so
+$\mathbf R_g \preceq \mathbf I - \tilde{\mathbf H}_{gg}$, and the approximation
+$\mathbf A^{\mathrm s}_g = (\mathbf I - \tilde{\mathbf H}_{gg})^{-1/2}$, which keeps the full block
+$\tilde{\mathbf H}_{gg}$ but drops the last term of @eq-s1-Rg (the *shortcut*),
+under-corrects: $\mathbf A^{\mathrm s}_g\mathbf R_g\mathbf A^{\mathrm s}_g \preceq \mathbf I$. The
+dropped term is small when the per-curve leverage is small.
+
+*Expectation of the meat.* Take the Gaussian working model with fixed $\boldsymbol\lambda$ and fixed design:
+$\mathbf W^{1/2}\mathbf y = \tilde{\mathbf X}\boldsymbol\theta + \boldsymbol\varepsilon$ with
+$\mathrm{Var}(\boldsymbol\varepsilon) = \mathbf I$. Then
+$\mathbf z = (\mathbf I - \tilde{\mathbf H})(\tilde{\mathbf X}\boldsymbol\theta + \boldsymbol\varepsilon)$,
+and $(\mathbf I - \tilde{\mathbf H})\tilde{\mathbf X} = \tilde{\mathbf X}\mathbf V_p\mathbf S$ gives
+$$
+\mathrm E(\mathbf z_g) = \mathbf m_g = \tilde{\mathbf X}_g\mathbf V_p\mathbf S\boldsymbol\theta,
+\qquad
+\mathrm E(\mathbf z_g\mathbf z_g^\top) = \mathbf R_g + \mathbf m_g\mathbf m_g^\top .
+$$ {#eq-s1-mean}
+The penalized residuals have nonzero mean unless $\mathbf S\boldsymbol\theta = \mathbf 0$. With
+$\mathbf R_g$ invertible and the floor inactive,
+$$
+\mathrm E\Bigl(\sum_g\mathbf U_g\mathbf U_g^\top\Bigr)
+= \sum_g \tilde{\mathbf X}_g^\top\tilde{\mathbf X}_g
++ \sum_g \tilde{\mathbf X}_g^\top\mathbf R_g^{-1/2}\mathbf m_g\mathbf m_g^\top\mathbf R_g^{-1/2}\tilde{\mathbf X}_g .
+$$ {#eq-s1-unbiased}
+The first term is the working-model sampling meat, $\mathrm{Var}(\tilde{\mathbf X}^\top\boldsymbol\varepsilon)$,
+so $\mathbf V_p(\sum_g\mathbf U_g\mathbf U_g^\top)\mathbf V_p$ is unbiased for $\mathbf V_e$ when the
+truth lies in the null space of the penalty and biased upwards by a positive semidefinite term
+otherwise. The factor $G/(G-1)$ adds a further upward bias. Under within-curve dependence,
+$\mathrm{Var}(\boldsymbol\varepsilon_g) = \boldsymbol\Sigma_g \neq \mathbf I$, and the adjustment
+removes the residual shrinkage only approximately; it does not whiten correlated residuals.
+
+*Floor and factor.* The eigenvalues of $\mathbf R_g$ are floored at $10^{-6}$ before the inverse
+square root, which caps the inflation of any residual direction at a factor $10^3$. The floor binds
+only for curves whose data nearly determine a coefficient direction on their own; how often it
+bound in the studies was not recorded. CR2 carries no
+factor $G/(G-1)$; we keep it. It inflates frequentist CL2 standard errors by
+`r f(100 * (sqrt(40 / 39) - 1), 1)`% at $G = 40$ and `r f(100 * (sqrt(100 / 99) - 1), 1)`% at
+$G = 100$; in the Bayesian form it multiplies only the sandwich part, so these are upper bounds. CR1 is @eq-s1-cl2 with $\mathbf R_g = \mathbf I$ and no further degrees-of-freedom
+factor.
+
+## Bayesian and frequentist forms
+
+The frequentist form omits $\mathbf V_p - \mathbf V_e = \mathbf V_p\mathbf S\mathbf V_p$. For
+Gaussian responses with identity link and fixed $\boldsymbol\lambda$, the bias of
+$\hat{\boldsymbol\theta}$ is $-\mathbf V_p\mathbf S\boldsymbol\theta$. Under the smoothing prior
+$\boldsymbol\theta \sim N(\mathbf 0, \mathbf S^-)$,
+$\mathrm E(\mathbf V_p\mathbf S\boldsymbol\theta\boldsymbol\theta^\top\mathbf S\mathbf V_p) = \mathbf V_p\mathbf S\mathbf V_p$:
+the allowance is the prior-averaged squared bias, and $\mathbf V_p$ the prior-averaged mean squared
+error matrix [@Wahba1983; @Nychka1988; @MarraWood2012]. For a fixed truth and any contrast
+$\mathbf a$, by the Cauchy--Schwarz inequality,
+$$
+(\mathbf a^\top\mathbf V_p\mathbf S\boldsymbol\theta)^2 \le (\mathbf a^\top\mathbf V_p\mathbf S\mathbf V_p\mathbf a)\,(\boldsymbol\theta^\top\mathbf S\boldsymbol\theta),
+\qquad \boldsymbol\theta^\top\mathbf S\boldsymbol\theta = \sum_j(\lambda_j/\phi)\,\boldsymbol\theta^\top\mathbf S_j\boldsymbol\theta .
+$$ {#eq-s1-cs}
+The allowance bounds the squared bias of every contrast if
+$\boldsymbol\theta^\top\mathbf S\boldsymbol\theta \le 1$; for larger values the bound permits,
+but does not imply, a bias above the allowance. Where the data identify $\boldsymbol\theta$
+($\tilde{\mathbf X}^\top\tilde{\mathbf X}$ positive definite), the squared bias scales as
+$\lambda^2$ and the allowance as $\lambda$ for small $\boldsymbol\lambda$. Undersmoothing, as REML
+produces under within-curve dependence, therefore makes the allowance large relative to the bias but
+small relative to the dependence-inflated variance, and the two forms nearly coincide. For a truth
+that is rough at the selected $\boldsymbol\lambda$ ($\boldsymbol\theta^\top\mathbf S\boldsymbol\theta$
+large), or after oversmoothing, the bias can exceed the allowance, most likely where the truth is most
+curved. Under independent errors with a smooth
+truth the allowance exceeds the bias and the Bayesian form overcovers.
+
+## Extended families
+
+The CL2 construction needs a factorization $\mathbf s_{gd} = z_{gd}\tilde{\mathbf x}_{gd}$ in which
+$\tilde{\mathbf x}_{gd}$ carries the Fisher weight of the fit, so that
+$\operatorname{tr}\tilde{\mathbf H}$ equals the effective degrees of freedom.
+
+*Gaussian location--scale* (mgcv's gaulss). The two linear predictors $\eta_1$ (mean) and
+$\eta_2$ (inverse standard deviation $\tau$) have block-diagonal Fisher information with weights
+$W_1 = \tau^2(d\mu/d\eta_1)^2$ and $W_2 = 2(d\tau/d\eta_2)^2/\tau^2$. Each observation contributes
+two pseudo-rows, both assigned to its curve,
+$$
+\tilde{\mathbf x}_{k} = W_k^{1/2}\mathbf x_{k}, \qquad z_k = \frac{\partial\ell/\partial\eta_k}{W_k^{1/2}}, \qquad k = 1, 2,
+$$ {#eq-s1-gaulss}
+with $\partial\ell/\partial\eta_1 = \tau^2(y - \mu)\,d\mu/d\eta_1$ and
+$\partial\ell/\partial\eta_2 = (1/\tau - \tau(y-\mu)^2)\,d\tau/d\eta_2$; $\mathbf x_k$ is the
+design row of predictor $k$, zero in the other block.
+
+*Scaled t* (scat). With degrees of freedom $\nu$ and scale $\sigma$ at their estimates, the exact
+location score and Fisher weight are
+$$
+\frac{\partial\ell}{\partial\mu} = \frac{(\nu + 1)(y - \mu)}{\nu\sigma^2 + (y - \mu)^2},
+\qquad
+W = \Bigl(\frac{d\mu}{d\eta}\Bigr)^2\frac{\nu + 1}{(\nu + 3)\sigma^2},
+$$ {#eq-s1-scat}
+and $z = (\partial\ell/\partial\mu)(d\mu/d\eta)/W^{1/2}$. The working-residual score
+@eq-s1-score would treat the $t$ response as Gaussian and give no downweighting of outliers.
+
+All other extended families of mgcv (negative binomial, Tweedie, beta, ordered categorical) use the
+working-residual score @eq-s1-score with the fitted variance function. For the negative binomial,
+with its shape parameter at the estimate, this is the exact score for the mean; for the beta family
+it is an approximation. The simulations use CL2 for the beta and negative-binomial responses. Families that define their own sandwich
+(multinomial) have no cluster-robust covariance.
+
+## Asymptotic validity for fixed smoothing parameters
+
+**Proposition A.1.** *Assume (i) the curves $(\mathbf y_g, \mathbf X_g)$, $g = 1,\dots,G$, are
+independent and identically distributed with $D_g \le \bar D < \infty$, with arbitrary dependence
+within a curve; (ii) the basis, hence $p$, is fixed and the link is canonical; (iii)
+$\boldsymbol\lambda = \boldsymbol\lambda_G$ is non-random with $\mathbf S_G/G \to \mathbf S_\infty$;
+(iv) the weighted design rows are uniformly bounded, the curve scores have bounded moments of
+order $2 + \delta$ and dominated derivatives near the target, and $\mathbf J = \mathrm E(\tilde{\mathbf X}_1^\top\tilde{\mathbf X}_1) + \mathbf S_\infty$
+is positive definite at $\boldsymbol\theta^*_\infty = \lim_G \boldsymbol\theta^*_G$, where
+$\boldsymbol\theta^*_G$ solves*
+$$
+\mathrm E\,\mathbf u_1(\boldsymbol\theta) = (\mathbf S_G/G)\,\boldsymbol\theta .
+$$ {#eq-s1-target}
+*Then (a) $\sqrt G(\hat{\boldsymbol\theta} - \boldsymbol\theta^*_G) \to N(\mathbf 0, \mathbf J^{-1}\mathbf M\mathbf J^{-1})$
+with $\mathbf M = \mathrm{Var}\,\mathbf u_1(\boldsymbol\theta^*_\infty)$. (b) With
+$\boldsymbol\mu = \mathrm E\,\mathbf u_1(\boldsymbol\theta^*_\infty) = \mathbf S_\infty\boldsymbol\theta^*_\infty$,
+the variance part of @eq-s1-cl2 (and of CR1) satisfies*
+$$
+G\,\frac{G}{G-1}\,\mathbf V_p\Bigl(\sum_g\mathbf U_g\mathbf U_g^\top\Bigr)\mathbf V_p \;\to_p\; \mathbf J^{-1}(\mathbf M + \boldsymbol\mu\boldsymbol\mu^\top)\mathbf J^{-1},
+\qquad
+G(\mathbf V_p - \mathbf V_e) \to \mathbf J^{-1}\mathbf S_\infty\mathbf J^{-1},
+$$ {#eq-s1-cov}
+*so the variance part is consistent for the covariance in (a) if $\mathbf S_\infty\boldsymbol\theta^*_\infty = \mathbf 0$
+and conservative otherwise; the Bayesian form adds $\mathbf J^{-1}\mathbf S_\infty\mathbf J^{-1}$.
+(c) If the mean model is correct and
+$\sqrt G(\boldsymbol\theta^*_G - \boldsymbol\theta) \to \mathbf 0$ (which forces
+$\mathbf S_\infty\boldsymbol\theta = \mathbf 0$ even if $\mathbf S_\infty \neq \mathbf 0$), the frequentist CL2 interval for
+any fixed contrast is asymptotically valid for the true $\boldsymbol\theta$, and the Bayesian one is
+valid and conservative, asymptotically exact if $\mathbf S_\infty = \mathbf 0$.*
+
+For Gaussian responses with identity link, the finite-sample target given the design is
+$\mathrm E(\hat{\boldsymbol\theta}) = (\mathbf I - \mathbf V_p\mathbf S)\boldsymbol\theta$, of which
+@eq-s1-target is the population version; for GLMs the target solves the expected penalized score
+equation.
+
+*Proof.* $\hat{\boldsymbol\theta}$ solves an M-estimating equation with independent curve
+contributions and a deterministic penalty offset whose expectation vanishes at
+$\boldsymbol\theta^*_G$; (a) follows from the standard argument for such equations
+[@LiangZeger1986; @HansenLee2019]. For (b), bounded curve sizes and fixed $p$ make the leverages
+$O_p(G^{-1})$, so CL2 and CR1 meats agree to first order, and the meat converges to the second moment
+of a score with mean $\boldsymbol\mu$. For (c), a correct mean model gives curve scores with mean
+zero whatever the dependence within the curve. $\square$
+
+The proposition does not cover smoothing parameters selected from the data, nor a number of
+coefficients comparable to or larger than $G$; both hold in our applications and simulations.
+
+## Covariance components
+
+```{r s1-ablation-data}
+s1_cells <- readr::read_csv("ablation/summaries/ablation-cells.csv", show_col_types = FALSE)
+s1_contr <- readr::read_csv("ablation/summaries/ablation-contrasts.csv", show_col_types = FALSE)
+s1_err <- c(iid = "independent", ou = "rough stationary", fpc = "smooth")
+s1_design <- DESIGN |> filter(cell %in% unique(s1_cells$cell))
+s1_arms <- tibble::tribble(
+  ~arm, ~crit, ~label,
+  "model", "z", "model",
+  "cr1_b", "z", "CR1",
+  "cl2s_b", "z", "CL2 $I - H$",
+  "cl2e_b", "z", "CL2",
+  "cl2e_f", "z", "CL2 freq.",
+  "cl2e_b", "t", "CL2 $t_{G-1}$",
+  "fix_cl2e_b", "z", "CL2 fixed $\\lambda$"
+)
+s1_cov_tab <- \(e) {
+  s1_cells |>
+    filter(estimand == e) |>
+    inner_join(s1_arms, by = c("arm", "crit")) |>
+    mutate(label = factor(label, s1_arms$label), family = label_family(family), error = s1_err[error]) |>
+    select(family, error, G, label, coverage) |>
+    pivot_wider(names_from = label, values_from = coverage, names_sort = TRUE) |>
+    arrange(family, factor(error, s1_err), G) |>
+    mutate(family = as.character(family), error = as.character(error))
+}
+s1_kable <- \(d) {
+  dup_err <- duplicated(paste(d$family, d$error))
+  d$family[duplicated(d$family)] <- ""
+  d$error[dup_err] <- ""
+  knitr::kable(d, format = "latex", booktabs = TRUE, digits = 3, escape = FALSE, linesep = "")
+}
+s1_ct <- \(ct, dep, g, e = c("mean", "beta")) {
+  d <- s1_contr |> filter(contrast == ct, estimand %in% e, (error != "iid") == dep, G == g)
+  c(diff = mean(d$diff), se_lo = min(d$diff_se), se_hi = max(d$diff_se))
+}
+s1_cta <- \(a, dep, g, e = "beta", crit = "z") {
+  mean(s1_cells$coverage[s1_cells$arm == a & s1_cells$crit == crit & s1_cells$estimand %in% e & (s1_cells$error != "iid") == dep & s1_cells$G %in% g])
+}
+s1_cell <- \(e, a, fam, err, g) {
+  s1_cells$coverage[s1_cells$estimand == e & s1_cells$arm == a & s1_cells$crit == "z" & s1_cells$family == fam & s1_cells$error == err & s1_cells$G == g]
+}
+s1_sesd <- \(a, dep, g, e = "beta") {
+  mean(s1_cells$se_sd_ratio[s1_cells$arm == a & s1_cells$crit == "z" & s1_cells$estimand == e & (s1_cells$error != "iid") == dep & s1_cells$G == g])
+}
+```
+
+The comparison uses the `r nrow(s1_design)` main factorial settings at the default signal level
+($D =$ `r unique(s1_design$D)`, $G$ = `r paste(sort(unique(s1_design$G)), collapse = " or ")`,
+`r unique(s1_cells$n_rep)` replicates per setting) with common random numbers. Except for the fixed-$\lambda$ interval, every covariance is computed for the
+same REML fit of each replicate; these fits reproduce the stored fits of the main study to numerical
+precision. The intervals are the model-based interval ($\mathbf V_c$); CR1, CL2 with the
+$\mathbf I - \tilde{\mathbf H}_{gg}$ approximation, and CL2, all in the Bayesian form of @eq-s1-cl2; CL2 in the frequentist form; CL2 with the critical
+value $t_{G-1,0.975}$ in place of $z_{0.975}$; and CL2 after a refit of the same data with the
+smoothing parameters fixed, per penalty, at the geometric mean of the setting's REML estimates.
+The fixed-$\lambda$ refit removes the replicate-to-replicate variability of the smoothing parameters
+and also moves them to their typical level. @tbl-s1-beta, @tbl-s1-mean and @tbl-s1-alpha-gamma give
+the coverage, @tbl-s1-contrasts the paired differences.
+
+```{r tbl-s1-beta}
+#| tbl-cap: "Covariance components, $\\beta(s,t)$: grid-averaged coverage of nominal 95% pointwise intervals by family, error process and number of curves $G$, main factorial settings at the default signal level, 200 replicates. Model: model-based ($\\mathbf V_c$); CR1, CL2 $I - H$ (CL2 with the $\\mathbf I - \\tilde{\\mathbf H}_{gg}$ approximation) and CL2 in the Bayesian form; CL2 freq.: frequentist form; CL2 $t_{G-1}$: CL2 with $t$ critical value; CL2 fixed $\\lambda$: CL2 after a refit with smoothing parameters fixed at the setting's geometric-mean REML values."
+s1_kable(s1_cov_tab("beta"))
+```
+
+```{r tbl-s1-mean}
+#| tbl-cap: "Covariance components, mean $\\mathrm E(Y \\mid X)$: grid-averaged coverage of nominal 95% pointwise intervals, intervals and settings as for $\\beta(s,t)$."
+s1_kable(s1_cov_tab("mean"))
+```
+
+```{r tbl-s1-contrasts}
+#| tbl-cap: "Covariance components: paired coverage differences in percentage points, averaged over families and over the mean and $\\beta(s,t)$, by error process and number of curves $G$; in brackets the range of the per-setting paired Monte Carlo SEs (each from the replicate-level differences of one setting and estimand). Each difference compares two intervals on the same replicates; unless stated, both are CL2 in the Bayesian form with $z$ critical value. The SE of the averages cannot be recovered from the retained per-setting summaries, because the settings share replicates."
+s1_ct_labels <- c(
+  "CL2 - CR1" = "CL2 minus CR1",
+  "exact - shortcut" = "CL2 minus CL2 with $\\mathbf I - \\tilde{\\mathbf H}_{gg}$",
+  "Bayes - freq (CL2)" = "Bayesian minus frequentist, CL2",
+  "Bayes - freq (CR1)" = "Bayesian minus frequentist, CR1",
+  "t - z (CL2)" = "$t_{G-1}$ minus $z$",
+  "fixed - reselected (CL2)" = "fixed minus reselected $\\lambda$, CL2",
+  "fixed - reselected (model)" = "fixed minus reselected $\\lambda$, model-based"
+)
+s1_ct_tab <- tidyr::expand_grid(contrast = names(s1_ct_labels), dep = c(FALSE, TRUE), G = c(40, 100)) |>
+  mutate(v = purrr::pmap(list(contrast, dep, G), s1_ct)) |>
+  mutate(lo = 100 * purrr::map_dbl(v, "se_lo"), hi = 100 * purrr::map_dbl(v, "se_hi"),
+    cell = sprintf("%+.1f (%.2f–%.2f)", 100 * purrr::map_dbl(v, "diff"), lo, hi)) |>
+  mutate(col = paste0(if_else(dep, "dep", "ind"), G)) |>
+  select(contrast, col, cell) |>
+  pivot_wider(names_from = col, values_from = cell) |>
+  mutate(contrast = s1_ct_labels[contrast])
+knitr::kable(s1_ct_tab, format = "latex", booktabs = TRUE, escape = FALSE, linesep = "", align = "lrrrr",
+  col.names = c("contrast", "$G = 40$", "$G = 100$", "$G = 40$", "$G = 100$")) |>
+  kableExtra::add_header_above(c(" " = 1, "independent" = 2, "dependent" = 2))
+```
+
+Under dependence the leverage adjustment adds
+`r pp(s1_ct("CL2 - CR1", TRUE, 40)[["diff"]])` of coverage over CR1 at $G = 40$ and
+`r pp(s1_ct("CL2 - CR1", TRUE, 100)[["diff"]])` at $G = 100$; the full block adds at most
+`r pp(max(s1_contr$diff[s1_contr$contrast == "exact - shortcut" & s1_contr$estimand %in% c("mean", "beta")]))`
+in any setting over the $\mathbf I - \tilde{\mathbf H}_{gg}$ approximation (under dependence
+`r rng_pp(s1_contr$diff[s1_contr$contrast == "exact - shortcut" & s1_contr$estimand %in% c("mean", "beta") & s1_contr$error != "iid"])`),
+in line with
+$\mathbf A^{\mathrm s}_g\mathbf R_g\mathbf A^{\mathrm s}_g \preceq \mathbf I$. The allowance $\mathbf V_p - \mathbf V_e$ matters
+under independent errors (`r pp(s1_ct("Bayes - freq (CL2)", FALSE, 40)[["diff"]])` at $G = 40$),
+much less under dependence (`r pp(s1_ct("Bayes - freq (CL2)", TRUE, 40)[["diff"]])`). With
+reselected smoothing parameters, the grid average of CL2's root-mean-square
+standard error divided by the empirical standard deviation of $\hat\beta$ under dependence is `r f(s1_sesd("cl2e_b", TRUE, 40), 2)` at $G = 40$ and
+`r f(s1_sesd("cl2e_b", TRUE, 100), 2)` at $G = 100$; with fixed smoothing parameters it is
+`r f(s1_sesd("fix_cl2e_b", TRUE, 40), 2)` and `r f(s1_sesd("fix_cl2e_b", TRUE, 100), 2)`, and CL2
+coverage of $\beta$ rises from `r f(s1_cta("cl2e_b", TRUE, 40), 3)` to
+`r f(s1_cta("fix_cl2e_b", TRUE, 40), 3)` at $G = 40$. Fixing the smoothing parameters, which @eq-s1-cl2 conditions on, at their typical level closes most
+of the remaining shortfall at $G = 40$; the $t_{G-1}$ critical value recovers
+`r pp(s1_ct("t - z (CL2)", TRUE, 40)[["diff"]])` of it. Fixed smoothing parameters also raise CL2
+coverage of $\alpha(t)$ and $\gamma(t)$ under dependence (@tbl-s1-alpha-gamma): for binary responses with smooth errors at
+$G = 40$, CL2 coverage of $\alpha(t)$ rises from `r f(s1_cell("alpha", "cl2e_b", "binomial", "fpc", 40), 3)`
+to `r f(s1_cell("alpha", "fix_cl2e_b", "binomial", "fpc", 40), 3)` and that of $\gamma(t)$ from
+`r f(s1_cell("gamma", "cl2e_b", "binomial", "fpc", 40), 3)` to
+`r f(s1_cell("gamma", "fix_cl2e_b", "binomial", "fpc", 40), 3)`. Under independent errors the binary
+$\alpha(t)$ at $G = 40$ stays below nominal with fixed smoothing parameters
+(`r f(s1_cell("alpha", "fix_cl2e_b", "binomial", "iid", 40), 3)`).
+
+```{r tbl-s1-alpha-gamma}
+#| tbl-cap: "Covariance components, intercept $\\alpha(t)$ and coefficient function $\\gamma(t)$: grid-averaged coverage of nominal 95% pointwise intervals, settings as for $\\beta(s,t)$; model-based ($\\mathbf V_c$), CR1 and CL2 (Bayesian form), and CL2 after a refit with smoothing parameters fixed at the setting's geometric-mean REML values."
+s1_ag_arms <- s1_arms |> filter(arm %in% c("model", "cr1_b", "cl2e_b", "fix_cl2e_b"), crit == "z")
+s1_ag <- s1_cells |>
+  filter(estimand %in% c("alpha", "gamma")) |>
+  inner_join(s1_ag_arms, by = c("arm", "crit")) |>
+  mutate(key = paste(estimand, match(label, s1_ag_arms$label)), family = label_family(family), error = s1_err[error]) |>
+  select(family, error, G, key, coverage) |>
+  pivot_wider(names_from = key, values_from = coverage, names_sort = TRUE) |>
+  arrange(family, factor(error, s1_err), G) |>
+  mutate(family = as.character(family), error = as.character(error))
+s1_ag <- as.data.frame(s1_ag)
+names(s1_ag)[4:11] <- rep(s1_ag_arms$label, 2)
+s1_kable(s1_ag) |>
+  kableExtra::add_header_above(c(" " = 3, "$\\\\alpha(t)$" = 4, "$\\\\gamma(t)$" = 4), escape = FALSE)
+```
+
+## Satterthwaite degrees of freedom
+
+For a contrast $\mathbf a^\top\boldsymbol\theta$ the sandwich part of @eq-s1-cl2 is a quadratic form
+in the whitened residuals, $\mathbf a^\top\mathbf V_p(\sum_g\mathbf U_g\mathbf U_g^\top)\mathbf V_p\mathbf a = \sum_g (\mathbf q_g^\top\mathbf z_g)^2$
+with $\mathbf q_g = \mathbf R_g^{-1/2}\tilde{\mathbf X}_g\mathbf V_p\mathbf a$ (times $G/(G-1)$). Under the
+Gaussian working model with fixed smoothing parameters, $\mathbf z = (\mathbf I - \tilde{\mathbf H})\boldsymbol\varepsilon$
+with independent errors. The quadratic form then has mean $\operatorname{tr}\boldsymbol\Gamma$ and variance
+$2\operatorname{tr}(\boldsymbol\Gamma^2)$, where the $G \times G$ matrix $\boldsymbol\Gamma$ has entries
+$\Gamma_{gh} = \mathbf q_g^\top[(\mathbf I - \tilde{\mathbf H})(\mathbf I - \tilde{\mathbf H})^\top]_{gh}\mathbf q_h$.
+Matching a scaled $\chi^2_\nu$ gives the Satterthwaite degrees of freedom
+$$
+\nu(\mathbf a) = \frac{(\operatorname{tr}\boldsymbol\Gamma)^2}{\operatorname{tr}(\boldsymbol\Gamma^2)}
+$$ {#eq-s1-satt}
+[@BellMcCaffrey2002; @PustejovskyTipton2018], computed for every evaluation point; the interval
+uses $t_{\nu, 0.975}$ in place of $z_{0.975}$. The Satterthwaite intervals evaluated here compute
+@eq-s1-satt for the sandwich part only. A variant matches the moments of the full Bayesian CL2 variance,
+whose term $\mathbf a^\top(\mathbf V_p - \mathbf V_e)\mathbf a$ is fixed, which increases $\nu$.
+Using only the diagonal of $\boldsymbol\Gamma$ gives practically the same $\nu$.
+
+The Satterthwaite intervals use the REML fits and CL2 covariances of Appendix A.6 (the `r n_distinct(SAT$cell)`
+main factorial settings at the default signal level, `r unique(SAT$n_rep)` replicates); @sec-res-intervals,
+@sec-plasmode-results and Supplement S1.2, S1.7 and S2.1 give them with 20 curves, in the extensions and on the
+plasmode data. The median
+per-point degrees of freedom are `r rng(SATD$df_median[SATD$G == 40], 0)` with $G = 40$ curves and
+`r rng(SATD$df_median[SATD$G == 100], 0)` with $G = 100$, between
+`r rng(SATD$df_median_rel, 2)` times $G - 1$. Under dependent errors, Satterthwaite intervals cover the
+mean, $\beta$ and $\gamma$ at `r rng(satv("satt", 40))` with 40 curves (normal critical value:
+`r rng(satv("z", 40))`) and at `r rng(satv("satt", 100))` with 100 (`r rng(satv("z", 100))`), at
+`r rng(satv("satt", 40, col = "wr"), 2)` and `r rng(satv("satt", 100, col = "wr"), 2)` times the width
+(next table). The binary intercept is not repaired: `r rng(satv("satt", c(40, 100), "alpha", fam = "binomial"))`
+under dependence and `r rng(satv("satt", c(40, 100), "alpha", "independent", fam = "binomial"))` under
+independent errors. For this term the Satterthwaite degrees of freedom are large (the intervals widen
+by only `r rng(satv("satt", c(40, 100), "alpha", fam = "binomial", col = "wr"), 2)` times), so the reference
+distribution cannot make up for a standard error that is too small under independent errors or for the
+additional shift of the studentized error under dependence (Section 4.1, Supplement S1.4). Under
+independent errors Satterthwaite intervals overcover $\beta$ further
+(`r rng(satv("satt", c(40, 100), "beta", "independent"))`). The variant whose degrees of freedom include
+$\mathbf V_p - \mathbf V_e$ lies between $t_{G-1}$ and the plain Satterthwaite reference.
+
+```{r t-s1-satt}
+#| output: asis
+stab(sat_tab, "Critical values for REML + CL2: grid-averaged coverage (5% quantile of pointwise coverage) and width relative to the normal critical value, by dependence, number of curves $G$, family and estimand; means over the error processes of the main factorial at the default signal level, 200 replicates. Satterthwaite: per-point degrees of freedom for the sandwich part; incl. Vp - Ve: degrees of freedom for the full Bayesian CL2 variance.", long = TRUE, font = 6)
+```

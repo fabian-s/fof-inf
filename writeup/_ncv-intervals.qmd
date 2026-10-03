@@ -1,0 +1,121 @@
+# Intervals centred at the NCV fit {#sec-ncv-intervals}
+
+NCV + CL2 under-covers (@sec-bias-aware). This section collects the diagnosis and every correction evaluated
+(`ncv-rbc/`, `lambda-correction/`): a one-step bias correction of the NCV estimate (θ̃ = (2I − A)θ̂ with
+A = V_e V_p⁻¹, covariance propagated through the same linear map; frequentist CL2 inside, plus the Bayesian
+allowance propagated as (I − A)(V_p − V_e)(I − A)'), two steps of it, a cluster-robust term for the variability of
+the NCV smoothing parameters (infinitesimal jackknife over curves, with or without the cross term between
+coefficients and smoothing parameters; Gaussian only), their combinations, and the NCV estimate with REML + CL2's
+half-width. Replicates: synthetic Gaussian/Poisson/binary core and rough-truth cells, fresh replicates 201–400
+(combinations: Gaussian, 201–300); plasmode cells with all subjects and curve flips, replicates 1–100
+(combinations 1–50); misspecified truths with the default basis, replicates 1–100. SE/SD: median over grid points
+of the root-mean-square estimated SE over the replicate SD of the estimate.
+
+```{r ncvi-load}
+NR <- \(f) readr::read_csv(file.path("ncv-rbc/summaries", f), show_col_types = FALSE)
+NCVI_ARMS <- c(reml_cl2 = "REML + CL2", ncv_cl2 = "NCV + CL2", rbc_p = "bias-corrected (1 step)",
+  rbc2_f = "bias-corrected (2 steps, freq.)", ncv_ij = "NCV + λ term", ncv_ijx = "NCV + λ term (cross)",
+  rbc_p_ij = "1 step + λ term", rbc_p_ijx = "1 step + λ term (cross)", rbc2_p_ijx = "2 steps + λ term (cross)",
+  ncvfix_cl2 = "NCV, λ fixed at median (oracle)", hybrid = "NCV estimate, REML + CL2 width")
+pm_keys <- read_summary("plasmode", "ncv-diag-cells") |> distinct(cell, app, truth)
+syn_keys <- S |> distinct(cell, block, family, error)
+ncvi_fmt <- \(d) d |> mutate(arm = factor(NCVI_ARMS[arm], NCVI_ARMS))
+# synthetic, single-fit corrections (all families), fresh replicates
+nv_syn <- NR("rbc-fresh-cells.csv") |> left_join(syn_keys, by = "cell") |>
+  filter(estimand == "beta", error != "iid", arm %in% c("reml_cl2", "ncv_cl2", "rbc_p", "rbc2_f")) |>
+  group_by(cell) |> mutate(width = halfwidth / halfwidth[arm == "reml_cl2"]) |> ungroup() |>
+  mutate(group = paste(if_else(block == "core", "smooth truth", "rough truth"), if_else(family == "binomial", "binary", "Gaussian/Poisson"), sep = ", ")) |>
+  group_by(group, arm) |>
+  summarise(cells = n(), cov_min = min(coverage), coverage = mean(coverage), q05 = mean(coverage_q05), width = mean(width),
+            se_sd = mean(se_sd), detect = mean(detect), .groups = "drop") |> ncvi_fmt() |> arrange(group, arm)
+save_tab(nv_syn, "ncv-intervals-synthetic")
+# synthetic combinations (Gaussian), reps 201-300; REML + CL2 from the same cells (reps 201-400)
+nv_comb <- bind_rows(NR("combo2-syn-cells.csv"), NR("rbc-fresh-cells.csv") |> filter(arm == "reml_cl2", cell %in% NR("combo2-syn-cells.csv")$cell)) |>
+  left_join(syn_keys, by = "cell") |> filter(estimand == "beta") |>
+  group_by(cell) |> mutate(width = halfwidth / halfwidth[arm == "reml_cl2"]) |> ungroup() |>
+  mutate(group = if_else(block == "core", "smooth truth", "rough truth")) |>
+  group_by(group, arm) |>
+  summarise(coverage = mean(coverage), q05 = mean(coverage_q05), width = mean(width), se_sd = mean(se_sd), .groups = "drop") |>
+  filter(arm %in% names(NCVI_ARMS)) |> ncvi_fmt() |> arrange(group, arm)
+save_tab(nv_comb, "ncv-intervals-combination-synthetic")
+# plasmode per dataset
+pm_all <- bind_rows(NR("combo2-pm-cells.csv"), NR("fixlam-plasmode-cells.csv"), NR("rbc-plasmode-cells.csv") |> filter(arm == "reml_cl2")) |>
+  left_join(pm_keys, by = "cell") |> filter(estimand == "beta", !is.na(app))
+nv_pm <- pm_all |> filter(arm %in% c("reml_cl2", "ncv_cl2", "ncvfix_cl2", "rbc_p", "ncv_ij", "rbc_p_ij", "rbc_p_ijx")) |>
+  group_by(app, arm) |> summarise(v = sprintf("%.2f (%.2f) %.2f", mean(coverage), mean(coverage_q05), mean(se_sd)), .groups = "drop") |>
+  mutate(arm = NCVI_ARMS[arm], app = label_app(app)) |>
+  pivot_wider(names_from = arm, values_from = v) |> arrange(app)
+save_tab(nv_pm, "ncv-intervals-plasmode")
+pmv <- \(a, col = "coverage") pm_all |> filter(arm == a) |> group_by(app) |> summarise(v = mean(.data[[col]]), .groups = "drop") |> pull(v)
+# misspecified truths
+ms_keys <- readr::read_csv("misspec/summaries/misspec-cells.csv", show_col_types = FALSE) |> distinct(cell, truth_label, error, G, basis)
+nv_ms <- bind_rows(
+  NR("combo2-ms-cells.csv") |> filter(arm %in% c("ncv_cl2", "rbc_p", "rbc_p_ij", "rbc2_p_ijx")),
+  readr::read_csv("misspec/summaries/misspec-cells.csv", show_col_types = FALSE) |> filter(arm == "reml_cl2", basis == "default", cell %in% NR("combo2-ms-cells.csv")$cell) |>
+    transmute(cell, estimand, arm, coverage, coverage_q05 = pointwise_q05)
+) |> left_join(ms_keys, by = "cell") |> filter(estimand == "beta") |>
+  mutate(setting = paste(truth_label, if_else(error == "iid", "independent", "smooth errors"), paste0("G = ", G)),
+         v = sprintf("%.2f (%.2f)", coverage, coverage_q05), arm = NCVI_ARMS[arm]) |>
+  select(setting, arm, v) |> pivot_wider(names_from = arm, values_from = v) |> arrange(setting)
+save_tab(nv_ms, "ncv-intervals-misspec")
+# interval scores (paired replicates)
+sc <- bind_rows(
+  bind_rows(NR("score-fresh-cells.csv") |> filter(arm %in% c("reml_cl2", "ncv_cl2", "hybrid")), NR("score-combo-syn-cells.csv") |> filter(arm == "rbc_p_ijx")) |>
+    filter(cell %in% NR("score-combo-syn-cells.csv")$cell) |> left_join(syn_keys, by = "cell") |>
+    mutate(setting = if_else(block == "core", "synthetic, smooth truth", "synthetic, rough truth")),
+  bind_rows(NR("score-pm2-cells.csv") |> filter(arm %in% c("reml_cl2", "ncv_cl2", "hybrid")), NR("score-combo-pm-cells.csv") |> filter(arm == "rbc_p_ijx")) |>
+    left_join(pm_keys, by = "cell") |> mutate(setting = paste0("plasmode, ", truth, "-fitted truth"))
+) |> filter(estimand == "beta") |>
+  group_by(cell, setting) |> mutate(score_rel = score / score[arm == "reml_cl2"], det_rel = detect - detect[arm == "reml_cl2"]) |> ungroup() |>
+  group_by(setting, arm) |>
+  summarise(coverage = mean(coverage), q05 = mean(coverage_q05), score_vs_REML = exp(mean(log(score_rel))), detection = mean(detect), .groups = "drop") |>
+  ncvi_fmt() |> arrange(setting, arm)
+save_tab(sc, "ncv-intervals-scores")
+```
+
+**Why NCV + CL2 misses.** In the synthetic Gaussian/Poisson cells its SE matches the spread of the NCV estimate
+and the shortfall is smoothing bias (mean |bias|/SD of β 0.24–0.36 with the smooth truth, 0.46–0.74 with the rough
+truth; @sec-bias-aware). On the plasmode datasets two things go wrong. Its SE is short (SE/SD
+`r rng(pmv("ncv_cl2", "se_sd"))` across datasets), and refitting with the smoothing parameters fixed at each cell's
+median NCV value restores the SE (`r rng(pmv("ncvfix_cl2", "se_sd"))`), so the shortfall comes from the variability of
+the selected smoothing parameters. Even then coverage of β stays at `r rng(pmv("ncvfix_cl2"))`: smoothing bias at the
+amount of smoothing NCV selects remains (@tbl-ncvi-pm).
+
+**Corrections.** The one-step bias correction removes part of the bias on synthetic data (@tbl-ncvi-syn) but not
+enough on rough truths or for binary responses, and adds little on the plasmode datasets. The λ term, alone or
+combined with the bias correction, raises coverage further but overshoots the variance (SE/SD above 1) on
+synthetic data (@tbl-ncvi-comb) and still leaves β at `r rng(pmv("rbc_p_ij"))` (one step + λ term) on the plasmode
+datasets. With truths outside the spline space every NCV-centred interval fails (@tbl-ncvi-ms). The NCV estimate
+with REML + CL2's half-width has REML + CL2's width by construction; its better interval score reflects only the more
+accurate centre, its detection of clearly non-zero points is lower, and it under-covers under the REML-fitted truth
+(@tbl-ncvi-scores; @sec-hybrid).
+
+```{r}
+#| label: tbl-ncvi-syn
+#| tbl-cap: "Synthetic dependent cells, β, fresh replicates: coverage (mean and minimum over cells), 5% pointwise quantile, half-width relative to REML + CL2, SE/SD and detection, per construction."
+show(nv_syn, digits = 3)
+```
+
+```{r}
+#| label: tbl-ncvi-comb
+#| tbl-cap: "Combinations with the smoothing-parameter term (Gaussian dependent cells, replicates 201–300; REML + CL2 from replicates 201–400 of the same cells): β coverage, 5% pointwise quantile, half-width relative to REML + CL2, SE/SD."
+show(nv_comb, digits = 3)
+```
+
+```{r}
+#| label: tbl-ncvi-pm
+#| tbl-cap: "Plasmode datasets, β: coverage (5% pointwise quantile) SE/SD per construction, mean over truth and residual sources (all subjects, curve flips)."
+show(nv_pm)
+```
+
+```{r}
+#| label: tbl-ncvi-ms
+#| tbl-cap: "Misspecified truths (default basis), β: coverage (5% pointwise quantile) per construction; REML + CL2 from the misspecification study (replicates 1–200)."
+show(nv_ms)
+```
+
+```{r}
+#| label: tbl-ncvi-scores
+#| tbl-cap: "Interval score relative to REML + CL2 (geometric mean of per-cell ratios; < 1 better), coverage, 5% pointwise quantile and detection, β, paired replicates (synthetic 201–300, plasmode 1–50)."
+show(sc, digits = 3)
+```

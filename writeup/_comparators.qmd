@@ -1,0 +1,221 @@
+# Same-package comparators {#sec-comparators}
+
+refund's own remedies for dependent residuals against REML + CL2 (`comparators/`, Gaussian M1; R = 200 with
+common random numbers, REML estimates and SEs equal to the study's records). Cells: the six Gaussian core
+cells (iid / OU / smooth errors × G = 40, 100, default signal) and twelve plasmode cells (the six datasets with
+independent curves, log-midpoint truth, REML residuals, curve flips, all subjects and G = 40). Arms:
+
+- REML model-based (V_c) and REML + CL2 (the study's arms);
+- pcre: REML fit with a `pcre()` curve effect on the eigenfunctions of the REML residual curves (`fpca.sc`,
+  pve 0.95), model-based V_c;
+- GLS raw / GLS FPCA: the pre-deprecation `pffr_gls()` algorithm (refund's `pffrGLS()` only errors in the study
+  build) with the residual covariance estimated by the raw covariance of the REML residual curves (refund's
+  documented use) or by the FPCA covariance plus white noise; model-based V_c;
+- curve bootstrap of the REML fit (resampling and refit as `pffr_coefboot()`, B = 199, replicates 1–100):
+  percentile intervals and bootstrap-SE Wald intervals around the REML estimate.
+
+Point estimates: pcre and both GLS arms have their own; the bootstrap arms use the REML estimate. NCV's
+estimates for the same cells and replicates come from the study (`summaries/final/cells.csv`,
+`summaries/plasmode/coverage.csv`). Relative error as in @sec-relerr, at the cell level: √(MSE / grid mean of the
+squared truth), the truth centred for the mean and α(t).
+
+```{r comp-load}
+CMP <- readr::read_csv("comparators/summaries/comparators-cells.csv", show_col_types = FALSE)
+CMPF <- readr::read_csv("comparators/summaries/comparators-fits.csv", show_col_types = FALSE)
+CMP_ARMS <- c(reml_model = "REML model-based", reml_cl2 = "REML + CL2", pcre = "pcre", gls_fpc = "GLS (FPCA cov.)",
+              gls_raw = "GLS (raw cov.)", boot_pct = "bootstrap percentile", boot_wald = "bootstrap Wald")
+# NCV estimates for the same cells (study records; same replicates by common random numbers)
+ncv_syn <- S |> filter(cell %in% CMP$cell[CMP$source == "synthetic"], arm %in% c("ncv_cl2", "reml_cl2")) |>
+  transmute(source = "synthetic", cell, estimand, arm, mse)
+ncv_pm <- read_summary("plasmode", "coverage") |>
+  filter(truth == "MID", residual == "REML", flip == "curve", error == "attached", arm %in% c("ncv_cl2", "reml_cl2")) |>
+  select(app, G, estimand, arm, mse) |>
+  inner_join(CMP |> filter(source == "plasmode") |> distinct(cell, app, G), by = c("app", "G")) |>
+  transmute(source = "plasmode", cell, estimand, arm, mse)
+# check: REML MSE identical in both sources
+cmp_chk <- bind_rows(ncv_syn, ncv_pm) |> filter(arm == "reml_cl2") |>
+  inner_join(CMP |> filter(arm == "reml_cl2") |> select(source, cell, estimand, mse_c = mse), by = c("source", "cell", "estimand"))
+stopifnot(nrow(cmp_chk) > 0, max(abs(cmp_chk$mse / cmp_chk$mse_c - 1)) < 1e-6)
+cmp_den <- bind_rows(
+  read_summary("final", "relative-error") |> mutate(source = "synthetic"),
+  read_summary("plasmode", "relative-error") |> mutate(source = "plasmode")
+) |> distinct(source, cell, estimand, denom)
+cmp_est_arms <- c(REML = "reml_cl2", NCV = "ncv_cl2", pcre = "pcre", `GLS (FPCA cov.)` = "gls_fpc", `GLS (raw cov.)` = "gls_raw")
+CMP_EST <- bind_rows(
+  CMP |> filter(arm %in% c("reml_cl2", "pcre", "gls_fpc", "gls_raw")) |> select(source, cell, estimand, arm, mse),
+  bind_rows(ncv_syn, ncv_pm) |> filter(arm == "ncv_cl2")
+) |>
+  left_join(CMP |> distinct(source, cell, label, error, app, G), by = c("source", "cell")) |>
+  left_join(cmp_den, by = c("source", "cell", "estimand")) |>
+  mutate(rel = sqrt(mse / denom), fit = factor(names(cmp_est_arms)[match(arm, cmp_est_arms)], names(cmp_est_arms)),
+         setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent"))
+stopifnot(!anyNA(CMP_EST$rel))
+cmp_ratio <- CMP_EST |> group_by(source, cell, estimand) |>
+  mutate(vs_REML = mse / mse[fit == "REML"], vs_NCV = mse / mse[fit == "NCV"]) |> ungroup()
+cmp_er <- \(f, e, set, col = "vs_NCV") cmp_ratio[[col]][cmp_ratio$fit == f & cmp_ratio$estimand == e & cmp_ratio$setting == set]
+cmp_cv <- \(a, e, set) {
+  d <- CMP |> mutate(setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent"))
+  d$coverage[d$arm == a & d$estimand == e & d$setting == set]
+}
+```
+
+```{r fig-comp-coverage}
+#| fig-cap: "Same-package comparators: grid-averaged coverage per cell (points) by estimand and setting; dashed: nominal 0.95. Synthetic: Gaussian core cells (independent: iid; dependent: OU and smooth errors); plasmode: six datasets with independent curves, all subjects and G = 40."
+#| fig-height: 5.5
+d <- CMP |>
+  mutate(setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent"),
+         arm = factor(CMP_ARMS[arm], rev(CMP_ARMS)), estimand = label_estimand(estimand))
+fig <- ggplot(d, aes(coverage, arm)) +
+  geom_vline(xintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_point(position = position_jitter(height = 0.15, width = 0, seed = 1), size = 1, alpha = 0.7) +
+  facet_grid(estimand ~ setting) +
+  labs(x = "coverage (grid average)", y = NULL) +
+  theme_doc
+save_fig(fig, "comparators-coverage", 7, 5.5)
+fig
+```
+
+```{r fig-comp-estimation}
+#| fig-cap: "Point-estimate accuracy of the comparators relative to the NCV fit: MSE of each estimator divided by the NCV fit's MSE per cell (log scale; < 1 = better than NCV), by estimand and setting. REML is included for reference; the bootstrap arms use the REML estimate."
+#| fig-height: 5
+d <- cmp_ratio |> filter(fit != "NCV") |> mutate(estimand = label_estimand(estimand))
+fig <- ggplot(d, aes(vs_NCV, fit)) +
+  geom_vline(xintercept = 1, linetype = 2, colour = "grey40") +
+  geom_point(position = position_jitter(height = 0.15, width = 0, seed = 1), size = 1, alpha = 0.7) +
+  scale_x_log10() +
+  facet_grid(estimand ~ setting) +
+  labs(x = "MSE / MSE of the NCV fit (log scale)", y = NULL) +
+  theme_doc
+save_fig(fig, "comparators-estimation", 7, 5)
+fig
+```
+
+```{r comp-tables}
+comp_cov <- CMP |>
+  mutate(setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent")) |>
+  group_by(setting, estimand, cell) |>
+  mutate(width_rel = width / width[arm == "reml_cl2"], score_rel = score / score[arm == "reml_cl2"]) |>
+  group_by(setting, estimand, arm) |>
+  summarise(cells = n(), coverage_min = min(coverage), coverage = mean(coverage), q05 = mean(pointwise_q05),
+            width_rel = exp(mean(log(width_rel))), score_rel = exp(mean(log(score_rel))), .groups = "drop") |>
+  mutate(arm = factor(CMP_ARMS[arm], CMP_ARMS), estimand = label_estimand(estimand)) |>
+  select(setting, estimand, arm, cells, coverage, coverage_min, q05, width_rel, score_rel) |>
+  arrange(setting, estimand, arm)
+save_tab(comp_cov, "comparators-coverage")
+comp_est <- cmp_ratio |>
+  group_by(setting, estimand, fit) |>
+  summarise(cells = n(), rel_error = median(rel), mse_vs_REML = exp(mean(log(vs_REML))),
+            vs_NCV_min = min(vs_NCV), vs_NCV_max = max(vs_NCV), mse_vs_NCV = exp(mean(log(vs_NCV))), .groups = "drop") |>
+  mutate(estimand = label_estimand(estimand)) |>
+  arrange(setting, estimand, fit)
+save_tab(comp_est, "comparators-estimation")
+comp_est_pm <- cmp_ratio |> filter(source == "plasmode", estimand == "beta") |>
+  select(app, G, fit, rel) |> pivot_wider(names_from = fit, values_from = rel) |>
+  mutate(app = label_app(app)) |> arrange(app, desc(G))
+save_tab(comp_est_pm, "comparators-estimation-plasmode-beta")
+comp_time <- CMPF |> group_by(arm) |> summarise(median_s = median(time), q90_s = unname(quantile(time, 0.9)), .groups = "drop")
+save_tab(comp_time, "comparators-time")
+cmp_gm <- \(x) exp(mean(log(x)))
+```
+
+**Coverage.** Under dependent synthetic errors pcre and GLS with the FPCA covariance cover β at
+`r rng(cmp_cv("pcre", "beta", "synthetic, dependent"))` and `r rng(cmp_cv("gls_fpc", "beta", "synthetic, dependent"))`,
+REML + CL2 at `r rng(cmp_cv("reml_cl2", "beta", "synthetic, dependent"))`. On the plasmode cells, with real residual
+curves, they fall to `r rng(cmp_cv("pcre", "beta", "plasmode"))` and `r rng(cmp_cv("gls_fpc", "beta", "plasmode"))`
+while REML + CL2 stays at `r rng(cmp_cv("reml_cl2", "beta", "plasmode"))` (@fig-comp-coverage, @tbl-comp-coverage).
+GLS with the raw residual covariance, refund's documented use, undercovers everywhere (β
+`r rng(cmp_cv("gls_raw", "beta", "synthetic, independent"))` even under independent errors). pcre's intervals for
+α(t) cover at `r rng(cmp_cv("pcre", "alpha", "synthetic, dependent"))` under dependent synthetic errors. The curve
+bootstrap covers β at `r rng(cmp_cv("boot_pct", "beta", "plasmode"))` (percentile, plasmode) with intervals
+`r f(cmp_gm(comp_cov$width_rel[comp_cov$arm == CMP_ARMS[["boot_pct"]] & comp_cov$estimand == label_estimand("beta") & comp_cov$setting == "plasmode"]), 2)`
+times as wide as REML + CL2's, at a median of `r f(comp_time$median_s[comp_time$arm == "BOOT"], 0)` s per replicate
+against `r f(comp_time$median_s[comp_time$arm == "REML"], 1)` s for the REML fit.
+
+**Point estimates.** Relative to the NCV fit, the β MSE of pcre and of GLS (FPCA covariance) is
+`r rng(cmp_er("pcre", "beta", "synthetic, dependent"))` and `r rng(cmp_er("GLS (FPCA cov.)", "beta", "synthetic, dependent"))`
+times NCV's under dependent synthetic errors, REML's `r rng(cmp_er("REML", "beta", "synthetic, dependent"))` times
+(@fig-comp-estimation, @tbl-comp-estimation): both remedies remove most of REML's excess error but stay
+`r if (all(cmp_er("pcre", "beta", "synthetic, dependent") > 1)) "above" else "around"` NCV's. On the plasmode cells
+the ratios are `r rng(cmp_er("pcre", "beta", "plasmode"))` (pcre) and `r rng(cmp_er("GLS (FPCA cov.)", "beta", "plasmode"))`
+(GLS FPCA), against `r rng(cmp_er("REML", "beta", "plasmode"))` for REML; pcre's MSE is below NCV's in
+`r sum(cmp_er("pcre", "beta", "plasmode") < 1)` of `r length(cmp_er("pcre", "beta", "plasmode"))` cells. For the mean the
+ratios of pcre to NCV are `r rng(cmp_er("pcre", "mean", "synthetic, dependent"))` (synthetic dependent) and
+`r rng(cmp_er("pcre", "mean", "plasmode"))` (plasmode); for γ(t) `r rng(cmp_er("pcre", "gamma", "synthetic, dependent"))` and
+`r rng(cmp_er("pcre", "gamma", "plasmode"))`; for α(t) `r rng(cmp_er("pcre", "alpha", "synthetic, dependent"))` and
+`r rng(cmp_er("pcre", "alpha", "plasmode"))`. Under independent errors pcre and GLS (FPCA) estimate β like the REML fit
+(MSE `r rng(cmp_er("pcre", "beta", "synthetic, independent", "vs_REML"))` and
+`r rng(cmp_er("GLS (FPCA cov.)", "beta", "synthetic, independent", "vs_REML"))` times REML's), and NCV
+`r rng(cmp_er("NCV", "beta", "synthetic, independent", "vs_REML"))` times. Relative errors of β per plasmode cell are in
+@tbl-comp-est-pm.
+
+```{r}
+#| label: tbl-comp-coverage
+#| tbl-cap: "Same-package comparators: mean and minimum coverage over cells, mean 5% pointwise quantile, and width and interval score relative to REML + CL2 (geometric means of per-cell ratios), by setting, estimand and arm."
+show(comp_cov |> mutate(setting = recode(setting, `synthetic, dependent` = "syn. dep.", `synthetic, independent` = "syn. iid")), digits = 2)
+```
+
+```{r}
+#| label: tbl-comp-estimation
+#| tbl-cap: "Point-estimate accuracy: median relative error over cells, and MSE relative to REML and to the NCV fit (geometric mean of per-cell ratios; range for NCV), by setting, estimand and estimator. The bootstrap arms share the REML estimate."
+show(comp_est |> mutate(setting = recode(setting, `synthetic, dependent` = "syn. dep.", `synthetic, independent` = "syn. iid")), digits = 2)
+```
+
+```{r}
+#| label: tbl-comp-est-pm
+#| tbl-cap: "Relative error of the β estimate per plasmode comparator cell (log-midpoint truth, REML residuals; all subjects and G = 40)."
+show(comp_est_pm, digits = 2)
+```
+
+Comparator run details (bootstrap on replicates 1–100; the GLS algorithm rebuilt from refund's internals, with
+the documented nearPD repair because refund's `compute_sqrt_sigma_inv()` returns NaN for a singular residual
+covariance; two failed bootstrap rows in DTI at G = 40, kept; time per arm in `comparators-time.csv`):
+`comparators/summaries/SUMMARY.md`.
+
+## CL2 on the GLS and pcre fits {#sec-comp-cl2}
+
+GLS whitens each curve with Σ̂^{-1/2}; the transform acts within curves, so curves stay independent clusters and
+CL2 (Bayesian form, curves as clusters) applies to the whitened fit, valid even if Σ̂ is wrong. pcre + CL2 is CL2 on
+the pcre fit. Same cells and replicates as above; shown here for replicates 1–100, where all arms exist
+(`comparators/summaries/cl2-arms-cells.csv`, `cl2-arms-SUMMARY.md`: CL2 on the whitened fit reproduces refund's
+`pffr_vcov()` construction and a direct dense computation to ~1e-10; one pcre + CL2 replicate failed in the SVD
+and is excluded for that arm only).
+
+```{r cl2arms}
+CA <- readr::read_csv("comparators/summaries/cl2-arms-cells.csv", show_col_types = FALSE) |>
+  filter(window == "1-100") |>
+  mutate(setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent"))
+CA_ARMS <- c(reml_cl2 = "REML + CL2", ncv_cl2 = "NCV + CL2", gls_fpc = "GLS (FPCA cov.)", gls_fpc_cl2 = "GLS (FPCA cov.) + CL2",
+             gls_raw_cl2 = "GLS (raw cov.) + CL2", pcre = "pcre", pcre_cl2 = "pcre + CL2")
+ca_tab <- CA |> filter(arm %in% names(CA_ARMS)) |>
+  group_by(setting, estimand, cell) |>
+  mutate(width_rel = width / width[arm == "reml_cl2"], score_rel = score / score[arm == "reml_cl2"],
+         mse_vs_NCV = mse / mse[arm == "ncv_cl2"]) |>
+  group_by(setting, estimand, arm) |>
+  summarise(cov_min = min(coverage), coverage = mean(coverage), q05 = mean(pointwise_q05), width_rel = exp(mean(log(width_rel))),
+            score_rel = exp(mean(log(score_rel))), mse_vs_NCV = exp(mean(log(mse_vs_NCV))), detection = mean(detection), .groups = "drop") |>
+  mutate(arm = factor(CA_ARMS[arm], CA_ARMS), estimand = label_estimand(estimand)) |>
+  select(setting, estimand, arm, coverage, cov_min, q05, width_rel, score_rel, mse_vs_NCV, detection) |>
+  arrange(setting, estimand, arm)
+save_tab(ca_tab, "comparators-cl2-arms")
+cav <- \(a, set, col = "coverage", e = "beta") ca_tab[[col]][ca_tab$arm == CA_ARMS[[a]] & ca_tab$setting == set & ca_tab$estimand == label_estimand(e)]
+ca_pm_app <- CA |> filter(source == "plasmode", estimand == "beta", arm == "gls_fpc_cl2") |>
+  group_by(app) |> summarise(v = mean(coverage), .groups = "drop")
+```
+
+Under dependent synthetic errors GLS (FPCA covariance) + CL2 covers β at `r f(cav("gls_fpc_cl2", "synthetic, dependent"), 3)`
+at `r f(cav("gls_fpc_cl2", "synthetic, dependent", "width_rel"), 2)` times REML + CL2's width (interval score
+`r f(cav("gls_fpc_cl2", "synthetic, dependent", "score_rel"), 2)` times). On the plasmode cells it covers β at
+`r f(cav("gls_fpc_cl2", "plasmode"), 3)` (per dataset `r rng(ca_pm_app$v)`; plain GLS `r f(cav("gls_fpc", "plasmode"), 3)`,
+REML + CL2 `r f(cav("reml_cl2", "plasmode"), 3)`) at `r f(cav("gls_fpc_cl2", "plasmode", "width_rel"), 2)` times the
+width; its SE matches the spread of the GLS estimate there (`cl2-arms-SUMMARY.md`), so the remaining shortfall is
+bias of the GLS estimate on real residual curves. pcre + CL2 behaves alike (β `r f(cav("pcre_cl2", "plasmode"), 3)`)
+and repairs pcre's α intervals on synthetic data (`r f(cav("pcre", "synthetic, dependent", "coverage", "alpha"), 2)` →
+`r f(cav("pcre_cl2", "synthetic, dependent", "coverage", "alpha"), 2)`). GLS with the raw residual covariance + CL2
+fails (`r f(cav("gls_raw_cl2", "synthetic, dependent"), 2)` under dependent synthetic errors): with more grid points
+than curves, Σ̂ absorbs the residuals themselves.
+
+```{r}
+#| label: tbl-comp-cl2
+#| tbl-cap: "CL2 on the GLS and pcre fits (replicates 1–100): mean and minimum coverage over cells, 5% pointwise quantile, width and interval score relative to REML + CL2, MSE relative to the NCV fit, detection rate, by setting, estimand and construction."
+show(ca_tab |> mutate(setting = recode(setting, `synthetic, dependent` = "syn. dep.", `synthetic, independent` = "syn. iid")), digits = 2)
+```

@@ -1,0 +1,175 @@
+# Misspecified truth {#sec-misspec}
+
+```{r misspec-load}
+MS <- readr::read_csv("misspec/summaries/misspec-cells.csv", show_col_types = FALSE)
+MSC <- readr::read_csv("misspec/summaries/misspec-contrasts.csv", show_col_types = FALSE)
+MST <- readr::read_csv("misspec/summaries/misspec-truths.csv", show_col_types = FALSE)
+MSCRN <- readr::read_csv("misspec/summaries/misspec-crn.csv", show_col_types = FALSE)
+MS_ARMS <- c(reml_model = "REML model-based", reml_cl2 = "REML + CL2", reml_cl2f = "REML + CL2 (freq.)", ncv_cl2 = "NCV + CL2")
+MS_TRUTH <- c(T0 = "T0 smooth", T1 = "T1 bump", T2 = "T2 weak")
+ms_cell <- \(error, G) paste0(if_else(error == "iid", "iid", "smooth"), ", G = ", G)
+MS <- MS |>
+  mutate(truth = MS_TRUTH[truth_label], setting = ms_cell(error, G), arm_l = factor(MS_ARMS[arm], MS_ARMS))
+msv <- \(tr, err, g, b, est, a, col = "coverage") {
+  v <- MS[[col]][MS$truth_label == tr & MS$error == err & MS$G == g & MS$basis == b & MS$estimand == est & MS$arm == a]
+  stopifnot(length(v) == 1)
+  v
+}
+```
+
+Does REML + CL2 cover the *true* surface when β(s,t) is not in the spline space, and does a larger
+basis repair it? (`misspec/`, Gaussian, R² 0.5, D = 61, M1, R = 200.) Three truths, each scored
+against the exact functions rather than their basis projection: T0 the study's smooth β (control);
+T1 = T0 + a 2-D Gaussian bump (sd 0.05, centre (0.3, 0.6)); T2 = T0 + Σ_{j=12..16} √2 cos(jπs)
+sin(πt), directions the functional covariates barely excite. Each feature carries 20% of the
+β-term signal, then β is rescaled to the study's signal; α and γ are the study's. Cells: truth ×
+{iid G = 100, smooth G = 100, smooth G = 40} × basis {default: ff 8 × 10, t 12; xlarge: ff 23 × 31,
+t 39}. Arms: REML model-based, REML + CL2 (Bayesian and frequentist), NCV + CL2 (Bayesian); z
+intervals. The NCV fits in the xlarge cells use replicates 1–100 only; the T0 xlarge G = 100 cells
+are the study's cells (replicates 1–4 recomputed). Common random numbers against the study's
+records of the T0 cells: REML estimates and SEs agree to about 1e-12, NCV estimates to
+`r format(signif(max(MSCRN$max_abs, na.rm = TRUE), 2), scientific = TRUE)` absolute. Bump region: β grid points within
+2 sd (elliptical) of the bump centre.
+
+
+```{r fig-misspec}
+#| fig-cap: "Misspecified truth: coverage of the exact β(s,t) and test-cohort mean by truth (rows), setting (columns), basis (colour) and interval (y axis); bars ± 2 MC SE; dashed: nominal 0.95. Open symbols for β in the T1 row: coverage inside the bump region."
+#| fig-height: 6
+d <- MS |>
+  filter(estimand %in% c("beta", "mean"), arm != "reml_cl2f") |>
+  mutate(estimand = label_estimand(estimand), arm_l = factor(arm_l, rev(levels(droplevels(arm_l)))))
+db <- d |> filter(truth_label == "T1", estimand == label_estimand("beta"))
+fig <- ggplot(d, aes(coverage, arm_l, colour = basis)) +
+  geom_vline(xintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = coverage - 2 * coverage_se, xmax = coverage + 2 * coverage_se), position = position_dodge(width = 0.6), size = 0.15) +
+  geom_point(data = db, aes(x = coverage_bump), shape = 1, size = 1.5, position = position_dodge(width = 0.6)) +
+  facet_grid(truth + estimand ~ setting) +
+  scale_colour_manual(values = c(default = "#D55E00", xlarge = "#0072B2"), name = "basis") +
+  labs(x = "coverage of the exact truth (grid average)", y = NULL) +
+  theme_doc
+save_fig(fig, "misspec-coverage", 7, 6)
+fig
+```
+
+```{r misspec-tables}
+ms_truths <- MST |>
+  transmute(truth = MS_TRUTH[truth], amplitude = feature_amplitude, `share ∫β²` = feature_l2_share,
+            `rel. L2 err. default` = rel_l2_default, `resid. signal default` = resid_signal_share_default,
+            `rel. L2 err. xlarge` = rel_l2_xlarge, `resid. signal xlarge` = resid_signal_share_xlarge)
+save_tab(ms_truths, "misspec-truths")
+ms_wide <- MS |>
+  mutate(cov = sprintf("%.3f (%.3f)", coverage, coverage_se)) |>
+  select(estimand, truth, setting, basis, arm_l, cov) |>
+  pivot_wider(names_from = arm_l, values_from = cov) |>
+  arrange(estimand, truth, setting, basis)
+save_tab(ms_wide, "misspec-coverage-wide")
+ms_bump <- MS |>
+  filter(truth_label == "T1", estimand == "beta") |>
+  select(setting, basis, arm = arm_l, bump_region = coverage_bump, elsewhere = coverage_off, bump_region_bias_elim = coverage_bump_bias_elim) |>
+  arrange(setting, basis, arm)
+save_tab(ms_bump, "misspec-bump-region")
+ms_bias <- MS |>
+  filter(estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2"), truth_label != "T0") |>
+  select(estimand, truth, setting, basis, arm = arm_l, coverage, coverage_bias_elim, pointwise_q05, mean_absbias_sd, se_sd_ratio) |>
+  arrange(estimand, truth, setting, basis, arm)
+save_tab(ms_bias, "misspec-bias")
+ms_c <- MSC |>
+  filter(contrast == "xlarge - default", estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2")) |>
+  mutate(truth = MS_TRUTH[truth_label], setting = ms_cell(error, G), arm = MS_ARMS[arm]) |>
+  select(estimand, truth, setting, arm, n_pairs, diff, diff_se) |>
+  arrange(estimand, truth, setting, arm)
+save_tab(ms_c, "misspec-basis-contrasts")
+ms_mse <- MS |>
+  filter(estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2")) |>
+  mutate(fit = if_else(arm == "reml_cl2", "REML", "NCV"), bias_share = bias2 / mse) |>
+  select(estimand, truth, setting, basis, fit, mse, bias_share) |>
+  pivot_wider(names_from = fit, values_from = c(mse, bias_share)) |>
+  arrange(estimand, truth, setting, basis)
+save_tab(ms_mse, "misspec-mse")
+```
+
+```{r misspec-check}
+# the contrast file must hold the basis contrast used below
+stopifnot(nrow(ms_c) > 0)
+```
+
+**Control (T0).** REML + CL2 covers β at
+`r rng(MS$coverage[MS$truth_label == "T0" & MS$estimand == "beta" & MS$arm == "reml_cl2"])` and the mean
+at `r rng(MS$coverage[MS$truth_label == "T0" & MS$estimand == "mean" & MS$arm == "reml_cl2"])`; model-based
+intervals under smooth errors cover β at
+`r rng(MS$coverage[MS$truth_label == "T0" & MS$estimand == "beta" & MS$arm == "reml_model" & MS$error == "fpc"])`,
+as in the main study.
+
+**Default basis.** Approximation bias lowers the coverage of β and the mean sharply under T2 and inside T1's bump. T1: REML + CL2 covers
+β at `r rng(MS$coverage[MS$truth_label == "T1" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`
+on average but only `r rng(MS$coverage_bump[MS$truth_label == "T1" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`
+inside the bump region, where bias-eliminated coverage is
+`r rng(MS$coverage_bump_bias_elim[MS$truth_label == "T1" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`
+(@tbl-misspec-bump): the loss is bias, not variance. T2: REML + CL2 covers β at
+`r rng(MS$coverage[MS$truth_label == "T2" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "reml_cl2"])` and the mean at
+`r rng(MS$coverage[MS$truth_label == "T2" & MS$basis == "default" & MS$estimand == "mean" & MS$arm == "reml_cl2"])`;
+mean |bias|/SD for β is
+`r rng(MS$mean_absbias_sd[MS$truth_label == "T2" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "reml_cl2"], 1)`.
+NCV + CL2 is no better (β `r rng(MS$coverage[MS$truth_label == "T2" & MS$basis == "default" & MS$estimand == "beta" & MS$arm == "ncv_cl2"])`).
+
+**xlarge basis.** Under smooth errors REML + CL2 recovers the control's (T0) coverage of the exact truth: β
+`r rng(MS$coverage[MS$truth_label != "T0" & MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`,
+mean `r rng(MS$coverage[MS$truth_label != "T0" & MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "mean" & MS$arm == "reml_cl2"])`,
+T1 bump region `r rng(MS$coverage_bump[MS$truth_label == "T1" & MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`;
+the paired gain for T2 β at G = 100 is
+`r pp(ms_c$diff[ms_c$estimand == "beta" & ms_c$truth == MS_TRUTH[["T2"]] & ms_c$setting == "smooth, G = 100" & ms_c$arm == "REML + CL2"], 0)`
+(@tbl-misspec-contrasts). Under iid errors it does not: T1 bump region
+`r f(msv("T1", "iid", 100, "xlarge", "beta", "reml_cl2", "coverage_bump"), 2)`, T2 β
+`r f(msv("T2", "iid", 100, "xlarge", "beta", "reml_cl2"), 2)` (mean |bias|/SD for β
+`r f(msv("T1", "iid", 100, "xlarge", "beta", "reml_cl2", "mean_absbias_sd"), 2)` and
+`r f(msv("T2", "iid", 100, "xlarge", "beta", "reml_cl2", "mean_absbias_sd"), 2)`, against
+`r rng(MS$mean_absbias_sd[MS$truth_label != "T0" & MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "reml_cl2"])`
+under smooth errors). NCV + CL2 stays biased even with
+the xlarge basis: T1 bump region
+`r rng(MS$coverage_bump[MS$truth_label == "T1" & MS$basis == "xlarge" & MS$estimand == "beta" & MS$arm == "ncv_cl2"])`,
+T2 β under smooth errors
+`r rng(MS$coverage[MS$truth_label == "T2" & MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "ncv_cl2"])`
+(NCV in the xlarge cells: 100 replicates, MC SE up to `r f(max(MS$coverage_se[MS$basis == "xlarge" & MS$arm == "ncv_cl2" & MS$estimand == "beta"]), 3)`).
+The xlarge REML coverage is bought with very variable estimates: REML's β MSE under smooth errors is
+`r rng(MS$mse[MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "reml_cl2"], 1)`
+against `r rng(MS$mse[MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "ncv_cl2"], 2)`
+for NCV (default basis REML: `r rng(MS$mse[MS$basis == "default" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "reml_cl2"], 1)`; @tbl-misspec-mse).
+
+**α and γ** are unaffected: REML + CL2 covers them at
+`r rng(MS$coverage[MS$estimand %in% c("alpha", "gamma") & MS$arm == "reml_cl2"])` in every cell.
+
+```{r}
+#| label: tbl-misspec-truths
+#| tbl-cap: "Misspecified truths: feature amplitude, the feature's share of ∫β², and the relative L2 error and residual share of the β-term signal after projecting the full β onto the default and xlarge ff tensor spaces."
+show(ms_truths |> mutate(across(where(is.numeric), \(x) signif(x, 2))), digits = 8)
+```
+
+```{r}
+#| label: tbl-misspec-coverage
+#| tbl-cap: "Misspecified truth: coverage of the exact truth (grid average, MC SE) per estimand, truth, setting, basis and interval."
+show(ms_wide)
+```
+
+```{r}
+#| label: tbl-misspec-bump
+#| tbl-cap: "T1 (bump): coverage of β inside the bump region and elsewhere, and bias-eliminated coverage inside the bump region."
+show(ms_bump)
+```
+
+```{r}
+#| label: tbl-misspec-bias
+#| tbl-cap: "T1/T2: coverage, bias-eliminated coverage, 5% pointwise quantile of coverage, mean |bias|/SD and SE/SD for REML + CL2 and NCV + CL2."
+show(ms_bias)
+```
+
+```{r}
+#| label: tbl-misspec-contrasts
+#| tbl-cap: "Paired coverage contrasts xlarge − default basis (same replicates), with MC SE."
+show(ms_c)
+```
+
+```{r}
+#| label: tbl-misspec-mse
+#| tbl-cap: "MSE and squared-bias share of MSE for REML and NCV estimates, per truth, setting and basis."
+show(ms_mse, digits = 4)
+```

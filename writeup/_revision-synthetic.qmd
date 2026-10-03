@@ -1,0 +1,181 @@
+# Covariance components, reference distributions and NCV covariances
+
+Three experiments on the 18 core cells at the default signal (family × error process ×
+G, D = 61, R = 200; the study's replicates and REML fits, reproduced to < 1e-8 relative difference
+against the stored task records): the covariance ablation (`ablation/`), per-point
+Satterthwaite degrees of freedom (`satterthwaite/`), and mgcv's own covariance for curve-blocked NCV
+fits (`ncv-jack-recheck/`, 3 cells × 20 replicates). Coverage is the grid-average of nominal 95%
+pointwise intervals; MC SEs are per cell.
+
+```{r revision-load}
+ABL <- readr::read_csv("ablation/summaries/ablation-cells.csv", show_col_types = FALSE)
+ABLC <- readr::read_csv("ablation/summaries/ablation-contrasts.csv", show_col_types = FALSE)
+SAT <- readr::read_csv("satterthwaite/summaries/satt-cells.csv", show_col_types = FALSE)
+SATC <- readr::read_csv("satterthwaite/summaries/satt-contrasts.csv", show_col_types = FALSE)
+SATD <- readr::read_csv("satterthwaite/summaries/satt-df.csv", show_col_types = FALSE)
+JACK <- readr::read_csv("ncv-jack-recheck/jack-reps.csv", show_col_types = FALSE)
+ABL_ARMS <- c(
+  model = "model-based (Vc)", cr1_b = "CR1", cr1_f = "CR1 (freq.)", cl2s_b = "CL2, I - H_gg approx.",
+  cl2s_f = "CL2, I - H_gg approx. (freq.)", cl2e_b = "CL2 (full block)", cl2e_f = "CL2 (full block, freq.)",
+  fix_model = "fixed lambda, model-based", fix_cl2e_b = "fixed lambda, CL2"
+)
+dep_label <- \(e) if_else(e == "iid", "independent", "dependent")
+```
+
+## Covariance ablation
+
+Constructions, all on the replicate's REML fit: model-based V_c; CR1, refund's curve-clustered sandwich
+(`sandwich = "cluster"`) without leverage adjustment or small-sample factor; CL2 with the diagonal-leverage
+approximation of each curve's adjustment ("I − H_gg approx.") or with the full-block adjustment, each in the
+Bayesian form (+ V_p − V_e) and the frequentist form; and the model-based and full-block CL2 intervals of a refit
+with every smoothing parameter fixed at the cell's geometric-mean REML value. Critical values z and $t_{G-1}$.
+
+```{r fig-ablation}
+#| fig-cap: "Covariance ablation: coverage of β(s,t) and the test-cohort mean per covariance construction (z critical value), core cells at the default signal, by family, dependence and G. Points are cells (error processes), bars ± 2 MC SE; dashed: nominal 0.95. Fixed λ: refit with every smoothing parameter at the cell's geometric-mean REML value."
+#| fig-height: 6
+d <- ABL |>
+  filter(crit == "z", estimand %in% c("mean", "beta")) |>
+  mutate(arm = factor(ABL_ARMS[arm], rev(ABL_ARMS)), estimand = label_estimand(estimand), family = label_family(family),
+         dependence = dep_label(error), G = paste0("G = ", G))
+fig <- ggplot(d, aes(coverage, arm, colour = dependence)) +
+  geom_vline(xintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = coverage - 2 * coverage_se, xmax = coverage + 2 * coverage_se), position = position_dodge(width = 0.6), size = 0.15) +
+  facet_grid(estimand + G ~ family) +
+  scale_colour_manual(values = c(dependent = "#D55E00", independent = "#0072B2"), name = NULL) +
+  labs(x = "coverage (grid average)", y = NULL) +
+  theme_doc
+save_fig(fig, "ablation-coverage", 7, 6)
+fig
+```
+
+```{r ablation-tables}
+abl_wide <- ABL |>
+  filter(estimand %in% c("mean", "beta", "alpha", "gamma"), crit == "z") |>
+  mutate(arm = ABL_ARMS[arm]) |>
+  select(family, error, G, estimand, arm, coverage) |>
+  pivot_wider(names_from = arm, values_from = coverage) |>
+  arrange(estimand, family, error, G)
+save_tab(abl_wide, "ablation-coverage-wide")
+abl_c <- ABLC |>
+  mutate(dependence = dep_label(error)) |>
+  group_by(contrast, estimand, dependence, G) |>
+  summarise(diff_min = min(diff), diff_max = max(diff), diff = mean(diff), .groups = "drop") |>
+  arrange(contrast, estimand, dependence, G)
+save_tab(abl_c, "ablation-contrasts-summary")
+abl_se <- ABL |>
+  filter(crit == "z", estimand %in% c("mean", "beta")) |>
+  group_by(arm, dependence = dep_label(error), estimand) |>
+  summarise(se_sd = mean(se_sd_ratio), width = mean(width), .groups = "drop") |>
+  mutate(arm = ABL_ARMS[arm])
+save_tab(abl_se, "ablation-se-sd")
+ac <- \(ct, dep = "dependent", e = c("mean", "beta"), g = c(40, 100)) {
+  x <- ABLC$diff[ABLC$contrast == ct & dep_label(ABLC$error) == dep & ABLC$estimand %in% e & ABLC$G %in% g]
+  x
+}
+ab_bin_a <- \(a, err = "fpc", g = 40, e = "alpha") ABL$coverage[ABL$arm == a & ABL$crit == "z" & ABL$family == "binomial" & ABL$error == err & ABL$G == g & ABL$estimand == e]
+```
+
+What each component contributes (paired contrasts over replicates, mean and β, dependent cells):
+the leverage adjustment over CR1 `r rng_pp(ac("CL2 - CR1"))`, the full block over the
+$\mathbf I - \tilde{\mathbf H}_{gg}$ approximation `r rng_pp(ac("exact - shortcut"))`, the Bayesian term
+$\mathbf V_p - \mathbf V_e$ `r rng_pp(ac("Bayes - freq (CL2)"))` (independent errors:
+`r rng_pp(ac("Bayes - freq (CL2)", "independent"))`), a $t_{G-1}$ critical value `r rng_pp(ac("t - z (CL2)"))`,
+and fixing λ `r rng_pp(ac("fixed - reselected (CL2)"))` for CL2 against
+`r rng_pp(ac("fixed - reselected (model)"))` for the model-based intervals. For the binary intercept
+with smooth errors at G = 40, CL2 covers `r f(ab_bin_a("cl2e_b"))` and `r f(ab_bin_a("fix_cl2e_b"))` with
+λ fixed; under independent errors `r f(ab_bin_a("cl2e_b", "iid"))` and `r f(ab_bin_a("fix_cl2e_b", "iid"))`.
+The pooled MC SEs of averaged contrasts in the CSV treat cells as independent although they share
+replicates; per-cell SEs (`ablation-contrasts.csv`) are exact.
+
+```{r}
+#| label: tbl-ablation-contrasts
+#| tbl-cap: "Ablation contrasts (coverage difference, mean and range over cells) by estimand, dependence and G."
+show(abl_c, digits = 4)
+```
+
+```{r}
+#| label: tbl-ablation-se
+#| tbl-cap: "Ablation: grid-averaged SE/SD (root-mean-square estimated SE over the empirical SD of the estimate) and mean width per construction, mean over cells."
+show(abl_se)
+```
+
+## Satterthwaite degrees of freedom
+
+```{r fig-satt}
+#| fig-cap: "CL2 (full block, Bayesian) with three critical values: z, t with G − 1 df, and per-point Satterthwaite (Bell–McCaffrey) df as computed by refund; coverage by estimand, family, dependence and G. Bars ± 2 MC SE."
+#| fig-height: 6
+d <- SAT |>
+  filter(crit %in% c("z", "t", "satt")) |>
+  mutate(crit = factor(c(z = "z", t = "t(G−1)", satt = "Satterthwaite")[crit], c("z", "t(G−1)", "Satterthwaite")),
+         estimand = label_estimand(estimand), family = label_family(family), dependence = dep_label(error), G = paste0("G = ", G))
+fig <- ggplot(d, aes(coverage, interaction(error, G, sep = ", "), colour = crit)) +
+  geom_vline(xintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = coverage - 2 * coverage_se, xmax = coverage + 2 * coverage_se), position = position_dodge(width = 0.6), size = 0.15) +
+  facet_grid(estimand ~ family) +
+  scale_colour_manual(values = c("z" = "#999999", "t(G−1)" = "#56B4E9", "Satterthwaite" = "#0072B2"), name = NULL) +
+  labs(x = "coverage (grid average)", y = "error process, G") +
+  theme_doc
+save_fig(fig, "satterthwaite-coverage", 7, 6)
+fig
+```
+
+```{r satt-tables}
+satt_c <- SATC |>
+  mutate(dependence = dep_label(error)) |>
+  group_by(contrast, estimand, dependence, G) |>
+  summarise(diff_min = min(diff), diff_max = max(diff), diff = mean(diff), width_ratio = mean(width_ratio), .groups = "drop")
+save_tab(satt_c, "satterthwaite-contrasts-summary")
+satt_df <- SATD |>
+  group_by(estimand, G) |>
+  summarise(df_q05 = mean(df_q05), df_median = mean(df_median), df_q95 = mean(df_q95), df_rel = mean(df_median_rel), df_b2 = mean(df_b2_median), .groups = "drop")
+save_tab(satt_df, "satterthwaite-df")
+sc <- \(ct, e = c("mean", "beta", "gamma"), g = c(40, 100)) SATC$diff[SATC$contrast == ct & SATC$estimand %in% e & SATC$G %in% g]
+sworst <- SAT |> filter(crit == "satt") |> slice_min(coverage, n = 1)
+```
+
+The per-point Satterthwaite df (median per cell) are `r rng(satt_df$df_median[satt_df$G == 40], 0)` at
+G = 40 and `r rng(satt_df$df_median[satt_df$G == 100], 0)` at G = 100 (relative to G − 1:
+`r rng(satt_df$df_rel, 2)`). Satterthwaite adds `r rng_pp(sc("Satt - z", g = 40))` over z at G = 40 and
+`r rng_pp(sc("Satt - z", g = 100))` at G = 100 for the mean, β and γ, and `r rng_pp(sc("Satt - t"))` over
+$t_{G-1}$. The worst cell under Satterthwaite is `r sworst$family` `r sworst$estimand` with `r sworst$error`
+errors at G = `r sworst$G` (`r f(sworst$coverage)`): the binary intercept and γ shortfalls are a bias,
+not a scale problem. refund's df are computed for the sandwich part only; the variant that accounts
+for $\mathbf V_p - \mathbf V_e$ ("B2") has larger df and lies between $t_{G-1}$ and the plain
+Satterthwaite reference (`satterthwaite-contrasts-summary.csv`). The diagonal Gram matrix gives
+practically the same df.
+
+```{r}
+#| label: tbl-satt-contrasts
+#| tbl-cap: "Critical-value contrasts (coverage difference, mean and range over cells; width ratio) by estimand, dependence and G."
+show(satt_c, digits = 4)
+```
+
+```{r}
+#| label: tbl-satt-df
+#| tbl-cap: "Per-point Satterthwaite df: 5% quantile, median and 95% quantile over the grid (means over cells and replicates), median relative to G − 1, and the median of the variant including the Vp − Ve term."
+show(satt_df, digits = 2)
+```
+
+## mgcv's covariance for curve-blocked NCV fits
+
+```{r jack}
+jack_tab <- JACK |>
+  group_by(family, estimand, arm) |>
+  summarise(coverage = mean(coverage), coverage_se = sd(coverage) / sqrt(n()), se_ratio_to_bayes = mean(se_ratio_to_bayes), width = mean(width), reps = n(), .groups = "drop") |>
+  mutate(arm = c(bayes_Vp = "Bayesian Vp", jack_Vp = "jackknife Vp (jackknife = TRUE)", jack_Vc = "jackknife Vc (patched mgcv)", cl2 = "CL2")[arm])
+save_tab(jack_tab, "ncv-jackknife-recheck")
+```
+
+With `nei$jackknife = TRUE`, mgcv replaces $\mathbf V_p$ of an NCV fit by a neighbourhood-aware jackknife
+covariance. For curve neighbourhoods (smooth errors, G = 100, current patched mgcv 1.9-5, the same NCV
+fits) its standard errors are `r rng(jack_tab$se_ratio_to_bayes[grepl("jackknife Vp", jack_tab$arm)])`
+times the Bayesian ones, and it covers the mean and β at
+`r rng(jack_tab$coverage[grepl("jackknife Vp", jack_tab$arm)])`, against
+`r rng(jack_tab$coverage[jack_tab$arm == "CL2"])` for CL2 on the same fits (@tbl-jack). mgcv 1.9-1 and 1.9-3
+give the same result.
+
+```{r}
+#| label: tbl-jack
+#| tbl-cap: "Intervals for the NCV fit from mgcv's covariances and from CL2: coverage (MC SE over 20 replicates), median SE ratio to the Bayesian Vp, mean width."
+show(jack_tab |> mutate(family = label_family(family)))
+```

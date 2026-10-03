@@ -1,0 +1,4 @@
+full     beta  n =  676  max|df_ours - df_coef| = 0.00e+00  max|est diff| = 0.00e+00  df range 8.1-18.5
+full     gamma n =   31  max|df_ours - df_coef| = 0.00e+00  max|est diff| = 0.00e+00  df range 11.5-12.1
+diagonal beta  n =  676  max|df_ours - df_coef| = 0.00e+00  max|est diff| = 0.00e+00  df range 8.9-20.0
+diagonal gamma n =   31  max|df_ours - df_coef| = 0.00e+00  max|est diff| = 0.00e+00  df range 12.0-12.4

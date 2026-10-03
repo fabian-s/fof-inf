@@ -1,0 +1,546 @@
+# Small G, a null effect and Satterthwaite critical values {#sec-ssn}
+
+```{r ssn-load}
+ssn_read <- \(dir, f) readr::read_csv(file.path(dir, f), show_col_types = FALSE, guess_max = 100000)
+SSN_SATT <- "satterthwaite/summaries"
+SSN_SGN <- "small-g-null/summaries"
+ssn_syn <- ssn_read(SSN_SATT, "satt-syn-cells.csv")
+ssn_syn_con <- ssn_read(SSN_SATT, "satt-syn-contrasts.csv")
+ssn_syn_df <- ssn_read(SSN_SATT, "satt-syn-df.csv")
+ssn_syn_info <- ssn_read(SSN_SATT, "satt-syn-info.csv")
+ssn_syn_check <- ssn_read(SSN_SATT, "satt-syn-check.csv")
+ssn_syn_crn <- ssn_read(SSN_SATT, "satt-syn-crn.csv")
+ssn_syn_fail <- ssn_read(SSN_SATT, "satt-syn-failures.csv")
+ssn_pm <- ssn_read(SSN_SATT, "satt-plasmode-cells.csv")
+ssn_pm_con <- ssn_read(SSN_SATT, "satt-plasmode-contrasts.csv")
+ssn_pm_df <- ssn_read(SSN_SATT, "satt-plasmode-df.csv")
+ssn_pm_info <- ssn_read(SSN_SATT, "satt-plasmode-info.csv")
+ssn_pm_check <- ssn_read(SSN_SATT, "satt-plasmode-check.csv")
+ssn_pm_crn <- ssn_read(SSN_SATT, "satt-plasmode-crn.csv")
+ssn_pm_fail <- ssn_read(SSN_SATT, "satt-plasmode-failures.csv")
+ssn_ladder <- ssn_read(SSN_SGN, "g-ladder.csv")
+ssn_ladder_satt <- ssn_read(SSN_SGN, "g-ladder-satt.csv")
+ssn_cells <- ssn_read(SSN_SGN, "cells.csv")
+ssn_null <- ssn_read(SSN_SGN, "null.csv")
+ssn_rel20 <- ssn_read(SSN_SGN, "relative-error.csv")
+ssn_fail <- ssn_read(SSN_SGN, "failures.csv")
+
+SSN_LOW <- LEVEL - ADEQUATE
+SSN_CRIT <- c(z = "z", t = "t(G−1)", satt = "Satt")
+ssn_dep <- \(e) if_else(e == "iid", "independent", "dependent")
+# compact labels for the wide G-ladder tables
+ssn_compact <- \(df) mutate(df, dependence = c(independent = "indep.", dependent = "dep.")[dependence],
+  estimand = c(mean = "mean", beta = "beta", alpha = "alpha", gamma = "gamma")[estimand])
+ssn_e <- \(x) formatC(x, format = "e", digits = 1)
+ssn_nrep <- unique(c(ssn_syn$n_rep, ssn_pm$n_rep, ssn_cells$n_rep, ssn_null$n_rep))
+stopifnot(length(ssn_nrep) == 1)
+SSN_G20 <- min(ssn_cells$G[ssn_cells$block == "small_G"])
+ssn_cells_g20 <- range(ssn_cells$cell[ssn_cells$block == "small_G"])
+ssn_cells_null <- range(ssn_cells$cell[ssn_cells$block == "null_beta"])
+SSN_BLOCKS <- c(
+  warp = "misregistration", warp_ar1 = "misregistration (AR(1) cell)", dense_grid = "dense grid",
+  rough_truth = "rough truth", term_type = "term type f(x,t)", families = "extended families",
+  ar1_home = "AR(1) home turf", oscillating = "sign-changing", heteroskedastic = "heteroskedastic",
+  lowrank_covariate = "low-rank covariate", basis_size = "basis size",
+  small_G = paste0("core, G = ", SSN_G20), null_beta = "β = 0"
+)
+SSN_ARMS <- c(
+  ARM_LABELS[c("reml_model", "reml_cl2")],
+  reml_cl2_t = "REML + CL2, t(G−1)", reml_cl2_satt = "REML + CL2, Satt",
+  ARM_LABELS[c("ncv_model", "ncv_cl2", "ncv_cl2_bias")]
+)
+# column prefixes of the wide tables (f(x,t) of the term-type block pooled with beta) and names in the text
+ssn_est <- \(e) factor(c(mean = "mean", beta = "beta", f = "beta", alpha = "alpha", gamma = "gamma")[e],
+  c("mean", "beta", "alpha", "gamma"))
+SSN_EST_TXT <- c(mean = "the mean", beta = "β", f = "f", alpha = "α", gamma = "γ")
+ssn_int <- \(x) format(x, big.mark = ",")
+```
+
+Three sets of runs, `r ssn_nrep` replicates per cell. (i) Per-point Satterthwaite critical values for REML + CL2
+(exact CL2, Bayesian form; as in the Satterthwaite subsection above) on every synthetic cell outside the core
+block and on the plasmode cells with curve flips and attached residuals (nine datasets, G = 40 and all subjects;
+`satterthwaite/`). (ii) The core factorial at G = `r SSN_G20` (cells `r ssn_cells_g20[1]`–`r ssn_cells_g20[2]`): the
+first `r SSN_G20` curves of each replicate, so the cells share their draws with the G = 40 and G = 100 core cells.
+(iii) β = 0 (cells `r ssn_cells_null[1]`–`r ssn_cells_null[2]`): the smooth-truth setting at the default signal with
+β set to zero, Gaussian and binary, independent and smooth errors, G = 40 and 100 (`small-g-null/`). Critical
+values: z = z~0.975~, $t_{G-1}$, and "Satt", the per-point Satterthwaite df of refund's
+`coef.pffr(crit = "satterthwaite")` (full Gram matrix).
+
+## Satterthwaite critical values beyond the core cells {#sec-ssn-satt}
+
+```{r ssn-satt}
+ssn_info <- bind_rows(synthetic = ssn_syn_info, plasmode = ssn_pm_info, .id = "setting")
+ssn_soft <- strsplit(unique(ssn_info$software), " ")[[1]]
+ssn_crn_max <- c(synthetic = max(ssn_syn_crn$max_rel), plasmode = max(ssn_pm_crn$max_rel))
+ssn_check <- bind_rows(ssn_syn_check, ssn_pm_check)
+stopifnot(all(ssn_check$n_rep == ssn_check$n_rep_study), all(ssn_info$G_check))
+
+# extension blocks: everything except the G = 20 and beta = 0 cells (next subsections)
+ssn_ext <- ssn_syn |> filter(!block %in% c("small_G", "null_beta"), crit %in% names(SSN_CRIT))
+ssn_ext_tab <- ssn_ext |>
+  filter(crit %in% c("z", "satt")) |>
+  group_by(block, G) |> mutate(cells = n_distinct(cell)) |> ungroup() |>
+  group_by(block, G, cells, estimand = ssn_est(estimand), crit) |>
+  summarise(coverage = mean(coverage), .groups = "drop") |>
+  arrange(estimand, factor(crit, names(SSN_CRIT))) |>
+  mutate(col = paste(estimand, SSN_CRIT[crit])) |>
+  select(-estimand, -crit) |>
+  pivot_wider(names_from = col, values_from = coverage) |>
+  mutate(block = factor(SSN_BLOCKS[block], SSN_BLOCKS)) |>
+  arrange(block, G)
+save_tab(ssn_ext_tab, "ssn-satt-extensions")
+
+ssn_low_raw <- ssn_ext |>
+  select(cell, block, family, error, G, signal, truth, estimand, crit, coverage, pointwise_q05) |>
+  pivot_wider(names_from = crit, values_from = c(coverage, pointwise_q05)) |>
+  filter(coverage_satt < SSN_LOW) |>
+  mutate(block = factor(SSN_BLOCKS[block], SSN_BLOCKS), estimand = factor(estimand, names(SSN_EST_TXT))) |>
+  arrange(block, estimand, family, G)
+ssn_low <- ssn_low_raw |>
+  transmute(block, family, error, G, signal, truth, estimand = as.character(estimand), z = coverage_z,
+            `t(G−1)` = coverage_t, Satt = coverage_satt, `q05 Satt` = pointwise_q05_satt) |>
+  pretty()
+save_tab(ssn_low, "ssn-satt-extensions-low")
+ssn_low_text <- ssn_low_raw |>
+  group_by(block) |>
+  summarise(txt = sprintf("%s (%s; %s)", first(block), paste(unique(FAMILY_LABELS[family]), collapse = ", "),
+                          paste(unique(SSN_EST_TXT[as.character(estimand)]), collapse = ", ")), .groups = "drop") |>
+  pull(txt) |> paste(collapse = "; ")
+ssn_low_min <- slice_min(ssn_low_raw, coverage_satt, n = 1, with_ties = FALSE)
+
+# paired contrasts: extension blocks and plasmode
+ssn_con <- bind_rows(
+  `synthetic extensions` = ssn_syn_con |> filter(!block %in% c("small_G", "null_beta")) |> mutate(G = as.character(G)),
+  plasmode = ssn_pm_con |> mutate(G = if_else(G == 40, "40", "all")),
+  .id = "setting"
+) |>
+  group_by(setting, contrast, G) |>
+  summarise(rows = n(), diff_min = min(diff), diff_max = max(diff), diff = mean(diff),
+            width_min = min(width_ratio), width_max = max(width_ratio), width_ratio = mean(width_ratio), .groups = "drop") |>
+  mutate(across(starts_with("diff"), \(x) 100 * x)) |>
+  select(setting, contrast, G, rows, `diff (pp)` = diff, `diff min` = diff_min, `diff max` = diff_max,
+         `width ratio` = width_ratio, `width min` = width_min, `width max` = width_max) |>
+  arrange(setting, contrast, G)
+save_tab(ssn_con, "ssn-satt-contrasts")
+ssn_all_con <- bind_rows(ssn_syn_con, ssn_pm_con)
+ssn_con_min <- min(ssn_all_con$diff[ssn_all_con$contrast == "Satt - z"])
+ssn_sz <- \(ct, g) ssn_con$`diff (pp)`[ssn_con$setting == "synthetic extensions" & ssn_con$contrast == ct & ssn_con$G == g]
+ssn_wz <- \(ct, g) ssn_con$`width ratio`[ssn_con$setting == "synthetic extensions" & ssn_con$contrast == ct & ssn_con$G == g]
+ssn_pz <- \(ct, g, col = "diff (pp)") ssn_con[[col]][ssn_con$setting == "plasmode" & ssn_con$contrast == ct & ssn_con$G == g]
+
+# plasmode: mean over truth x residual cells per dataset, G and estimand
+ssn_pm_tab <- ssn_pm |>
+  filter(crit %in% c("z", "satt")) |>
+  group_by(app, G) |> mutate(cells = n_distinct(cell)) |> ungroup() |>
+  group_by(app, G, cells, estimand = ssn_est(estimand), crit) |>
+  summarise(coverage = mean(coverage), .groups = "drop") |>
+  arrange(estimand, factor(crit, names(SSN_CRIT))) |>
+  mutate(col = paste(estimand, SSN_CRIT[crit])) |>
+  select(-estimand, -crit) |>
+  pivot_wider(names_from = col, values_from = coverage) |>
+  mutate(app = label_app(app)) |>
+  arrange(app, G)
+save_tab(ssn_pm_tab, "ssn-satt-plasmode")
+ssn_pm_low <- ssn_pm |>
+  filter(crit == "satt") |>
+  group_by(app, G, estimand) |>
+  summarise(coverage = mean(coverage), .groups = "drop") |>
+  filter(coverage < SSN_LOW) |>
+  mutate(app = label_app(app), estimand = factor(estimand, names(SSN_EST_TXT))) |>
+  arrange(app, estimand, G)
+ssn_pm_low_text <- ssn_pm_low |>
+  group_by(app, estimand) |>
+  summarise(txt = sprintf("%s %s (%s)", first(app), SSN_EST_TXT[[as.character(first(estimand))]],
+                          paste(sprintf("%s at G = %d", f(coverage), G), collapse = ", ")), .groups = "drop") |>
+  pull(txt) |> paste(collapse = "; ")
+
+# per-point df
+ssn_df_tab <- bind_rows(
+  synthetic = ssn_syn_df |> mutate(G = as.character(G)),
+  plasmode = ssn_pm_df |> mutate(G = if_else(G == 40, "40", "all")),
+  .id = "setting"
+) |>
+  group_by(setting, G, estimand = ssn_est(estimand)) |>
+  summarise(cells = n(), `df min` = min(df_median), `df max` = max(df_median),
+            `df/(G−1) min` = min(df_median_rel), `df/(G−1) median` = median(df_median_rel),
+            `df/(G−1) max` = max(df_median_rel), undefined = sum(n_na), .groups = "drop") |>
+  arrange(setting, factor(G, c("20", "40", "100", "all")), estimand)
+save_tab(ssn_df_tab, "ssn-satt-df")
+ssn_dfr <- \(setting, est) {
+  d <- if (setting == "synthetic") ssn_syn_df else ssn_pm_df
+  d$df_median_rel[d$estimand %in% est]
+}
+```
+
+**Checks.** Task files: `r ssn_int(ssn_syn_info$n_files)` synthetic and `r ssn_int(ssn_pm_info$n_files)` plasmode,
+`r sum(ssn_info$n_failed) + nrow(ssn_syn_fail) + nrow(ssn_pm_fail)` failed. The REML estimates, CL2 SEs,
+model-based SEs and truths reproduce the study's stored records of the same replicates (`r ssn_int(ssn_syn_info$crn_tasks)`
+synthetic and `r ssn_int(ssn_pm_info$crn_tasks)` plasmode task records; largest relative difference
+`r ssn_e(ssn_crn_max["synthetic"])` and `r ssn_e(ssn_crn_max["plasmode"])`). Scored with z, coverage equals the
+study's REML + CL2 summary in all `r nrow(ssn_check)` cell × estimand rows compared (largest absolute difference
+`r ssn_e(max(abs(ssn_check$diff)))`, the same replicate count in every row). The CL2 covariance rebuilt from the df
+computation equals refund's (largest relative difference `r ssn_e(max(ssn_info$core_check_max))`), the df use the
+cell's G in every replicate, and `r sum(ssn_info$n_df_na)` per-point df are undefined. Software: refund
+`r substr(ssn_soft[1], 1, 8)`, mgcv `r ssn_soft[2]`.
+
+**Synthetic extensions.** Satterthwaite `r if (ssn_con_min >= 0) "never gives lower coverage than z" else "can give lower coverage than z"`: the smallest paired difference over all
+synthetic and plasmode cell × estimand rows is `r pp(ssn_con_min, 2)`.
+Over the extension blocks it adds `r f(ssn_sz("Satt - z", "40"), 2)` pp at G = 40 and
+`r f(ssn_sz("Satt - z", "100"), 2)` pp at G = 100 on average (mean width ratio `r f(ssn_wz("Satt - z", "40"))` and
+`r f(ssn_wz("Satt - z", "100"))`; @tbl-ssn-con). Coverage under Satterthwaite is below
+`r f(SSN_LOW, 2)` in `r nrow(ssn_low)` cell × estimand rows (@tbl-ssn-low): `r ssn_low_text`. The lowest is
+`r FAMILY_LABELS[[ssn_low_min$family]]` `r SSN_EST_TXT[[as.character(ssn_low_min$estimand)]]` in the
+`r ssn_low_min$block` block at G = `r ssn_low_min$G` (`r f(ssn_low_min$coverage_satt)`; z `r f(ssn_low_min$coverage_z)`).
+
+**Plasmode.** Satterthwaite adds `r f(ssn_pz("Satt - z", "40"), 2)` pp at G = 40 and
+`r f(ssn_pz("Satt - z", "all"), 2)` pp with all subjects on average (width ratio
+`r f(ssn_pz("Satt - z", "40", "width ratio"))` and `r f(ssn_pz("Satt - z", "all", "width ratio"))`). Averaged over
+truth and residual sources, coverage stays below `r f(SSN_LOW, 2)` for `r ssn_pm_low_text` (@tbl-ssn-pm). The curve
+sign flips make the plasmode curves independent, so these shortfalls do not come from dependence between curves.
+
+**Degrees of freedom.** For β (f), γ and the mean, the median per-point df of a cell is
+`r rng(ssn_dfr("synthetic", c("beta", "f", "gamma", "mean")))` times G − 1 over all synthetic cells outside the core
+block (including G = `r SSN_G20` and β = 0; median over cells
+`r f(median(ssn_dfr("synthetic", c("beta", "f", "gamma", "mean"))), 2)`) and
+`r rng(ssn_dfr("plasmode", c("beta", "gamma", "mean")))` on the plasmode cells (median
+`r f(median(ssn_dfr("plasmode", c("beta", "gamma", "mean"))), 2)`); for α it is
+`r rng(ssn_dfr("synthetic", "alpha"))` (plasmode `r rng(ssn_dfr("plasmode", "alpha"))`; @tbl-ssn-df). For these
+terms the Satterthwaite reference thus amounts to a t distribution with far fewer df than $t_{G-1}$.
+
+```{r}
+#| label: tbl-ssn-ext
+#| tbl-cap: "Synthetic extension blocks: coverage of REML + CL2 with z and Satterthwaite critical values, mean over the block's cells per G and estimand (beta: f(x,t) in the term-type block). Misregistration GLM cells score the mean only."
+show(ssn_ext_tab)
+```
+
+```{r}
+#| label: tbl-ssn-low
+#| tbl-cap: "Synthetic extension cells in which REML + CL2 with the Satterthwaite critical value covers less than 0.93 (nominal 0.95 minus the 2 pp adequacy margin): coverage with z, t(G − 1) and Satterthwaite, and the Satterthwaite 5% pointwise quantile."
+show(ssn_low)
+```
+
+```{r}
+#| label: tbl-ssn-con
+#| tbl-cap: "Paired critical-value contrasts for REML + CL2, synthetic extension blocks and plasmode cells: coverage difference in pp (mean, minimum and maximum over cell × estimand rows) and width ratio. Satt diag: diagonal Gram matrix; Satt B2: df rescaled to the Bayesian variance."
+show(ssn_con, digits = 3)
+```
+
+```{r}
+#| label: tbl-ssn-pm
+#| tbl-cap: "Plasmode cells (curve flips, attached residuals): coverage of REML + CL2 with z and Satterthwaite critical values per dataset and G, mean over truth × residual sources."
+show(ssn_pm_tab)
+```
+
+```{r}
+#| label: tbl-ssn-df
+#| tbl-cap: "Per-point Satterthwaite df: range over cells of the cell's median df, and the cell median relative to G − 1 (minimum, median, maximum over cells); synthetic cells outside the core block, plasmode cells by G (all = all subjects). Undefined: per-point df that were NA."
+show(ssn_df_tab, digits = 2)
+```
+
+## The core factorial at G = 20 {#sec-ssn-g20}
+
+```{r ssn-g20}
+SSN_BGM <- c("beta", "gamma", "mean")
+ssn_lad <- ssn_ladder |>
+  filter(arm %in% MAIN_ARMS) |>
+  mutate(dependence = ssn_dep(error))
+ssn_lad_sum <- ssn_lad |>
+  group_by(family, dependence, estimand, arm, G) |>
+  summarise(cells = n(), cov_se = sqrt(sum(coverage_se^2)) / n(), coverage = mean(coverage_mean),
+            q05_min = min(pointwise_q05), q05 = mean(pointwise_q05), .groups = "drop")
+ssn_alpha_min <- ssn_lad_sum |>
+  filter(arm == "reml_cl2", dependence == "dependent", G == SSN_G20, estimand == "alpha") |>
+  slice_min(coverage, n = 1, with_ties = FALSE) |>
+  pull(family) |> (\(x) FAMILY_LABELS[[x]])()
+ssn_ls <- \(a, dep, g = SSN_G20, est = c("mean", "beta", "gamma", "alpha"), fam = c("gaussian", "poisson", "binomial"), col = "coverage")
+  ssn_lad_sum[[col]][ssn_lad_sum$arm == a & ssn_lad_sum$dependence == dep & ssn_lad_sum$G %in% g &
+                     ssn_lad_sum$estimand %in% est & ssn_lad_sum$family %in% fam]
+
+# G = 20: coverage (5% quantile) per arm
+ssn_g20_tab <- ssn_lad_sum |>
+  filter(G == SSN_G20) |>
+  arrange(factor(arm, MAIN_ARMS)) |>
+  mutate(v = sprintf("%s (%s)", f(coverage), f(q05, 2)), arm = ARM_LABELS[arm]) |>
+  select(family, dependence, estimand, arm, v) |>
+  pivot_wider(names_from = arm, values_from = v) |>
+  mutate(family = label_family(family), estimand = label_estimand(estimand)) |>
+  arrange(family, desc(dependence), estimand)
+save_tab(ssn_g20_tab, "ssn-g20-coverage")
+
+# G ladder of REML + CL2 and NCV + CL2, and REML + CL2's width relative to G = 40
+ssn_width <- ssn_lad |>
+  filter(arm == "reml_cl2", G %in% c(SSN_G20, 40)) |>
+  select(family, signal, error, dependence, estimand, G, width_mean) |>
+  pivot_wider(names_from = G, values_from = width_mean, names_prefix = "w") |>
+  mutate(ratio = .data[[paste0("w", SSN_G20)]] / w40)
+ssn_ladder_tab <- ssn_lad_sum |>
+  filter(arm %in% c("reml_cl2", "ncv_cl2")) |>
+  arrange(desc(arm), G) |>
+  mutate(col = paste(c(reml_cl2 = "REML", ncv_cl2 = "NCV")[arm], G)) |>
+  select(family, dependence, estimand, col, coverage) |>
+  pivot_wider(names_from = col, values_from = coverage) |>
+  left_join(ssn_width |> group_by(family, dependence, estimand) |>
+              summarise(width = exp(mean(log(ratio))), .groups = "drop"),
+            by = c("family", "dependence", "estimand")) |>
+  mutate(family = label_family(family)) |>
+  arrange(family, desc(dependence), estimand) |>
+  ssn_compact()
+save_tab(ssn_ladder_tab, "ssn-g-ladder")
+
+# Satterthwaite at G = 20 (mid signal only), with G = 40 and 100
+ssn_gs <- ssn_ladder_satt |>
+  filter(crit %in% names(SSN_CRIT)) |>
+  mutate(dependence = ssn_dep(error)) |>
+  group_by(family, dependence, estimand, crit, G) |>
+  summarise(coverage = mean(coverage), q05 = mean(pointwise_q05), .groups = "drop")
+ssn_gss <- \(crit, dep, g = SSN_G20, est = c("mean", "beta", "gamma"), fam = c("gaussian", "poisson", "binomial"))
+  ssn_gs$coverage[ssn_gs$crit == crit & ssn_gs$dependence == dep & ssn_gs$G == g & ssn_gs$estimand %in% est & ssn_gs$family %in% fam]
+ssn_gs_tab <- ssn_gs |>
+  filter(G == SSN_G20 | crit != "t") |>
+  mutate(col = paste(c(z = "z", t = "t", satt = "Satt")[crit], G)) |>
+  select(family, dependence, estimand, col, coverage) |>
+  pivot_wider(names_from = col, values_from = coverage) |>
+  left_join(ssn_gs |> filter(G == SSN_G20, crit == "satt") |> select(family, dependence, estimand, q05),
+            by = c("family", "dependence", "estimand")) |>
+  rename(!!paste("q05", SSN_G20) := q05) |>
+  mutate(family = label_family(family)) |>
+  arrange(family, desc(dependence), estimand) |>
+  ssn_compact()
+ssn_gs_tab <- ssn_gs_tab[, c("family", "dependence", "estimand",
+  paste(c("z", "t", "Satt", "q05"), SSN_G20), "z 40", "Satt 40", "z 100", "Satt 100")]
+save_tab(ssn_gs_tab, "ssn-g20-satterthwaite")
+
+# relative error and detection, G = 20 / 40 / 100 (G = 40 and 100: the study's core cells)
+ssn_keys <- ssn_ladder |> distinct(cell, family, signal, error, G)
+ssn_rel <- bind_rows(read_summary("final", "relative-error") |> filter(cell %in% ssn_keys$cell), ssn_rel20) |>
+  filter(estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2", "ncv_cl2_bias")) |>
+  inner_join(ssn_keys, by = "cell") |>
+  mutate(dependence = ssn_dep(error))
+ssn_rel_wide <- ssn_rel |>
+  select(cell, family, signal, error, dependence, G, estimand, arm, rel_rmse_cell, rel_rmse_median, detect) |>
+  pivot_wider(names_from = arm, values_from = c(rel_rmse_cell, rel_rmse_median, detect))
+ssn_rel_tab <- ssn_rel_wide |>
+  group_by(estimand, family, dependence, G) |>
+  summarise(cells = n(),
+            `REML cell` = median(rel_rmse_cell_reml_cl2), `NCV cell` = median(rel_rmse_cell_ncv_cl2),
+            `REML med.` = median(rel_rmse_median_reml_cl2), `NCV med.` = median(rel_rmse_median_ncv_cl2),
+            `det. REML` = mean(detect_reml_cl2), `det. NCV-b` = mean(detect_ncv_cl2_bias),
+            .groups = "drop") |>
+  mutate(family = label_family(family)) |>
+  arrange(desc(estimand), family, desc(dependence), G)
+ssn_rel_ord <- with(ssn_rel_tab |> filter(estimand == "beta", dependence == "dependent", G == SSN_G20),
+  all(`NCV cell` < `REML cell`))
+ssn_rel_tab <- ssn_compact(ssn_rel_tab)
+save_tab(ssn_rel_tab, "ssn-g-ladder-relative-error")
+ssn_rt <- \(est, fam, dep, g, col) ssn_rel_tab[[col]][ssn_rel_tab$estimand == est &
+  ssn_rel_tab$family == label_family(fam) & ssn_rel_tab$dependence == c(independent = "indep.", dependent = "dep.")[[dep]] &
+  ssn_rel_tab$G == g]
+ssn_det <- \(col, g) ssn_rel_tab[[col]][ssn_rel_tab$estimand == "beta" & ssn_rel_tab$dependence == "dep." & ssn_rel_tab$G == g]
+ssn_rel_text <- vapply(c("gaussian", "poisson", "binomial"), \(fam) sprintf("%s %s vs %s",
+  FAMILY_LABELS[[fam]], f(ssn_rt("beta", fam, "dependent", SSN_G20, "NCV med."), 2),
+  f(ssn_rt("beta", fam, "dependent", SSN_G20, "REML med."), 2)), "") |> paste(collapse = ", ")
+```
+
+```{r}
+#| label: fig-ssn-ladder
+#| fig-cap: "Coverage of the four main intervals by number of curves G (log scale), mean over the core cells of each family and dependence class (all signal levels; dependent = OU and smooth errors); bars ± 2 MC SE, dashed: nominal 0.95."
+#| fig-height: 6.5
+d <- ssn_lad_sum |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand),
+         panel = factor(paste(FAMILY_LABELS[family], dependence, sep = "\n"),
+                        as.vector(outer(FAMILY_LABELS[c("gaussian", "poisson", "binomial")], c("independent", "dependent"), paste, sep = "\n"))))
+fig <- ggplot(d, aes(G, coverage, colour = arm)) +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_line(linewidth = 0.3) +
+  geom_pointrange(aes(ymin = coverage - 2 * cov_se, ymax = coverage + 2 * cov_se), size = 0.15) +
+  facet_grid(estimand ~ panel, scales = "free_y") +
+  scale_x_log10(breaks = sort(unique(d$G)), expand = expansion(mult = 0.12)) +
+  scale_colour_manual(values = ARM_COLOURS, name = NULL) +
+  labs(x = "G (number of curves)", y = "coverage (grid average)") +
+  theme_doc +
+  theme(panel.spacing.x = unit(0.9, "lines"), axis.text.x = element_text(size = 6.5))
+save_fig(fig, "ssn-g-ladder-coverage", 7, 6.5)
+fig
+```
+
+**Coverage.** With dependent errors, REML + CL2 covers β, γ and the mean
+`r rng(ssn_ls("reml_cl2", "dependent", est = SSN_BGM))` at G = `r SSN_G20` (means over cells per family and
+estimand), against `r rng(ssn_ls("reml_cl2", "dependent", 40, est = SSN_BGM))` at G = 40 and
+`r rng(ssn_ls("reml_cl2", "dependent", 100, est = SSN_BGM))` at G = 100; for α the values are
+`r rng(ssn_ls("reml_cl2", "dependent", est = "alpha"))`, `r rng(ssn_ls("reml_cl2", "dependent", 40, est = "alpha"))`
+and `r rng(ssn_ls("reml_cl2", "dependent", 100, est = "alpha"))`, lowest for `r ssn_alpha_min` responses (@fig-ssn-ladder, @tbl-ssn-g20). NCV + CL2 drops to
+`r rng(ssn_ls("ncv_cl2", "dependent"))`, with 5% pointwise quantiles down to
+`r f(min(ssn_ls("ncv_cl2", "dependent", col = "q05_min")), 2)`; it should not be used at this G. The bias-aware NCV
+interval covers `r rng(ssn_ls("ncv_cl2_bias", "dependent"))` and the model-based REML interval
+`r rng(ssn_ls("reml_model", "dependent"))`. With independent errors, binary α and γ undercover for every arm,
+including the model-based interval (`r rng(c(ssn_ls("reml_model", "independent", est = c("alpha", "gamma"), fam = "binomial"), ssn_ls("reml_cl2", "independent", est = c("alpha", "gamma"), fam = "binomial"), ssn_ls("ncv_cl2", "independent", est = c("alpha", "gamma"), fam = "binomial"), ssn_ls("ncv_cl2_bias", "independent", est = c("alpha", "gamma"), fam = "binomial")))`;
+model-based `r f(ssn_ls("reml_model", "independent", est = "alpha", fam = "binomial"))` for α and
+`r f(ssn_ls("reml_model", "independent", est = "gamma", fam = "binomial"))` for γ), so this shortfall is a
+small-sample problem of the binary fit, not of the sandwich. REML + CL2 intervals at G = `r SSN_G20` are
+`r rng(ssn_width$ratio)` times as wide as at G = 40 (per cell; geometric mean `r f(exp(mean(log(ssn_width$ratio))), 2)`;
+@tbl-ssn-ladder).
+
+**Satterthwaite at G = `r SSN_G20`** (mid signal only; the Satterthwaite runs cover only the mid-signal cells at
+this G). With dependent errors, REML + CL2 with the Satterthwaite critical value covers
+`r rng(ssn_gss("satt", "dependent"))` for β, γ and the mean, against `r rng(ssn_gss("z", "dependent"))` with z and
+`r rng(ssn_gss("t", "dependent"))` with $t_{G-1}$ (@tbl-ssn-g20-satt). Binary α stays at
+`r f(ssn_gss("satt", "dependent", est = "alpha", fam = "binomial"))` (dependent) and
+`r f(ssn_gss("satt", "independent", est = "alpha", fam = "binomial"))` (independent). With independent Gaussian and
+Poisson errors Satterthwaite overcovers β, γ and the mean (`r rng(ssn_gss("satt", "independent", fam = c("gaussian", "poisson")), 3)`).
+
+**Accuracy and detection.** At G = `r SSN_G20` with dependent errors, the per-replicate median relative error of β
+is `r ssn_rel_text` (NCV vs REML; medians over cells)`r if (ssn_rel_ord) ", and the cell-level relative RMSE is also lower for NCV in every family" else ""`
+(@tbl-ssn-relerr). Detection of clearly non-zero β is `r rng(ssn_det("det. REML", SSN_G20))` for REML + CL2 and
+`r rng(ssn_det("det. NCV-b", SSN_G20))` for the bias-aware NCV interval (G = 100: `r rng(ssn_det("det. REML", 100))`
+and `r rng(ssn_det("det. NCV-b", 100))`).
+
+```{r}
+#| label: tbl-ssn-g20
+#| tbl-cap: "Core factorial at G = 20: coverage (mean 5% pointwise quantile) per arm, mean over the cells of each family, dependence class and estimand (all signal levels)."
+show(ssn_g20_tab)
+```
+
+```{r}
+#| label: tbl-ssn-ladder
+#| tbl-cap: "Coverage of REML + CL2 (REML) and NCV + CL2 (NCV) at G = 20, 40 and 100 (core cells, all signal levels, mean over cells), and the width of REML + CL2 at G = 20 relative to G = 40 (width; geometric mean of per-cell ratios)."
+show(ssn_ladder_tab)
+```
+
+```{r}
+#| label: tbl-ssn-g20-satt
+#| tbl-cap: "REML + CL2 with z, t(G − 1) and Satterthwaite critical values, core cells at mid signal: coverage at G = 20 (q05: the Satterthwaite 5% pointwise quantile), 40 and 100, mean over the cells of each family, dependence class and estimand."
+show(ssn_gs_tab)
+```
+
+```{r}
+#| label: tbl-ssn-relerr
+#| tbl-cap: "Relative error of the REML and NCV estimates (cell level: root of the cell's MSE over the truth's mean square; rep. median: med.: median over replicates of the per-replicate relative error), median over cells, and detection of clearly non-zero β (mean over cells) for REML + CL2 and the bias-aware NCV interval (NCV-b), core cells by G."
+show(ssn_rel_tab)
+```
+
+## A null effect: β = 0 {#sec-ssn-null}
+
+```{r ssn-null}
+ssn_nl <- ssn_null |>
+  mutate(arm_label = factor(SSN_ARMS[arm], SSN_ARMS), family = label_family(family)) |>
+  arrange(family, desc(error), G, arm_label)
+ssn_fpr_tab <- ssn_nl |>
+  mutate(v = sprintf("%s (%s)", f(100 * fpr, 1), f(100 * fpr_se, 1))) |>
+  select(family, error, G, arm_label, v) |>
+  pivot_wider(names_from = arm_label, values_from = v) |>
+  pretty()
+save_tab(ssn_fpr_tab, "ssn-null-fpr")
+ssn_excl_tab <- ssn_nl |>
+  mutate(v = sprintf("%s / %s", f(any_excl, 2), f(share_gt_5pct, 2))) |>
+  select(family, error, G, arm_label, v) |>
+  pivot_wider(names_from = arm_label, values_from = v) |>
+  pretty()
+save_tab(ssn_excl_tab, "ssn-null-exclusion")
+ssn_rms <- ssn_null |>
+  filter(arm %in% c("reml_cl2", "ncv_cl2")) |>
+  select(cell, family, error, G, arm, rms) |>
+  pivot_wider(names_from = arm, values_from = rms) |>
+  transmute(family = label_family(family), error, G, `RMS REML` = reml_cl2, `RMS NCV` = ncv_cl2,
+            `NCV / REML` = ncv_cl2 / reml_cl2) |>
+  arrange(family, desc(error), G) |>
+  pretty()
+save_tab(ssn_rms, "ssn-null-rms")
+ssn_n <- \(a, fam = c("gaussian", "binomial"), err = c("iid", "fpc"), g = c(40, 100), col = "fpr")
+  ssn_null[[col]][ssn_null$arm == a & ssn_null$family %in% fam & ssn_null$error %in% err & ssn_null$G %in% g]
+ssn_rr <- \(err) ssn_rms$`NCV / REML`[ssn_rms$error == SHORT_ERROR[[err]]]
+
+# the other estimands in the null cells, with REML + CL2 in the matching core cell (same alpha and gamma truths)
+ssn_null_keys <- ssn_cells |> filter(block == "null_beta") |> distinct(cell, family, error, G, signal)
+ssn_core_ref <- S |>
+  filter(block == "core", truth == "smooth", arm == "reml_cl2", estimand %in% c("alpha", "gamma")) |>
+  select(family, error, G, signal, estimand, core = coverage_mean)
+ssn_null_other <- ssn_cells |>
+  filter(block == "null_beta", estimand != "beta", arm %in% MAIN_ARMS) |>
+  select(family, error, G, signal, estimand, arm, coverage_mean) |>
+  pivot_wider(names_from = arm, values_from = coverage_mean) |>
+  left_join(ssn_core_ref, by = c("family", "error", "G", "signal", "estimand"))
+ssn_null_other_tab <- ssn_null_other |>
+  select(family, error, G, estimand, all_of(MAIN_ARMS), `REML + CL2, core cell` = core) |>
+  mutate(family = label_family(family), estimand = label_estimand(estimand)) |>
+  arrange(family, desc(error), G, estimand) |>
+  pretty()
+save_tab(ssn_null_other_tab, "ssn-null-other-estimands")
+ssn_no <- \(a, err, est = c("mean", "alpha", "gamma"), fam = c("gaussian", "binomial"))
+  ssn_null_other[[a]][ssn_null_other$error == err & ssn_null_other$estimand %in% est & ssn_null_other$family %in% fam]
+ssn_core_diff <- with(ssn_null_other, reml_cl2[!is.na(core)] - core[!is.na(core)])
+ssn_no_min <- slice_min(ssn_null_other, reml_cl2, n = 1, with_ties = FALSE)
+# EDF of the REML ff term in the matching non-null core cell of the Gaussian, independent-error G = 40 null cell
+ssn_edf_ref <- EDF |>
+  filter(block == "core", truth == "smooth", family == "gaussian", error == "iid", G == 40, signal == "mid",
+         fit == "REML", grepl("^te\\(", term)) |>
+  pull(edf_mean)
+stopifnot(length(ssn_edf_ref) == 1)
+ssn_gi40 <- \(a, col = "fpr") ssn_n(a, "gaussian", "iid", 40, col)
+```
+
+**Pointwise false-positive rate** (share of grid points whose interval excludes zero; nominal 5%; @tbl-ssn-fpr).
+With smooth errors, REML + CL2 has `r rng_pp(ssn_n("reml_cl2", err = "fpc"))`, with $t_{G-1}$
+`r rng_pp(ssn_n("reml_cl2_t", err = "fpc"))` and with Satterthwaite `r rng_pp(ssn_n("reml_cl2_satt", err = "fpc"))`.
+The model-based intervals reach `r rng_pp(ssn_n("reml_model", err = "fpc"))` (REML) and
+`r rng_pp(ssn_n("ncv_model", err = "fpc"))` (NCV), NCV + CL2 `r rng_pp(ssn_n("ncv_cl2", err = "fpc"))`. With
+independent errors REML + CL2 has `r rng_pp(ssn_n("reml_cl2", err = "iid", g = 100))` at G = 100 and
+`r rng_pp(ssn_n("reml_cl2", fam = "binomial", err = "iid", g = 40))` for binary at G = 40.
+
+The exception is Gaussian, independent errors, G = 40: REML + CL2 has `r pp(ssn_gi40("reml_cl2"))`
+(MC SE `r pp(ssn_gi40("reml_cl2", "fpr_se"))`) and Satterthwaite `r pp(ssn_gi40("reml_cl2_satt"))`, against
+`r pp(ssn_n("reml_cl2", "gaussian", "iid", 100))` at G = 100. The excluded points are concentrated in a minority of
+replicates: `r f(ssn_gi40("reml_cl2", "share_gt_5pct"), 2)` of the replicates have more than 5% of the grid
+excluding zero, and the 90% quantile of the per-replicate share is `r f(ssn_gi40("reml_cl2", "fpr_q90"), 2)`. Under
+β = 0 the REML fit shrinks β close to the null space of its penalty in most replicates, and in the remaining ones
+a large part of the grid excludes zero. This is the known weakness of
+Bayesian smoother intervals for terms shrunk to the penalty null space (Marra and Wood, 2012). It does not carry
+over to the non-null core cells, where the REML ff term is far from the null space (mean EDF
+`r f(ssn_edf_ref, 1)` in the matching core cell).
+
+The bias-aware NCV interval has the lowest rate under smooth errors
+(`r rng_pp(ssn_n("ncv_cl2_bias", err = "fpc"))`). Its variance is the NCV + CL2 variance plus (NCV − REML)², and
+under β = 0 the REML estimate is noisy (RMS `r rng(ssn_rms[["RMS REML"]][ssn_rms$error == SHORT_ERROR[["fpc"]]])`
+against `r rng(ssn_rms[["RMS NCV"]][ssn_rms$error == SHORT_ERROR[["fpc"]]])` for NCV), so the low rate reflects
+inflated widths, not calibration.
+
+**Replicates with excluded points** (descriptive; @tbl-ssn-excl). Under smooth errors,
+`r rng(ssn_n("reml_cl2", err = "fpc", col = "any_excl"), 2)` of the replicates have at least one grid point where the
+REML + CL2 interval excludes zero (`r rng(ssn_n("reml_cl2_satt", err = "fpc", col = "any_excl"), 2)` with
+Satterthwaite) and `r rng(ssn_n("reml_cl2", err = "fpc", col = "share_gt_5pct"), 2)` have more than 5% of the grid
+excluding zero. These shares are not error rates: the intervals are pointwise, and a statement that β is zero
+everywhere needs a simultaneous band or a global test, which this study does not evaluate.
+
+**Size of the null estimate** (@tbl-ssn-rms; RMS over the grid, mean over replicates). The NCV estimate is
+`r rng(ssn_rr("fpc"))` times the REML estimate's RMS under smooth errors and `r rng(ssn_rr("iid"))` times under
+independent errors.
+
+**Other estimands** (@tbl-ssn-other). REML + CL2 covers the mean, α and γ at
+`r rng(ssn_no("reml_cl2", "fpc"))` under smooth errors and `r rng(ssn_no("reml_cl2", "iid"))` under independent
+errors; for α and γ the difference to the matching non-null core cell is `r rng_pp(ssn_core_diff)`. Its lowest value
+is `r SSN_EST_TXT[[ssn_no_min$estimand]]` in the `r FAMILY_LABELS[[ssn_no_min$family]]` cell with `r ERROR_LABELS[[ssn_no_min$error]]`
+errors at G = `r ssn_no_min$G` (`r f(ssn_no_min$reml_cl2)`). NCV + CL2 covers `r rng(ssn_no("ncv_cl2", "fpc"))` under
+smooth errors, the bias-aware NCV interval `r rng(ssn_no("ncv_cl2_bias", "fpc"))`.
+
+```{r}
+#| label: tbl-ssn-fpr
+#| tbl-cap: "β = 0: pointwise false-positive rate in % (MC SE), the share of grid points whose 95% interval excludes zero, mean over replicates. Bias-aware: NCV + CL2 with the squared NCV − REML difference added to the variance."
+show(ssn_fpr_tab)
+```
+
+```{r}
+#| label: tbl-ssn-excl
+#| tbl-cap: "β = 0, descriptive: share of replicates with at least one grid point excluding zero / with more than 5% of the grid excluding zero. Not error rates (pointwise intervals)."
+show(ssn_excl_tab)
+```
+
+```{r}
+#| label: tbl-ssn-rms
+#| tbl-cap: "β = 0: RMS of the REML and NCV estimates of β over the grid (mean over replicates) and their ratio."
+show(ssn_rms)
+```
+
+```{r}
+#| label: tbl-ssn-other
+#| tbl-cap: "β = 0: coverage of the other estimands per arm, and REML + CL2 in the matching non-null core cell for α and γ (whose truths are unchanged)."
+show(ssn_null_other_tab)
+```

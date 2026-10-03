@@ -1,0 +1,45 @@
+diff -ru a/mgcv/R/gam.fit3.r b/mgcv/R/gam.fit3.r
+--- a/mgcv/R/gam.fit3.r	2026-08-11 12:39:47.000000000 +0200
++++ b/mgcv/R/gam.fit3.r	2026-09-28 10:04:02.004852502 +0200
+@@ -1054,7 +1054,8 @@
+     ## END EXPERIMENTAL
+   } else V.sp <- edf2 <- Vc <- NULL
+   ret <- list(Vp=Vb,Ve=Ve,V.sp=V.sp,edf=edf,edf1=edf1,edf2=edf2,hat=hat,F=F,R=R)
+-  if (is.null(object$Vc)) ret$Vc <- Vc
++  ## NCV (bfgs) stores only the sp uncertainty correction term in object$Vc...
++  ret$Vc <- if (is.null(object$Vc)) Vc else Vb + object$Vc
+   ret
+ } ## gam.fit3.post.proc
+ 
+diff -ru a/mgcv/R/mgcv.r b/mgcv/R/mgcv.r
+--- a/mgcv/R/mgcv.r	2026-09-19 12:28:41.000000000 +0200
++++ b/mgcv/R/mgcv.r	2026-09-28 10:04:41.376424075 +0200
+@@ -1797,7 +1797,8 @@
+       }
+       attr(object$Ve,"Vp") <- object$Vp ## keep original
+       attr(object$Ve,"inv.learn") <- alpha
+-      object$Vp <- Vj     
++      if (!is.null(object$Vc)) object$Vc <- object$Vc - object$Vp + Vj ## sp correction now added to Vj
++      object$Vp <- Vj
+     }
+   }
+ 
+diff -ru a/mgcv/src/discrete.c b/mgcv/src/discrete.c
+--- a/mgcv/src/discrete.c	2026-09-22 21:55:58.000000000 +0200
++++ b/mgcv/src/discrete.c	2026-09-28 10:03:59.647817520 +0200
+@@ -1397,12 +1397,13 @@
+   Wy = (double *) CALLOC((size_t) n * *cy,sizeof(double));
+   if (*ar_stop>=0) { /* model has AR component, requiring sqrt(weights) */
+     work = (double *) CALLOC((size_t) n * *cy,sizeof(double));
+-    rw = dwork; for (i=0;i<n;i++) rw[i] = sqrt(w[i]);
++    rw = (double *) CALLOC((size_t) n,sizeof(double)); /* dwork need not have n elements */
++    for (i=0;i<n;i++) rw[i] = sqrt(w[i]);
+     for (p0=Wy,j=0;j<*cy;j++) for (p1=rw,p2=rw + n;p1<p2;p0++,y++,p1++) *p0 = *y * *p1; /* apply root W to y */
+     rwMatrix(ar_stop,ar_row,ar_weights,Wy,(int *) &n,cy,&zero,work);
+     rwMatrix(ar_stop,ar_row,ar_weights,Wy,(int *) &n,cy,&one,work); /* transpose of transform applied */
+     for (p0=Wy,j=0;j<*cy;j++) for (p1=rw,p2=rw + n;p1<p2;p0++,p1++) *p0 *= *p1; /* apply root W to Wy */
+-    FREE(work);
++    FREE(work);FREE(rw);
+   } else for (p0=Wy,j=0;j<*cy;j++) for (p1=w,p2=w + n;p1<p2;p0++,y++,p1++) *p0 = *y * *p1; /* apply W to y */
+   
+   if (*nthreads > 1 && *nthreads < n)

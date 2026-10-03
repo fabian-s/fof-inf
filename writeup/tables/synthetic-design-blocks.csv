@@ -1,0 +1,13 @@
+block,cells,families,errors,G,signal,truth,D,model,covariate,basis
+core,42,"Gaussian, Poisson, binary","iid, OU, smooth","40, 100","low, mid, high",smooth,61,ff(X),rich,default
+warp,12,"Gaussian, Poisson, binary",misreg.,"40, 100",high,"smooth, wiggly",61,ff(X),rich,default
+dense_grid,9,"Gaussian, Poisson, binary","iid, OU, smooth",100,mid,smooth,241,ff(X),rich,default
+rough_truth,14,"Gaussian, Poisson, binary","iid, smooth",100,"low, mid, high",wiggly,61,ff(X),rich,default
+term_type,9,"Gaussian, Poisson, binary","iid, OU, smooth",100,mid,smooth,61,"f(x,t)",rich,default
+families,8,"scaled t, beta, negative binomial, negative binomial (fitted as Poisson)","iid, smooth",100,mid,smooth,61,ff(X),rich,default
+ar1_home,1,Gaussian,AR(1),100,mid,smooth,61,ff(X),rich,default
+oscillating,3,"Gaussian, Poisson, binary",sign-chg.,100,mid,smooth,61,ff(X),rich,default
+warp_ar1,1,Gaussian,misreg.,100,high,wiggly,61,ff(X),rich,default
+heteroskedastic,6,Gaussian,"var(t), var(z), var(t,z)","40, 100",mid,smooth,61,ff(X),rich,default
+lowrank_covariate,6,"Gaussian, Poisson, binary","iid, smooth",100,mid,smooth,61,ff(X),lowrank,default
+basis_size,12,"Gaussian, Poisson, binary","iid, smooth",100,mid,smooth,61,ff(X),rich,"large, xlarge"

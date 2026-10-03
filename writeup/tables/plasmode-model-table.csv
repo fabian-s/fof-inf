@@ -1,0 +1,10 @@
+dataset,model,intercept basis k,gamma(t) basis k,ff basis (s × t),R²,ff EDF REML / NCV / MID,total EDF REML / NCV / MID,MID interior
+ECG strain,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.4691793821687241,59.6 / 44.0 / 52.9,77.1 / 54.1 / 63.4,FALSE
+AF trial,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.1919925232194346,33.2 / 25.3 / 29.5,44.7 / 32.8 / 38.9,TRUE
+running,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.4581223155428163,53.7 / 54.8 / 60.4,68.0 / 65.9 / 73.1,FALSE
+DTI,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.2102979319945717,53.8 / 35.1 / 47.0,68.5 / 47.9 / 60.7,TRUE
+gait,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.3967480355913441,68.7 / 60.8 / 65.3,89.0 / 80.1 / 85.2,FALSE
+ECG 8-lead,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",40,30,8 × 10,0.21087941850787317,39.4 / 11.2 / 23.9,103.2 / 77.0 / 88.9,TRUE
+ocean,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.3618516513806472,59.2 / 49.8 / 60.3,74.3 / 58.7 / 72.1,FALSE
+weather,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.4071796567312995,29.5 / 38.6 / 41.9,45.4 / 60.8 / 61.5,FALSE
+electricity,"Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",12,12,8 × 10,0.31161312376270334,33.2 / 10.0 / 23.9,45.8 / 22.0 / 35.7,FALSE

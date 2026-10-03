@@ -1,0 +1,4 @@
+dataset,block rule,blocks,block size,alt. blocks,score corr. within,score corr. between,between pairs
+ocean,3 consecutive monthly casts (cost check; the autocorrelation rule gives single casts),39,2–3,NA,0.04454824085825645,-0.09997973131892948,38
+weather,complete-linkage clusters of station distance cut at 250 km (mismatch arm: 150 km),16,1–8,25,0.5480788798959825,0.3556048198979069,276
+electricity,2 consecutive frame curves (10 weeks),51,2,NA,0.21403689392480768,0.01108618974058806,50

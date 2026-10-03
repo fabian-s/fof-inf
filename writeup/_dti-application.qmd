@@ -1,0 +1,59 @@
+# DTI application
+
+The paper's application (`analysis/dti-application-case.R` → `summaries/dti-case/`): right
+corticospinal tract FA on corpus-callosum FA and MS status, baseline visit, complete cases — the
+model of the DTI plasmode dataset — fitted with refund 79a346fb by REML and by curve-blocked NCV.
+
+```{r dti-load}
+DTIB <- readr::read_csv("summaries/dti-case/beta-grid.csv", show_col_types = FALSE)
+DTIG <- readr::read_csv("summaries/dti-case/gamma.csv", show_col_types = FALSE)
+DTIR <- readr::read_csv("summaries/dti-case/recipes.csv", show_col_types = FALSE)
+DTIF <- readr::read_csv("summaries/dti-case/fits.csv", show_col_types = FALSE)
+save_tab(DTIR, "dti-recipes")
+save_tab(DTIF, "dti-fits")
+zq <- qnorm(1 - (1 - LEVEL) / 2)
+```
+
+```{r fig-dti-app}
+#| fig-cap: "DTI application. Top: REML and NCV estimates of β(s,t). Middle: grid points where the pointwise 95% interval for β excludes zero (REML fit, model-based and CL2). Bottom: the MS effect γ(t) of the REML fit with model-based (grey) and CL2 (blue) pointwise intervals, and the NCV estimate (dashed)."
+#| fig-height: 8
+lim <- max(abs(DTIB$est)) * c(-1, 1)
+p1 <- ggplot(DTIB, aes(s, t, fill = est)) +
+  geom_raster() +
+  facet_wrap(~fit) +
+  scale_fill_gradient2(low = "#2166ac", mid = "grey96", high = "#b2182b", midpoint = 0, limits = lim, name = "beta") +
+  coord_fixed() + theme_doc + theme(legend.position = "right")
+b <- DTIB |> filter(fit == "REML")
+ex <- bind_rows(
+  b |> mutate(se = "model-based", sig = sign(est) * (abs(est) > zq * se_model)),
+  b |> mutate(se = "CL2", sig = sign(est) * (abs(est) > zq * se_cl2))
+) |> mutate(sig = factor(sig, c(-1, 0, 1), c("below 0", "contains 0", "above 0")))
+p2 <- ggplot(ex, aes(s, t, fill = sig)) +
+  geom_raster() +
+  facet_wrap(~se) +
+  scale_fill_manual(values = c("below 0" = "#2166ac", "contains 0" = "grey92", "above 0" = "#b2182b"), name = NULL, drop = FALSE) +
+  coord_fixed() + theme_doc + theme(legend.position = "right")
+g <- DTIG |> filter(fit == "REML")
+p3 <- ggplot(g, aes(t, est)) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  geom_ribbon(aes(ymin = est - zq * se_cl2, ymax = est + zq * se_cl2), fill = "#0072B2", alpha = 0.25) +
+  geom_ribbon(aes(ymin = est - zq * se_model, ymax = est + zq * se_model), fill = "grey40", alpha = 0.35) +
+  geom_line() +
+  geom_line(data = DTIG |> filter(fit == "NCV"), linetype = 2) +
+  labs(y = "gamma(t), MS effect") + theme_doc
+fig <- p1 / p2 / p3 + plot_layout(heights = c(1, 1, 0.8))
+save_fig(fig, "dti-application", 6.5, 8)
+fig
+```
+
+```{r}
+#| label: tbl-dti-app
+#| tbl-cap: "DTI application: median half-width and share of the grid where the pointwise 95% interval excludes zero (REML fit), and the median CL2/model-based SE ratio, for β(s,t) and γ(t)."
+show(DTIR)
+```
+
+```{r}
+#| label: tbl-dti-fits
+#| tbl-cap: "DTI fits: curves, grid points, total, surface and γ EDF, and the median absolute NCV − REML surface difference in units of REML's CL2 SE."
+show(DTIF)
+```

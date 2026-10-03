@@ -1,0 +1,10 @@
+dataset,role,access,G,native grid,fitted D,grid used,response,covariate,z
+ECG strain,counted,local only,78,about 52 frames per beat (29–83),61,interpolated to 61 points,"global longitudinal strain, 4-chamber view (%), one cardiac cycle normalised to [0, 1]","simultaneously recorded ECG of the same beat (digitised pixel intensity, shape usable, amplitude up to scale), 51 points",age (standardised)
+AF trial,counted,local only,118,30 points per cycle,30,used as is,"left-atrial strain, 4-chamber view, at day 30 (%), one cycle on [0, 1]","the same strain curve at day 0, 51 points",randomised treatment (digoxin = 1)
+running,counted,public,90,101 points,61,interpolated to 61 points (as in the original 16 cells),sagittal knee moment over normalised stance,"sagittal knee angle over the same stance, 51 points",body mass (standardised)
+DTI,counted,public,92,55 points,55,used as is,fractional anisotropy along the right corticospinal tract,"fractional anisotropy along the corpus callosum, 51 points",case status (MS = 1)
+gait,counted,public,138,1001 points (0.1% of the stride),101,every 10th point (101),"sagittal knee moment over one stride, one mean stride per subject","sagittal knee angle over the stride, 51 points",age (standardised; from the subject-characteristics file)
+ECG 8-lead,counted,public,100,1024 points at 1 kHz,101,interpolated to 101 points,ECG lead V5 (µV) over one beat,"ECG lead I (presumed from the documented lead order), 51 points",LBBB indicator
+ocean,stress test,public,116,101 points,101,used as is,dissolved oxygen over depth,"temperature over depth, 51 points",cast order (standardised)
+weather,stress test,public,73,365 days,73,every 5th day (73),log precipitation over the year,"daily mean temperature over the year, 51 points",altitude (standardised)
+electricity,stress test,public,102,48 half-hours,48,used as is,half-hourly electricity demand over the day,"airport temperature over the same day, 51 points",week index (standardised; absorbs the linear trend)

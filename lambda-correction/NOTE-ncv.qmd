@@ -1,0 +1,98 @@
+---
+title: "Cluster-robust smoothing-parameter correction for Gaussian curve-blocked NCV"
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=2.5cm
+    fontsize: 10pt
+---
+
+Companion to `NOTE.qmd` (REML). Code: `ncv-lib.R`; checks: `ncv-validate.R`.
+
+## Criterion
+
+Gaussian identity fit, penalty $S_\lambda = \sum_k \lambda_k S_k$, $\rho = \log\lambda$, curves
+$g = 1, \dots, G$ with curve weights $w_g$. With $A_w = \sum_h w_h X_h^\top X_h + S_\lambda$ and
+$b_w = \sum_h w_h X_h^\top y_h$, the fit without curve $g$ is
+$$
+t_g = B_g^{-1}(b_w - w_g X_g^\top y_g), \qquad B_g = A_w - w_g X_g^\top X_g,
+$$
+and refund's curve-blocked NCV (mgcv's `method = "NCV"` with neighbourhoods "drop curve $g$,
+predict curve $g$") is
+$$
+\mathrm{NCV}(\rho; w) = \sum_g w_g \lVert r_g \rVert^2, \qquad r_g = y_g - X_g t_g .
+$$
+For a Gaussian response mgcv's Newton-step leave-out fits are exact, so this is mgcv's
+criterion (checked: value and gradient agree with `fit$gcv.ubre` and `outer.info$grad`).
+A zero weight deletes the curve from the loss and from every other leave-out fit (those
+folds then train on $G - 2$ curves), with basis, penalties and constraints held fixed; mgcv's
+NCV refit with zero prior weights on a curve (and the same neighbourhoods passed to `gam()`)
+reproduces this criterion. There is no scale parameter in the outer optimisation.
+
+## Gradient, Hessian
+
+With $\tilde S_k = \lambda_k S_k$, $\partial t_g/\partial\rho_k = -B_g^{-1}\tilde S_k t_g$ and
+$$
+\frac{\partial\,\mathrm{NCV}}{\partial\rho_k} = 2\sum_g w_g\, u_g^\top \tilde S_k t_g,
+\qquad u_g = B_g^{-1}X_g^\top r_g .
+$$
+$H$ is obtained by central differences of this exact gradient in $\rho$ (no refits: every
+quantity is an explicit solve); it agrees with the analytic
+$H_{kl} = 2\sum_g w_g[(X_g v_{gl})^\top X_g v_{gk} + \mathbb 1_{k=l}q_{gk} - u_g^\top\tilde S_l v_{gk} - u_g^\top\tilde S_k v_{gl}]$
+(notation below) to about $10^{-8}$. mgcv optimises NCV by BFGS and stores an approximate
+Hessian in `outer.info$hess`, which differs by 5-10% and is not used.
+
+## Curve scores
+
+For $h \ne g$: $\partial B_g/\partial w_h = X_h^\top X_h$ and
+$\partial t_g/\partial w_h = B_g^{-1}X_h^\top e_{h\mid g}$ with $e_{h\mid g} = y_h - X_h t_g$
+(the residual of curve $h$ under the fit without $g$); $t_h$ does not depend on $w_h$. With
+$v_{gk} = B_g^{-1}\tilde S_k t_g$, $m_{1,gk} = B_g^{-1}X_g^\top X_g v_{gk}$ and
+$m_{2,gk} = B_g^{-1}\tilde S_k u_g$, differentiating $q_{gk} = u_g^\top\tilde S_k t_g$ gives
+$$
+s_{hk} = \frac{\partial^2\mathrm{NCV}}{\partial\rho_k\,\partial w_h}\Big|_{w=1}
+= 2 q_{hk} + 2\sum_{g\ne h}\Big[ e_{h\mid g}^\top X_h (m_{2,gk} - m_{1,gk})
+- (X_h u_g)^\top (X_h v_{gk}) \Big].
+$$
+The first term is curve $h$'s own loss; the sum is its effect on every other leave-out fit
+(through $t_g$, $B_g^{-1}$ and $r_g$). Cost $O(G\,K\,n\,p + G\,p^3)$.
+
+## Influence, variance, correction
+
+As for REML: $d_h = -H^{-1}(s_h - \bar s)$ (IJ), or the one-step leave-curve-out change
+$\Delta_h = -H^{-1}[\nabla\mathrm{NCV}_{(-h)}(\hat\rho) - \nabla\mathrm{NCV}(\hat\rho)]$ with the
+leave-out gradient evaluated exactly ($O(G^2p^3)$). $\hat V_\rho$, the map through
+$J = \partial\hat\theta/\partial\rho = -A^{-1}\tilde S_k\hat\theta$ (the penalised fit is the same
+as under REML), the cross term and the regularised variants are as in `NOTE.qmd`. CL2 for NCV
+fits uses $V_p$ (on mgcv's NCV path $V_c$ is assembled from a smoothing-uncertainty correction
+term with a row-level gradient meat, not a cluster-robust covariance).
+
+NCV is a prediction loss, not a log-likelihood: $H^{-1}$ alone is not a covariance of
+$\hat\rho$ (the "naive" arms are a mgcv-style analogue, not a calibrated reference), and the
+regularised arms' prior $1/10$ is not scale-free here (rescaling the criterion rescales $H$
+and the scores but not the prior), so they are sensitivity variants only. The unregularised
+sandwich is invariant to rescaling the criterion. The corrected covariance is a CL2-based
+hybrid (leverage-adjusted coefficient influences, unadjusted $\rho$-influences, plus
+$V_p - V_e$), not a sandwich derived from one estimating equation.
+
+A check of signs and centring: $\mathrm{NCV}(\rho; c\mathbf 1) = c\,\mathrm{NCV}(\rho - \log c; \mathbf 1)$
+gives $\sum_h s_h = \nabla\mathrm{NCV} - H\mathbf 1$ (holds to $10^{-12}$ on the validation
+replicate).
+
+## Assumptions
+
+Gaussian identity link, curve-blocked neighbourhoods (drop and predict the same curve),
+unit prior weights, independent curves, a converged NCV fit at an interior optimum, and
+$\sqrt G$-regular behaviour of $\hat\rho$ for the first-order correction to be accurate.
+
+## Checks (`ncv-validate.R`, Gaussian OU, $G = 40$, rep 1)
+
+Value and gradient equal mgcv's to printed precision; analytic gradient equals central
+differences of the value; analytic curve scores equal central differences of the gradient in
+$w_h$; leave-curve-out changes of $\hat\rho$: IJ and one-step against exact re-minimisation
+of $\mathrm{NCV}_{(-h)}$ (correlations 0.73-0.98). An independent
+re-derivation of the scores and the Hessian confirmed them numerically. Single
+deletions can move $\log\hat\lambda$ of a surface penalty by several units, beyond a
+first-order expansion; calibration is assessed only by the simulation (estimated SDs of
+$\log\hat\lambda$ against Monte Carlo SD and robust spread, and SE/SD of the estimands;
+`REPORT-ncv.md`).

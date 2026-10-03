@@ -1,0 +1,287 @@
+---
+title: "The data-generating processes of the simulation study"
+subtitle: "Covariates, true effects, simulated responses, residuals and residual correlations"
+date: today
+format:
+  html:
+    embed-resources: true
+    code-fold: true
+    toc: true
+    fig-width: 9
+    fig-height: 4.5
+execute:
+  warning: false
+  message: false
+---
+
+```{r setup}
+knitr::opts_knit$set(root.dir = "..")
+```
+
+```{r packages}
+source("scripts/setup.R")
+source("analysis/dgp-helpers.R")
+suppressPackageStartupMessages({
+  library(tidyfun)
+  library(ggplot2)
+  library(patchwork)
+})
+theme_set(theme_minimal(base_size = 11) + theme(panel.grid.minor = element_blank()))
+cells <- design_table()
+N_SHOW <- 25 # curves shown per spaghetti plot
+
+# One cell of the design, found by its factors.
+get_cell <- function(...) {
+  keys <- list(...)
+  hit <- Reduce(`&`, Map(\(k, v) cells[[k]] == v, names(keys), keys))
+  as.list(cells[which(hit)[1], ])
+}
+
+# A matrix (rows = curves) on grid `arg` as a data frame with one tf column.
+curves <- function(mat, arg, ...) {
+  d <- data.frame(id = seq_len(nrow(mat)), ...)
+  d$f <- tfd(mat, arg = arg)
+  d
+}
+
+spaghetti <- function(d, colour = NULL, title = NULL, ylab = NULL) {
+  aes_col <- if (is.null(colour)) aes(y = f) else aes(y = f, colour = .data[[colour]])
+  p <- ggplot(d, aes_col) +
+    geom_spaghetti(linewidth = 0.35, alpha = 0.8) +
+    labs(title = title, x = "t", y = ylab)
+  if (is.null(colour)) p + aes(group = id) else p
+}
+
+# Diverging fill with a neutral midpoint for signed surfaces and correlations.
+diverging <- function(name, limits = NULL) {
+  scale_fill_gradient2(
+    name = name, low = "#2166ac", mid = "grey96", high = "#b2182b",
+    midpoint = 0, limits = limits
+  )
+}
+
+surface_plot <- function(z, x, y, xlab, ylab, title, name = "value", limits = NULL) {
+  d <- expand.grid(x = x, y = y)
+  d$z <- as.vector(z)
+  ggplot(d, aes(x, y, fill = z)) +
+    geom_raster() +
+    diverging(name, limits) +
+    coord_fixed() +
+    labs(x = xlab, y = ylab, title = title)
+}
+```
+
+This document shows what the study simulates. Everything is computed from the study code
+(`R/`), with the same functions and constants as the production runs; the replicate shown is
+replicate 1 unless noted.
+
+## Covariates
+
+```{r covariates}
+#| fig-height: 3.5
+draws <- draw_replicate(1)
+cov <- make_covariates(draws$xi, draws$z, draws$x)
+eig <- svd(scale(cov$X, scale = FALSE), nu = 0, nv = 0)$d^2
+share <- eig / sum(eig)
+p_x <- spaghetti(
+  curves(cov$X[1:N_SHOW, ], S_GRID, level = cov$X[1:N_SHOW, 1]),
+  title = "Functional covariate X_i(s), 25 of 100 curves", ylab = "X(s)"
+) + labs(x = "s")
+p_eig <- ggplot(data.frame(k = 1:15, share = share[1:15]), aes(k, share)) +
+  geom_col(width = 0.6, fill = "#2166ac") +
+  labs(title = "Eigenvalue shares", x = "component", y = "share")
+p_x + p_eig + plot_layout(widths = c(2, 1))
+```
+
+The first component explains `r round(100 * share[1])`% of the centred variance, the first
+four `r round(100 * sum(share[1:4]))`%; the 99.5% effective rank of this sample is
+`r centred_rank(cov$X)` (the fitted ff basis has 8 functions along s).
+
+## True effects
+
+```{r truths}
+#| fig-height: 7
+t <- EVAL_T
+t_fine <- seq(0, 1, length.out = 101)
+beta <- lapply(c(smooth = "smooth", wiggly = "wiggly"), \(r) make_truth("M1", r))
+s_show <- seq(0, 1, length.out = 11)
+beta_curves <- \(r) curves(beta[[r]]$beta(s_show, t_fine), t_fine, s = s_show)
+p_b <- lapply(names(beta), \(r) {
+  spaghetti(beta_curves(r), colour = "s",
+    title = paste0("beta(s, t), ", r, ": one curve per s"), ylab = "beta") +
+    scale_colour_gradient(low = "grey75", high = "#08306b")
+})
+lim <- max(abs(unlist(lapply(beta, \(b) b$beta(t_fine, t_fine)))))
+p_s <- lapply(names(beta), \(r) {
+  surface_plot(beta[[r]]$beta(t_fine, t_fine), t_fine, t_fine, "s", "t",
+    paste0("beta(s, t), ", r), "beta", c(-lim, lim))
+})
+(p_b[[1]] + p_s[[1]]) / (p_b[[2]] + p_s[[2]])
+```
+
+```{r truths-1d}
+#| fig-height: 3.5
+one_d <- rbind(
+  data.frame(term = "gamma(t)", truth = "smooth", t = t_fine, value = beta$smooth$gamma(t_fine)),
+  data.frame(term = "gamma(t)", truth = "wiggly", t = t_fine, value = beta$wiggly$gamma(t_fine)),
+  data.frame(term = "alpha(t) (bump, Gaussian)", truth = "all cells", t = t_fine,
+    value = beta$smooth$bump(t_fine))
+)
+ggplot(one_d, aes(t, value, linetype = truth)) +
+  geom_line(linewidth = 0.7, colour = "#08306b") +
+  facet_wrap(~term, scales = "free_y") +
+  labs(title = "Varying coefficient gamma(t) and intercept alpha(t)", y = NULL)
+```
+
+```{r truth-f}
+#| fig-height: 3.5
+m2 <- make_truth("M2", "smooth")
+x_show <- seq(0.05, 0.95, length.out = 10)
+spaghetti(curves(m2$f(x_show, t_fine), t_fine, x = x_show), colour = "x",
+  title = "f(x, t) of the term-type model (M2): one curve per x", ylab = "f") +
+  scale_colour_gradient(low = "grey75", high = "#08306b")
+```
+
+## Simulated responses
+
+Gaussian responses at the default signal (R² = 0.5) under each error process, and the count
+and binary responses of the core design (fpc errors). The same covariates and random draws
+enter every panel (common random numbers).
+
+```{r responses}
+#| fig-height: 8
+errors <- c("iid", "ou", "fpc", "osc", "ou0")
+sim_cell <- \(cell) simulate(cell, 1)
+gauss <- lapply(errors, \(e) {
+  cell <- get_cell(family = "gaussian", error = e, G = 100L, signal = "mid")
+  sim_cell(cell)
+})
+names(gauss) <- errors
+warp_sim <- sim_cell(get_cell(block = "warp", family = "gaussian", G = 100L, truth = "smooth"))
+panels <- c(
+  lapply(errors, \(e) {
+    spaghetti(curves(unclass(gauss[[e]]$data$Y)[1:N_SHOW, ], gauss[[e]]$yind),
+      title = paste("Gaussian,", e), ylab = "Y")
+  }),
+  list(spaghetti(curves(unclass(warp_sim$data$Y)[1:N_SHOW, ], warp_sim$yind),
+    title = "Gaussian, warp (high signal)", ylab = "Y"))
+)
+wrap_plots(panels, ncol = 2)
+```
+
+```{r responses-glm}
+#| fig-height: 4.5
+glm_sims <- lapply(c(poisson = "poisson", binomial = "binomial"), \(f) {
+  sim_cell(get_cell(block = "core", family = f, error = "fpc", G = 100L, signal = "mid"))
+})
+# Responses as an image: one row per curve (40 curves), t along the x axis.
+response_image <- function(sim, title, fill) {
+  y <- unclass(sim$data$Y)[1:40, ]
+  d <- expand.grid(curve = seq_len(nrow(y)), t = sim$yind)
+  d$y <- as.vector(y)
+  ggplot(d, aes(t, curve, fill = y)) +
+    geom_raster() +
+    fill +
+    scale_y_continuous(expand = c(0, 0)) +
+    scale_x_continuous(expand = c(0, 0)) +
+    labs(title = title, x = "t", y = "curve")
+}
+response_image(glm_sims$poisson, "Poisson counts (mean 3), fpc",
+  scale_fill_gradient("count", low = "grey96", high = "#08306b", trans = "sqrt")) +
+  response_image(glm_sims$binomial, "Binary (prevalence 0.2), fpc",
+    scale_fill_gradient("y", low = "grey96", high = "#08306b", breaks = c(0, 1)))
+```
+
+## Residuals
+
+Residuals Y − E(Y | X, z) for the Gaussian cells; for the warp cells E(Y | X, z) is the
+observed-clock mean (the expectation over the warps).
+
+```{r residuals}
+#| fig-height: 8
+resid <- c(
+  lapply(setNames(errors, errors), \(e) {
+    residual_curves(get_cell(family = "gaussian", error = e, G = 100L, signal = "mid"), 1)
+  }),
+  list(
+    `warp, smooth truth` = residual_curves(
+      get_cell(block = "warp", family = "gaussian", G = 100L, truth = "smooth"), 1),
+    `warp, wiggly truth` = residual_curves(
+      get_cell(block = "warp", family = "gaussian", G = 100L, truth = "wiggly"), 1)
+  )
+)
+t61 <- t_grid(61)
+wrap_plots(lapply(names(resid), \(n) {
+  spaghetti(curves(resid[[n]][1:12, ], t61), title = n, ylab = "residual")
+}), ncol = 2)
+```
+
+## Residual correlations
+
+The correlation kernels as specified (top), and the empirical correlations of residuals pooled
+over 20 replicates (2,000 curves) — including the warp cells, whose residual correlation is
+not a kernel of the design but a consequence of misregistration, and the correlation of
+Poisson and binary residuals (response scale) generated from the fpc latent process.
+
+```{r kernels}
+#| fig-height: 5.5
+kernel_panels <- lapply(errors, \(e) {
+  surface_plot(correlation_kernel(e, t61), t61, t61, "t", "t'", e, "corr", c(-1, 1))
+})
+wrap_plots(kernel_panels, ncol = 3, guides = "collect")
+```
+
+```{r empirical-correlations}
+#| fig-height: 8
+pooled_resid <- function(cell, n_rep = 20) {
+  do.call(rbind, lapply(seq_len(n_rep), \(r) residual_curves(cell, r)))
+}
+empirical <- list(
+  `fpc (Gaussian)` = get_cell(family = "gaussian", error = "fpc", G = 100L, signal = "mid"),
+  `osc (Gaussian)` = get_cell(family = "gaussian", error = "osc", G = 100L, signal = "mid"),
+  `warp, smooth truth` = get_cell(block = "warp", family = "gaussian", G = 100L, truth = "smooth"),
+  `warp, wiggly truth` = get_cell(block = "warp", family = "gaussian", G = 100L, truth = "wiggly"),
+  `fpc, Poisson` = get_cell(block = "core", family = "poisson", error = "fpc",
+    G = 100L, signal = "mid"),
+  `fpc, binary` = get_cell(block = "core", family = "binomial", error = "fpc",
+    G = 100L, signal = "mid")
+)
+emp_cor <- lapply(empirical, \(cell) cor(pooled_resid(cell)))
+de <- sapply(emp_cor, \(R) sum(R) / nrow(R))
+wrap_plots(lapply(names(emp_cor), \(n) {
+  surface_plot(emp_cor[[n]], t61, t61, "t", "t'", sprintf("%s (DE %.1f)", n, de[[n]]),
+    "corr", c(-1, 1))
+}), ncol = 2, guides = "collect")
+```
+
+Design effects (1ᵀR1 / tr R) of these empirical correlation matrices:
+`r paste(sprintf("%s %.1f", names(de), de), collapse = "; ")`. The design effect only
+measures the constant contrast; warp and osc residuals have strong sign-changing correlations
+that it averages away (see the study notes on why the misregistration strength was chosen by
+the true-SD/model-SE ratio instead).
+
+## Misregistration: registered and observed-clock targets
+
+```{r warp-targets}
+#| fig-height: 3.5
+quad <- warp_quadrature()
+smear <- \(f) rowSums(sapply(seq_along(quad$a), \(k) quad$w[k] * f(drop(warp_times(quad$a[k], t_fine)))))
+bump_reg <- beta$smooth$bump(t_fine)
+bump_obs <- smear(beta$smooth$bump)
+g_reg <- beta$wiggly$gamma(t_fine)
+g_obs <- smear(beta$wiggly$gamma)
+warp_d <- rbind(
+  data.frame(term = "alpha(t)", clock = "registered", t = t_fine, value = bump_reg),
+  data.frame(term = "alpha(t)", clock = "observed (smeared)", t = t_fine, value = bump_obs),
+  data.frame(term = "gamma(t), wiggly", clock = "registered", t = t_fine, value = g_reg),
+  data.frame(term = "gamma(t), wiggly", clock = "observed (smeared)", t = t_fine, value = g_obs)
+)
+ggplot(warp_d, aes(t, value, linetype = clock)) +
+  geom_line(linewidth = 0.7, colour = "#08306b") +
+  facet_wrap(~term, scales = "free_y") +
+  labs(title = "What a common-clock fit estimates under misregistration (10% displacement)",
+    y = NULL)
+```
+
+At 10% maximum displacement the smeared bump is `r round(100 * (1 - max(bump_obs) / max(bump_reg)))`%
+lower than the registered one.

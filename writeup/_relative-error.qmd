@@ -1,0 +1,136 @@
+### Relative error and informativeness of the intervals {#sec-relerr}
+
+MSE ratios compare the two fits but not the size of the error relative to the effect. Per
+replicate and estimand (`analysis/relative-error.R` → `summaries/final/relative-error.csv`):
+
+- relative error √(grid mean of (estimate − truth)² / grid mean of truth²); for the mean and α(t)
+  the denominator uses the truth centred at its grid mean (their level is not the effect), while the
+  numerator keeps any level error; 1 means the error is as large as the effect;
+- relative half-width, the interval's root-mean-square half-width on the same scale;
+- detection: the share of grid points with |truth| > 25% of max |truth| where the interval excludes
+  zero on the side of the truth (β, γ, f);
+- wrong sign: the share of all grid points where the interval excludes zero on the wrong side.
+
+Cell values are medians over replicates (relative error, half-width) or means (detection, wrong
+sign, coverage).
+
+```{r relerr-load}
+REL <- read_summary("final", "relative-error") |>
+  left_join(S |> distinct(cell, block, family, signal, error, G, truth, basis, extra), by = "cell") |>
+  mutate(dependence = if_else(error == "iid", "independent", "dependent"))
+LSP <- read_summary("final", "log-sp-spread") |>
+  left_join(S |> distinct(cell, block, family, signal, error, G, truth, basis), by = "cell")
+REL_ARMS <- c(reml_model = "REML, model-based", reml_cl2 = "REML + CL2", ncv_cl2 = "NCV + CL2",
+              ncv_cl2_bias = "NCV + CL2, bias-aware", ar1_model = "AR(1) working model")
+rel_sum <- REL |>
+  filter(estimand %in% c("beta", "mean", "gamma", "alpha")) |>
+  group_by(estimand, dependence, arm) |>
+  summarise(
+    cells = n(),
+    coverage = median(coverage),
+    rel_error_max = max(rel_rmse_median),
+    cells_rel_gt_0.5 = sum(rel_rmse_median > 0.5),
+    rel_error = median(rel_rmse_median),
+    reps_rel_gt_1 = mean(share_rel_gt_1),
+    halfwidth = median(rel_halfwidth_median),
+    detect_min = min(detect),
+    wrong_sign_max = max(wrong_sign),
+    detect = median(detect),
+    .groups = "drop"
+  ) |>
+  mutate(arm = factor(REL_ARMS[arm], REL_ARMS), estimand = label_estimand(estimand)) |>
+  select(estimand, dependence, arm, cells, coverage, rel_error, rel_error_max, cells_rel_gt_0.5, reps_rel_gt_1, halfwidth, detect, detect_min, wrong_sign_max) |>
+  arrange(estimand, dependence, arm)
+save_tab(rel_sum, "relative-error-summary")
+rs <- \(e, dep, a, col) rel_sum[[col]][rel_sum$estimand == label_estimand(e) & rel_sum$dependence == dep & rel_sum$arm == REL_ARMS[[a]]]
+rel_core <- REL |>
+  filter(block == "core", estimand == "beta", arm %in% c("reml_cl2", "ncv_cl2")) |>
+  mutate(fit = if_else(arm == "reml_cl2", "REML", "NCV")) |>
+  select(family, signal, error, G, fit, rel_rmse_median) |>
+  pivot_wider(names_from = fit, values_from = rel_rmse_median) |>
+  mutate(ratio = REML / NCV) |>
+  arrange(family, error, G, signal)
+save_tab(rel_core, "relative-error-core-beta")
+rr <- \(dep) rel_core$ratio[if (dep == "iid") rel_core$error == "iid" else rel_core$error != "iid"]
+lsp_core <- LSP |>
+  filter(block == "core", signal == "mid", fit %in% c("REML", "NCV"), grepl("^te\\(", term)) |>
+  group_by(family, error, G, fit) |>
+  summarise(log_sp_sd = mean(log_sp_sd), .groups = "drop") |>
+  pivot_wider(names_from = fit, values_from = log_sp_sd) |>
+  arrange(family, error, G)
+save_tab(lsp_core, "log-sp-spread-core")
+ls <- \(f, dep) lsp_core[[f]][if (dep == "iid") lsp_core$error == "iid" else lsp_core$error != "iid"]
+```
+
+```{r fig-relerr}
+#| fig-cap: "Relative error of the REML and NCV estimates of β(s,t) per synthetic cell (median over replicates; log scales), by dependence; colour = family, dashed: equal error, dotted: error as large as the effect."
+#| fig-height: 3.6
+d <- REL |>
+  filter(estimand == "beta", arm %in% c("reml_cl2", "ncv_cl2")) |>
+  mutate(fit = if_else(arm == "reml_cl2", "REML", "NCV")) |>
+  select(cell, family, dependence, fit, rel_rmse_median) |>
+  pivot_wider(names_from = fit, values_from = rel_rmse_median) |>
+  mutate(family = label_family(family))
+fig <- ggplot(d, aes(NCV, REML, colour = family)) +
+  geom_abline(linetype = 2, colour = "grey40") +
+  geom_hline(yintercept = 1, linetype = 3, colour = "grey40") +
+  geom_vline(xintercept = 1, linetype = 3, colour = "grey40") +
+  geom_point(size = 1.2) +
+  facet_wrap(~dependence) +
+  scale_x_log10() + scale_y_log10() +
+  labs(x = "NCV: relative error of beta", y = "REML: relative error of beta", colour = NULL) +
+  theme_doc
+save_fig(fig, "relative-error-beta", 6.5, 3.6)
+fig
+```
+
+Under independent errors both fits estimate β well: median relative error
+`r f(rs("beta", "independent", "reml_cl2", "rel_error"), 2)` (REML) and
+`r f(rs("beta", "independent", "ncv_cl2", "rel_error"), 2)` (NCV) over the cells. Under dependent errors REML's
+error is `r f(rs("beta", "dependent", "reml_cl2", "rel_error"), 2)` (maximum
+`r f(rs("beta", "dependent", "reml_cl2", "rel_error_max"), 1)`), above 0.5 in
+`r rs("beta", "dependent", "reml_cl2", "cells_rel_gt_0.5")` of
+`r rs("beta", "dependent", "reml_cl2", "cells")` cells, NCV's
+`r f(rs("beta", "dependent", "ncv_cl2", "rel_error"), 2)` (@fig-relerr, @tbl-relerr). In the core cells the
+REML/NCV ratio of the relative error is `r rng(rr("iid"), 1)` under independent and
+`r rng(rr("dep"), 1)` under dependent errors (@tbl-relerr-core); the gap is present at every signal level
+and largest at low signal. The spread of the selected smoothing parameters does not explain it: the SD
+of log λ̂ of the ff penalties over replicates is `r rng(ls("REML", "iid"), 1)` (independent) and
+`r rng(ls("REML", "dep"), 1)` (dependent) for REML, `r rng(ls("NCV", "iid"), 1)` and `r rng(ls("NCV", "dep"), 1)`
+for NCV (largest for binary responses at G = 40; @tbl-logsp), and log-scale spreads at different levels of
+smoothing are not comparable. What matters is where λ̂ lands: within a cell, REML's bad replicates are those
+with a small λ̂ (λ-correction run on the 18 core cells at the default signal, `lambda-correction/flag-check.R`:
+Spearman correlation between small log λ̂ of one of the two ff penalties and the relative error 0.94–0.95 under
+dependence, mean over cells). The other estimands are estimated well by both fits
+(@tbl-relerr).
+
+The intervals mirror this. Under dependence REML + CL2 covers β (median
+`r f(rs("beta", "dependent", "reml_cl2", "coverage"), 3)`) with a half-width of
+`r f(rs("beta", "dependent", "reml_cl2", "halfwidth"), 2)` times the size of the effect and detects
+`r f(rs("beta", "dependent", "reml_cl2", "detect"), 2)` of the clearly non-zero grid points; NCV + CL2
+(coverage `r f(rs("beta", "dependent", "ncv_cl2", "coverage"), 3)`) has half-width
+`r f(rs("beta", "dependent", "ncv_cl2", "halfwidth"), 2)` and detects
+`r f(rs("beta", "dependent", "ncv_cl2", "detect"), 2)`; the bias-aware interval inherits REML's noise through
+δ (half-width `r f(rs("beta", "dependent", "ncv_cl2_bias", "halfwidth"), 2)`, detection
+`r f(rs("beta", "dependent", "ncv_cl2_bias", "detect"), 2)`). Wrong-sign exclusions stay rare for the CL2
+intervals (at most `r f(rs("beta", "dependent", "reml_cl2", "wrong_sign_max"), 3)` of the grid for REML +
+CL2, `r f(rs("beta", "dependent", "ncv_cl2", "wrong_sign_max"), 3)` for NCV + CL2) but reach
+`r f(rs("beta", "dependent", "reml_model", "wrong_sign_max"), 2)` for model-based REML intervals.
+
+```{r}
+#| label: tbl-relerr
+#| tbl-cap: "Relative error and interval informativeness per estimand, dependence and interval: cells, median coverage, median and maximum relative error of the estimate, cells with relative error > 0.5, mean share of replicates with relative error > 1, median relative half-width, median and minimum detection rate, maximum wrong-sign rate (all synthetic cells)."
+show(rel_sum |> rename(dep. = dependence, cov. = coverage, rel = rel_error, `rel max` = rel_error_max, `cells >0.5` = cells_rel_gt_0.5, `reps >1` = reps_rel_gt_1, hw = halfwidth, det = detect, `det min` = detect_min, `wrong max` = wrong_sign_max) |> mutate(dep. = substr(dep., 1, 3)), digits = 2)
+```
+
+```{r}
+#| label: tbl-relerr-core
+#| tbl-cap: "Relative error of the β estimate (median over replicates), REML and NCV, and their ratio, core cells."
+show(rel_core, digits = 2)
+```
+
+```{r}
+#| label: tbl-logsp
+#| tbl-cap: "SD over replicates of the selected log smoothing parameters of the ff term (mean over its two penalties), core cells at the default signal."
+show(lsp_core, digits = 2)
+```

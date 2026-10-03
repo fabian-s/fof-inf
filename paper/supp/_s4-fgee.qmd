@@ -1,0 +1,317 @@
+## S3.3 Functional GEE {#sec-s4-fgee}
+
+```{r s5-setup}
+s5_read <- \(f) readr::read_csv(file.path("competitors/fgee/summaries", f), show_col_types = FALSE)
+s5_A <- s5_read("A-pooled.csv")
+s5_As <- s5_read("A-summary.csv")
+s5_B <- s5_read("B-summary.csv") |> mutate(dep = error != "iid")
+s5_BP <- s5_read("B-paired-ncv-summary.csv") |> mutate(dep = error != "iid")
+s5_P <- bind_rows(s5_read("P-summary.csv"), s5_read("cardio/P-summary.csv"))
+s5_PP <- bind_rows(s5_read("P-paired-ncv-summary.csv"), s5_read("cardio/Pc-paired-ncv-summary.csv"))
+s5_P_ALL <- c(running = 90, dti = 92, gait_vc = 138, ecg_roahd = 100, ecg_gls4b = 78, af = 118)
+
+# Experiment A: pooled coverage over the three coefficient functions
+s5_a <- \(m, ni = c(1, 5), n = c(25, 100, 500), fam = c("gaussian", "poisson", "binomial"))
+  s5_A$coverage[s5_A$method %in% m & s5_A$n_i %in% ni & s5_A$N %in% n & s5_A$family %in% fam]
+s5_as <- \(m, est, col, n = c(25, 100, 500)) s5_As[[col]][s5_As$method %in% m & s5_As$estimand %in% est & s5_As$N %in% n]
+s5_conv <- s5_A |>
+  filter(method %in% c("fgee_base_fixed", "refund_cr_freq_centred")) |>
+  select(cell, family, method, coverage) |>
+  pivot_wider(names_from = method, values_from = coverage) |>
+  mutate(d = abs(fgee_base_fixed - refund_cr_freq_centred))
+s5_cl2_low <- s5_As |> filter(method == "refund_cl2") |> slice_min(coverage, n = 1)
+
+# Experiment B
+s5_b <- \(m, est, dep, col = "coverage") s5_B[[col]][s5_B$method %in% m & s5_B$estimand %in% est & s5_B$dep %in% dep]
+s5_bp <- \(ct, e, d) s5_BP |> filter(contrast == .env$ct, estimand %in% .env$e, dep %in% .env$d)
+
+# Plasmode
+s5_p <- \(m, est, col = "coverage", apps = names(s5_P_ALL)) s5_P[[col]][s5_P$method %in% m & s5_P$estimand %in% est & s5_P$app %in% apps]
+s5_pp <- \(ct, e) s5_PP |> filter(contrast == .env$ct, estimand %in% .env$e)
+
+s5_labels <- c(
+  reml_model = "REML, model-based",
+  reml_cl2 = "REML + CL2",
+  fgee_independent = "fGEE, independence",
+  fgee_ar1 = "fGEE, AR(1)",
+  fgee_fpca = "fGEE, FPCA",
+  fgee_independent_wild = "fGEE, independence, calibrated crit.",
+  fgee_ar1_wild = "fGEE, AR(1), calibrated crit.",
+  fgee_fpca_wild = "fGEE, FPCA, calibrated crit."
+)
+s5_estimands <- c(beta = "β(s,t)", mean = "mean (link)", alpha = "α(t)", gamma = "γ(t)")
+s5_apps <- c(ecg_gls4b = "ECG strain", af = "AF trial", running = "running", dti = "DTI",
+  gait_vc = "gait", ecg_roahd = "ECG 8-lead")
+```
+
+### Their simulation design
+
+We reran the function-on-scalar simulation of @LoewingerLevisCuiPereira2025 [Section 4] with
+their data generator unchanged: $Y_{ij}(s) = \beta_0(s) + X_{1i}\beta_1(s) + X_{2i}\beta_2(s) + \varepsilon_{ij}(s)$
+on 50 grid points, with Gaussian errors (variance 10) or Poisson and binary responses generated
+through a Gaussian copula whose latent correlation is AR(1) (0.75) along $s$ and exchangeable
+(0.75) between the curves of a subject. The design crosses the three families with
+`r knitr::combine_words(sort(unique(s5_A$N)), and = " or ")` subjects and
+`r paste(sort(unique(s5_A$n_i), decreasing = TRUE), collapse = " or ")` curves per subject
+(`r max(s5_A$n_i)` as in their study, `r min(s5_A$n_i)` as in ours), with
+`r max(s5_A$R)` replicates per setting; `r plural(sum(s5_A$R < max(s5_A$R) & !grepl("_wild$", s5_A$method)), "one-step fit")` failed
+(singular system). The initial fit is their pffr call (bam with fREML,
+discretisation, P-spline bases with 16 functions); all intervals labelled "initial fit" in
+@tbl-s4-fgee-a are computed on that fit, the REML row on a refit of the same model and bases by gam
+with REML, and all clusters are subjects. Every interval is scored through
+one evaluation matrix per coefficient function; these matrices reproduce fastFGEE's fitted curves
+and standard errors, so centring and basis differences between methods do not enter. As in their
+Table 3, coverage is the pointwise 95% coverage averaged over the grid, over replicates and over
+$\beta_0$, $\beta_1$ and $\beta_2$; its Monte Carlo standard error is at most
+`r f(max(s5_A$coverage_mc_se), 3)`.
+
+```{r}
+#| label: tbl-s4-fgee-a
+#| tbl-cap: "Their simulation design: ranges over the nine settings (three families, three numbers of subjects) of the coverage of nominal 95% pointwise intervals, averaged over the grid and the three coefficient functions, by number of curves per subject. Initial fit: their pffr call (bam). fGEE: one-step update with the stated functional and longitudinal working correlations. Calibrated crit.: fastFGEE's wild-bootstrap critical value with its t adjustment; z: normal critical value."
+s5_a_methods <- c(
+  model = "Initial fit, model-based",
+  fgee_base = "Initial-fit sandwich of fastFGEE, z",
+  fgee_base_wild = "Initial-fit sandwich of fastFGEE, calibrated crit.",
+  fgee_base_fixed = "Initial-fit sandwich of fastFGEE, penalty rescaled, z",
+  refund_cr_freq_centred = "Initial fit, cluster sandwich, frequentist, centred scores",
+  refund_cr = "Initial fit, CR1",
+  refund_cl2 = "Initial fit, CL2",
+  reml_cl2 = "REML (gam) fit, CL2",
+  fgee_independent_independent = "fGEE, independence × independence, z",
+  fgee_independent_independent_wild = "fGEE, independence × independence, calibrated crit.",
+  fgee_ar1_exchangeable = "fGEE, AR(1) × exchangeable, z",
+  fgee_ar1_exchangeable_wild = "fGEE, AR(1) × exchangeable, calibrated crit."
+)
+s5_A |>
+  filter(method %in% names(s5_a_methods)) |>
+  group_by(method, n_i) |>
+  summarise(r = rng(coverage), .groups = "drop") |>
+  pivot_wider(names_from = n_i, values_from = r) |>
+  mutate(method = factor(method, names(s5_a_methods))) |>
+  arrange(method) |>
+  mutate(method = s5_a_methods[as.character(method)]) |>
+  select(method, `5`, `1`) |>
+  knitr::kable(format = "latex", booktabs = TRUE, linesep = "",
+    col.names = c("Intervals", "5 curves per subject", "1 curve per subject"))
+```
+
+With `r max(s5_A$n_i)` curves per subject, CL2 clustered by subject on the initial fit covers
+`r rng(s5_a("refund_cl2", 5, c(100, 500)))` with 100 or 500 subjects and
+`r rng(s5_a("refund_cl2", 5, 25))` with 25. Refitting by gam and REML changes the pooled CL2
+coverage by at most
+`r f(max(abs(s5_a("refund_cl2") - s5_a("reml_cl2"))), 3)`. fastFGEE's one-step intervals with its
+calibrated critical values cover `r rng(s5_a(c("fgee_independent_independent_wild", "fgee_ar1_exchangeable_wild"), 5))`
+in this design; with a normal critical value they cover
+`r rng(s5_a(c("fgee_independent_independent", "fgee_ar1_exchangeable"), 5, c(25, 100)))` with
+at most 100 subjects and `r rng(s5_a(c("fgee_independent_independent", "fgee_ar1_exchangeable"), 5, 500))`
+with 500. The one-step estimate of $\beta_1$ has an RMSE of
+`r rng(s5_as("fgee_independent_independent", "beta1", "rmse") / s5_as("refund_cl2", "beta1", "rmse"))`
+(independence) and
+`r rng(s5_as("fgee_ar1_exchangeable", "beta1", "rmse") / s5_as("refund_cl2", "beta1", "rmse"))`
+(AR(1) × exchangeable) times that of the initial fit.
+
+### The initial-fit sandwich and penalty-scale conventions
+
+mgcv's smoothing parameters are on the scale of the summed log-likelihood: the penalized
+estimate maximizes $\sum_{i=1}^n \ell_i(\boldsymbol\theta) - \boldsymbol\theta^\top\mathbf S_{\boldsymbol\lambda}\boldsymbol\theta/(2\phi)$,
+with $\mathbf S_{\boldsymbol\lambda} = \sum_j \lambda_j \mathbf S_j$, $n$ clusters (subjects) and the sum over
+all observations of cluster $i$ in $\ell_i$ (for the Gaussian, the residual sum of squares).
+A sandwich written with averaged quantities therefore needs the bread
+$$
+\bar{\mathbf A} = \frac1n \sum_{i=1}^n \mathbf X_i^\top \mathbf W_i \mathbf X_i + \frac{\mathbf S_{\boldsymbol\lambda}}{n\phi}
+= (n\,\mathbf V_p)^{-1},
+$$
+with $\mathbf W_i$ the Fisher weights of the main text, and
+$\bar{\mathbf A}^{-1}\bar{\mathbf M}\bar{\mathbf A}^{-1}/n$ with the averaged meat $\bar{\mathbf M}$
+is then the cluster sandwich $\mathbf V_p(\sum_i \mathbf U_i\mathbf U_i^\top)\mathbf V_p$ up to
+degrees-of-freedom factors.
+
+The initial-fit sandwich of fastFGEE 0.2.2 (`gee.fit = FALSE`), which the simulation code of
+@LoewingerLevisCuiPereira2025 calls for their pffr baseline, differs in the penalty scale: it adds
+$\mathbf S_{\boldsymbol\lambda}$ to the averaged bread, a penalty larger by the factor $n\phi$
+(for the Gaussian, approximately $n\sigma^2$). The estimate is the unchanged pffr estimate, but the
+inverse bread, and with it the standard errors, shrink. In their design the ratio of mean
+standard error to the empirical standard deviation of $\hat\beta_1$ is
+`r rng(s5_as("fgee_base", "beta1", "se_sd_ratio"))` for this sandwich and does not improve with the
+number of subjects (`r rng(s5_as("fgee_base", "beta1", "se_sd_ratio", 25))` with 25,
+`r rng(s5_as("fgee_base", "beta1", "se_sd_ratio", 500))` with 500), because the penalty-scale
+difference does not vanish. With `r max(s5_A$n_i)` curves per subject its pooled coverage is
+`r rng(s5_a("fgee_base", 5, fam = "gaussian"))` for Gaussian,
+`r rng(s5_a("fgee_base", 5, fam = "poisson"))` for Poisson and
+`r rng(s5_a("fgee_base", 5, fam = "binomial"))` for binary responses (@tbl-s4-fgee-a); its coverage here is in
+line with their Table 3 for the pffr baseline. With its wild-bootstrap critical value, which widens the
+intervals instead, coverage is `r rng(s5_a("fgee_base_wild", 5, c(100, 500)))` with 100 or more
+subjects.
+
+Dividing the penalty by $n\phi$ and leaving everything else unchanged gives
+`r rng(s5_a("fgee_base_fixed"))` over all `r nrow(s5_conv)` settings. The rescaled sandwich then
+coincides with refund's frequentist cluster sandwich (no $\mathbf V_p - \mathbf V_e$ term) with
+centred cluster scores: pooled coverages `r if (max(s5_conv$d[s5_conv$family != "gaussian"]) < 5e-4) "agree to three decimals" else "differ"` in every Poisson and binary setting and differ by at most
+`r f(max(s5_conv$d), 3)` in the Gaussian settings, where fastFGEE estimates the working variance per
+grid point instead of using one $\sigma^2$. CL2 on the same fit covers
+`r rng(s5_a("refund_cl2", n = c(100, 500)))` with 100 or 500 subjects and
+`r rng(s5_a("refund_cl2", n = 25))` with 25; the lowest single coefficient function is
+`r f(s5_cl2_low$coverage, 3)` ($\beta_`r sub("beta", "", s5_cl2_low$estimand)`$,
+`r c(gaussian = "Gaussian", poisson = "Poisson", binomial = "binary")[s5_cl2_low$family]`,
+`r s5_cl2_low$N` subjects, `r s5_cl2_low$n_i` curve per subject). Its gain over the rescaled sandwich at
+25 subjects, `r rng(s5_a("refund_cl2", n = 25) - s5_a("fgee_base_fixed", n = 25), 3)`, combines
+uncentred scores, the $\mathbf V_p - \mathbf V_e$ term and the leverage adjustment.
+
+### The main factorial settings of our simulation
+
+fastFGEE was started from the REML fit of the main study in its 18 main factorial settings at the default
+signal level (Gaussian, Poisson and binary responses; independent, rough stationary and smooth errors;
+$G = 40$ and 100; model $\mathrm{ff}(X) + z\gamma(t)$; one curve per subject;
+`r min(s5_B$R)` replicates, the main study's data sets), with curves as clusters, independent
+longitudinal correlation, functional working correlation independence, AR(1) or FPCA, and the
+package defaults otherwise (cluster cross-validation of the smoothing parameters, wild bootstrap).
+Its interval interface covers the functional intercept and scalar-covariate effects but not
+$\mathrm{ff}$ surfaces or fitted means. For $\beta(s,t)$ and the mean we therefore score Wald
+intervals from its covariance with the normal critical value. For $\alpha(t)$ and $\gamma(t)$ we
+also transfer its calibrated critical value for the term (wild bootstrap with $t$ adjustment) to
+our evaluation points and apply it to the same estimate and standard error; the calibration on the
+package's own term grid need not carry over to other points. Monte Carlo standard errors of
+coverage are at most `r f(max(s5_B$coverage_mc_se), 3)`.
+
+```{r}
+#| label: tbl-s4-fgee-b
+#| tbl-cap: "Main factorial settings of our simulation: ranges of grid-averaged coverage of nominal 95% pointwise intervals over the 12 settings with dependent errors (rough stationary, smooth) and the 6 settings with independent errors, and the ratio SE/SD (grid average of mean standard error over the empirical SD of the estimate) under dependence. fGEE intervals: Wald intervals from its covariance, or with its transferred calibrated critical value (calibrated crit.). Mean on the link scale."
+s5_B |>
+  filter(method %in% names(s5_labels)) |>
+  group_by(estimand, method) |>
+  summarise(
+    cov_dep = rng(coverage[dep]),
+    cov_iid = rng(coverage[!dep]),
+    sesd_dep = if (grepl("_wild$", method[1])) "" else rng(se_sd_ratio[dep]),
+    .groups = "drop"
+  ) |>
+  mutate(
+    estimand = factor(estimand, names(s5_estimands)),
+    method = factor(method, names(s5_labels))
+  ) |>
+  arrange(estimand, method) |>
+  mutate(
+    estimand = ifelse(duplicated(estimand), "", s5_estimands[as.character(estimand)]),
+    method = s5_labels[as.character(method)]
+  ) |>
+  knitr::kable(format = "latex", booktabs = TRUE,
+    linesep = "", col.names = c("Estimand", "Intervals", "Cov. dependent", "Cov. independent", "SE/SD dependent"))
+```
+
+The Wald intervals for $\beta$ and the mean use the sandwich covariance fastFGEE 0.2.2 returns for
+its one-step estimate under the stated working correlation. These surface results therefore do not
+test fastFGEE's calibrated bootstrap procedure, which it provides only for intercepts and scalar-covariate effects, nor its performance in
+its own function-on-scalar setting (studied above). Under dependent errors the fGEE Wald intervals
+for $\beta$ cover
+`r rng(s5_b(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", TRUE))` against
+`r rng(s5_b("reml_cl2", "beta", TRUE))` for REML + CL2 (@tbl-s4-fgee-b). Smoothing bias alone does not
+explain the shortfall: the root mean squared bias of the fGEE surface estimate is
+`r rng(s5_b(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", TRUE, "rel_bias"))` of its
+empirical standard deviation (REML `r rng(s5_b("reml_cl2", "beta", TRUE, "rel_bias"))`), while
+SE/SD is `r rng(s5_b(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", TRUE, "se_sd_ratio"))`.
+With calibrated critical values, the intervals for $\alpha$ and $\gamma$ cover
+`r rng(s5_b(c("fgee_independent_wild", "fgee_ar1_wild", "fgee_fpca_wild"), c("alpha", "gamma"), TRUE))`
+under dependence.
+
+```{r}
+#| label: tbl-s4-fgee-mse
+#| tbl-cap: "Main factorial settings: paired MSE ratios on identical data sets (ratio of mean squared errors over replicates, grid-averaged), ranges over settings. fGEE: independence working correlation. In brackets: number of settings whose 95% replicate-bootstrap interval lies entirely below one / entirely above one."
+s5_ct <- c(fgee_ind_vs_reml = "fGEE / REML", ncv_vs_reml = "NCV / REML", fgee_ind_vs_ncv = "fGEE / NCV")
+s5_BP |>
+  filter(contrast %in% names(s5_ct)) |>
+  group_by(estimand, dep, contrast) |>
+  summarise(
+    n = n(),
+    txt = sprintf("%s [%d/%d]", rng(est), sum(upper < 1), sum(lower > 1)),
+    .groups = "drop"
+  ) |>
+  pivot_wider(names_from = contrast, values_from = txt) |>
+  mutate(estimand = factor(estimand, names(s5_estimands))) |>
+  arrange(estimand, desc(dep)) |>
+  mutate(
+    estimand = ifelse(duplicated(estimand), "", s5_estimands[as.character(estimand)]),
+    dep = ifelse(dep, "dependent", "independent")
+  ) |>
+  select(estimand, dep, n, all_of(names(s5_ct))) |>
+  knitr::kable(format = "latex", booktabs = TRUE, linesep = "",
+    col.names = c("Estimand", "Errors", "Settings", unname(s5_ct)))
+```
+
+Under dependent errors the one-step update reduces the MSE of $\beta$ relative to REML
+(`r rng(s5_bp("fgee_ind_vs_reml", "beta", TRUE)$est)`), by less than curve-blocked NCV
+(`r rng(s5_bp("ncv_vs_reml", "beta", TRUE)$est)`): fGEE/NCV is
+`r rng(s5_bp("fgee_ind_vs_ncv", "beta", TRUE)$est)`, with every bootstrap interval above one (lowest
+lower bound `r f(min(s5_bp("fgee_ind_vs_ncv", "beta", TRUE)$lower), 2)`). Choosing, after the fact,
+the working correlation with the lowest MSE in each setting gives
+`r rng(s5_bp("fgee_best_vs_ncv", "beta", TRUE)$est)`. Under independent errors fGEE/REML for
+$\beta$ is `r rng(s5_bp("fgee_ind_vs_reml", "beta", FALSE)$est)`, above one in the settings with
+$G = 40$ (`r rng(s5_bp("fgee_ind_vs_reml", "beta", FALSE)$est[s5_bp("fgee_ind_vs_reml", "beta", FALSE)$G == 40])`).
+For $\alpha$ and $\gamma$, fGEE/NCV is `r rng(s5_bp("fgee_ind_vs_ncv", c("alpha", "gamma"), c(TRUE, FALSE))$est)`.
+
+### Plasmode datasets
+
+The plasmode comparison uses the six datasets with independent curves, the midpoint truth (refit at
+the geometric mean of the REML and NCV smoothing parameters), the REML residual curves attached
+to their own subjects with signs flipped per curve, all subjects and 40 subjects,
+`r min(s5_P$R)` replicates per combination, and the plasmode study's own data sets; methods and interval
+definitions are those of the main factorial settings (Gaussian responses). For the two cardiology datasets
+only aggregate results are reported. Monte Carlo standard errors of coverage are at most
+`r f(max(s5_P$coverage_mc_se), 3)`.
+
+```{r}
+#| label: tbl-s4-fgee-p
+#| tbl-cap: "Plasmode datasets (midpoint truth, REML residuals), β(s,t): grid-averaged coverage of nominal 95% pointwise intervals (Model, CL2: REML model-based and REML + CL2; Indep., AR(1), FPCA: fGEE Wald intervals from its covariance under that working correlation), and paired MSE ratios with 95% replicate-bootstrap intervals (fGEE with independence working correlation)."
+s5_P |>
+  filter(estimand == "beta", method %in% c("reml_model", "reml_cl2", "fgee_independent", "fgee_ar1", "fgee_fpca")) |>
+  select(app, G, method, coverage) |>
+  pivot_wider(names_from = method, values_from = coverage) |>
+  left_join(
+    s5_PP |>
+      filter(estimand == "beta", contrast %in% c("fgee_ind_vs_reml", "fgee_ind_vs_ncv")) |>
+      mutate(txt = sprintf("%s [%s, %s]", f(est, 2), f(lower, 2), f(upper, 2))) |>
+      select(app, G, contrast, txt) |>
+      pivot_wider(names_from = contrast, values_from = txt),
+    by = c("app", "G")
+  ) |>
+  mutate(app = factor(app, names(s5_apps))) |>
+  arrange(app, desc(G)) |>
+  mutate(
+    app = ifelse(duplicated(app), "", s5_apps[as.character(app)]),
+    across(c(reml_model, reml_cl2, fgee_independent, fgee_ar1, fgee_fpca), \(x) f(x, 2))
+  ) |>
+  select(app, G, reml_model, reml_cl2, fgee_independent, fgee_ar1, fgee_fpca, fgee_ind_vs_reml, fgee_ind_vs_ncv) |>
+  knitr::kable(format = "latex", booktabs = TRUE, align = "lrrrrrrll", linesep = "",
+    col.names = c("Dataset", "G", "Model", "CL2", "Indep.", "AR(1)", "FPCA", "fGEE / REML", "fGEE / NCV"))
+```
+
+Over the `r nrow(distinct(s5_P, app, G))` dataset and $G$ combinations, REML + CL2 covers $\beta$ at
+`r rng(s5_p("reml_cl2", "beta"))`, the mean at `r rng(s5_p("reml_cl2", "mean"))`, $\alpha$ at
+`r rng(s5_p("reml_cl2", "alpha"))` and $\gamma$ at `r rng(s5_p("reml_cl2", "gamma"))`; model-based
+REML intervals cover $\beta$ at `r rng(s5_p("reml_model", "beta"))` (@tbl-s4-fgee-p). The fastFGEE 0.2.2 Wald
+intervals cover $\beta$ at `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta"))`
+with SE/SD `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", "se_sd_ratio"))`
+(REML + CL2: `r rng(s5_p("reml_cl2", "beta", "se_sd_ratio"))`), the mean at
+`r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "mean"))`, $\alpha$ at
+`r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "alpha"))` and $\gamma$ at
+`r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "gamma"))`, the lowest values for the
+randomised treatment effect in the AF trial
+(`r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "gamma", apps = "af"))`). With
+calibrated critical values the intervals for $\alpha$ and $\gamma$ cover
+`r rng(s5_p(c("fgee_independent_wild", "fgee_ar1_wild", "fgee_fpca_wild"), c("alpha", "gamma")))`.
+
+For $\beta$, the MSE ratio fGEE/REML is `r rng(s5_pp("fgee_ind_vs_reml", "beta")$est)`, below one
+in `r sum(s5_pp("fgee_ind_vs_reml", "beta")$est < 1)` of `r nrow(s5_pp("fgee_ind_vs_reml", "beta"))`
+combinations, with the interval below one in `r sum(s5_pp("fgee_ind_vs_reml", "beta")$upper < 1)`.
+Against curve-blocked NCV it is worse in `r sum(s5_pp("fgee_ind_vs_ncv", "beta")$lower > 1)` combinations,
+better in `r sum(s5_pp("fgee_ind_vs_ncv", "beta")$upper < 1)`
+(`r paste(unique(s5_apps[s5_pp("fgee_ind_vs_ncv", "beta")$app[s5_pp("fgee_ind_vs_ncv", "beta")$upper < 1]]), collapse = ", ")`)
+and not resolved in the remaining
+`r sum(s5_pp("fgee_ind_vs_ncv", "beta")$lower <= 1 & s5_pp("fgee_ind_vs_ncv", "beta")$upper >= 1)`;
+the best working correlation per combination, chosen after the fact, gives fGEE/NCV
+`r rng(s5_pp("fgee_best_vs_ncv", "beta")$est)`. For $\gamma$, fGEE/NCV is
+`r rng(s5_pp("fgee_ind_vs_ncv", "gamma")$est)`, with the interval below one in
+`r sum(s5_pp("fgee_ind_vs_ncv", "gamma")$upper < 1)` combinations
+(`r knitr::combine_words(unique(s5_apps[s5_pp("fgee_ind_vs_ncv", "gamma")$app[s5_pp("fgee_ind_vs_ncv", "gamma")$upper < 1]]))`)
+and above one in `r sum(s5_pp("fgee_ind_vs_ncv", "gamma")$lower > 1)`; for $\alpha$ it is
+`r rng(s5_pp("fgee_ind_vs_ncv", "alpha")$est)`.
+

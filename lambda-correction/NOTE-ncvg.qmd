@@ -1,0 +1,136 @@
+---
+title: "Cluster-robust smoothing-parameter correction for curve-blocked NCV: canonical-link GLMs"
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=2.5cm
+    fontsize: 10pt
+---
+
+Companion to `NOTE-ncv.qmd` (Gaussian). Code: `ncvg-lib.R`; checks: `ncvg-validate.R`.
+
+## Criterion
+
+Canonical-link GLM (Poisson log, binomial logit; Gaussian identity is the special case
+below) with known scale, penalty $S_\lambda = \sum_k \lambda_k S_k$, $\rho = \log\lambda$, curves
+$g = 1, \dots, G$ with curve weights $w_g$ (prior weights; $w_i = w_{g(i)}$ for row $i$). The
+penalised fit $\hat\beta(\rho, w)$ solves $X^\top \mathrm{diag}(w)\,u - S_\lambda\beta = 0$ with
+$u = y - \mu$; $W_i = d\mu_i/d\eta_i$ (Fisher = Newton weight), $W'_i = dW_i/d\eta_i$ and
+$$
+H = X^\top \mathrm{diag}(wW) X + S_\lambda .
+$$
+mgcv's NCV (`gam.fit3`, C routine `Rncv`) approximates the fit without curve $g$ by one
+Newton step from $\hat\beta$:
+$$
+H_g = H - w_g X_g^\top \mathrm{diag}(W_g) X_g, \qquad
+\delta_g = H_g^{-1} X_g^\top (w_g u_g), \qquad
+\eta_{(-g)} = X_g(\hat\beta - \delta_g),
+$$
+and with refund's curve-blocked neighbourhoods (drop curve $g$, predict curve $g$)
+$$
+\mathrm{NCV}(\rho; w) = \sum_g w_g \sum_{i \in g} \mathrm{dev}\big(y_i, \mu(\eta_{(-g),i})\big).
+$$
+For a Gaussian identity fit the Newton step is exact and this is the criterion of
+`NOTE-ncv.qmd`. A zero weight deletes curve $g$ from the fit, from every other fold and from
+the loss; for that weight vector this is mgcv's criterion for a fit with zero prior weights on
+curve $g$ (same neighbourhoods). mgcv's NCV gradient (`outer.info$grad`) is the exact
+derivative of this approximated criterion: it differentiates $\hat\beta$, $W$ and the
+Newton step (`db.drho`, `dw.drho`, $dH/d\rho$).
+
+## First derivatives in any direction
+
+Let $(\dot\rho, \dot w)$ be a direction, $\dot S = \sum_k \dot\rho_k\lambda_k S_k$. Implicit
+differentiation of the score equation (for a canonical link $d(w u)/d\eta = -wW$) gives
+$$
+\dot\beta = H^{-1}\big(X^\top(\dot w \circ u) - \dot S\hat\beta\big), \qquad \dot\eta = X\dot\beta,
+$$
+$$
+\dot{(wW)} = \dot w \circ W + w \circ W' \circ \dot\eta, \qquad
+\dot{(wu)} = \dot w \circ u - w \circ W \circ \dot\eta, \qquad
+\dot H = X^\top \mathrm{diag}(\dot{(wW)}) X + \dot S,
+$$
+$$
+\dot\delta_g = H_g^{-1}\Big(X_g^\top \dot{(wu)}_g - \big[\dot H - X_g^\top \mathrm{diag}(\dot{(wW)}_g) X_g\big]\delta_g\Big),
+\qquad \dot\eta_{(-g)} = X_g(\dot\beta - \dot\delta_g),
+$$
+and, since $\partial\,\mathrm{dev}_i/\partial\eta = -2(y_i - \mu_i)$ for a canonical link with
+unit dispersion,
+$$
+\dot{\mathrm{NCV}} = \sum_g \Big[\dot w_g \sum_{i\in g}\mathrm{dev}_i
+- 2 w_g \sum_{i \in g} (y_i - \mu_{(-g),i})\,\dot\eta_{(-g),i}\Big].
+$$
+The $K$ coordinate directions in $\rho$ give $\nabla_\rho\mathrm{NCV}$; the $G$ coordinate
+directions in $w$ give $\partial\mathrm{NCV}/\partial w_h$. Cost per direction
+$O(np^2 + Gp^2)$, given the $G$ fold inverses ($O(Gp^3)$ once per $\rho$).
+
+## Hessian and curve scores
+
+$H_\rho = \nabla^2_\rho\mathrm{NCV}$ and the curve scores
+$s_{hk} = \partial^2\mathrm{NCV}/\partial\rho_k\,\partial w_h$ at $(\hat\rho, w = 1)$ are central
+differences in $\rho_k$ (step $10^{-3}$) of the exact first derivatives above: $2K$ refits of
+$\hat\beta$ by Newton at fixed $\rho$, each with all $K + G$ directions. The refits converge to
+relative step $10^{-12}$, except when a very large $\lambda_k$ (around $10^6$) makes $H$
+ill-conditioned: steps then stall at rounding level (about $10^{-9}$) and are accepted below
+$10^{-6}$ after five iterations. The step $10^{-3}$ keeps that noise out of the differences
+(truncation error $O(h^2)$); steps $10^{-3}$ and $10^{-2}$ give the same Hessian and scores. The scores could also be obtained as differences in $w_h$ of the exact
+$\rho$-gradient ($2G$ refits); the two routes agree (checks below).
+
+*Possible speed-up (not implemented).* At each perturbed $\rho$ the scores need all $G$
+curve-weight derivatives, i.e. the gradient of a scalar with respect to $w$. A reverse-mode
+(adjoint) pass gives all $G$ for the cost of a few directional derivatives, so the whole
+computation becomes $O(K(np^2 + Gp^3))$, linear in $G$ (now $O(K\,G\,np^2)$ for the directions).
+Not needed at the core-cell sizes ($G \le 100$, about 30 s per fit); it would matter for large-$G$
+applications.
+
+## Influence, variance, correction
+
+*Boundary smoothing parameters.* A $\rho_k$ whose curvature is below $10^{-3}$ times the largest
+diagonal entry of $H_\rho$ lies on a flat stretch of the criterion (in practice $\lambda_k \to \infty$:
+the fit no longer depends on $\rho_k$, $\lVert XJ_k\rVert$ is about $10^{-4}$ of the others, and the
+score column is rounding noise). Such components are treated as fixed, as mgcv's Newton
+iteration excludes smoothing parameters converged to a boundary: $d_{h,k} = 0$, and the IJ uses
+the sub-matrices of the free components. The threshold is immaterial in the binomial cells where boundaries are
+frequent (`ncvg-sensitivity.R`: thresholds $10^{-2}$ to $10^{-4}$, or a rule on $\lVert XJ_k\rVert$, change
+the SE inflation by at most 0.007). The rule cannot represent jumps of $\hat\rho$ between interior
+and boundary solutions; for binomial responses this leaves $\mathrm{Var}(\hat\rho)$ too small.
+
+As for Gaussian NCV and REML: $d_h = -H_\rho^{-1}(s_h - \bar s)$ (IJ), $\hat V_\rho = \frac{G}{G-1}\sum_h d_h d_h^\top$,
+mapped through $J = \partial\hat\beta/\partial\rho = -H^{-1}\lambda_k S_k\hat\beta$ (mgcv's
+`db.drho`), added to CL2 (on $V_p$) without (IJ) or with (IJ×) the cross term between the
+coefficient and $\rho$ influences. The caveats of `NOTE-ncv.qmd` carry over: NCV is a
+prediction loss, not a log-likelihood, so $H_\rho^{-1}$ alone is not a covariance of $\hat\rho$;
+the corrected covariance is a CL2-based hybrid, not a sandwich from one estimating equation.
+
+## Assumptions
+
+Canonical link, unit prior weights, no offset, known scale (Poisson, binomial), curve-blocked
+neighbourhoods, independent curves, every fold Hessian $H_g$ positive definite (mgcv falls back
+to an iterative solve otherwise; this implementation uses the Cholesky factor and fails), a
+converged NCV fit at an interior optimum for the free smoothing parameters.
+
+## Checks (`ncvg-validate.R`; cells 19 (Poisson) and 31 (binomial), iid, $G = 40$)
+
+NCV value equal to `fit$gcv.ubre` (relative $<10^{-15}$); gradient equal to mgcv's and to
+central differences of the value; $\partial\mathrm{NCV}/\partial w_h$ equal to central
+differences of the value; scores by the two routes agree; the identity
+$\sum_h s_h = \nabla\mathrm{NCV} - H_\rho\mathbf 1$ (from $\mathrm{NCV}(\rho; c\mathbf 1) = c\,\mathrm{NCV}(\rho - \log c; \mathbf 1)$)
+holds to $3\cdot 10^{-8}$. Leave-curve-out changes of $\hat\rho$: IJ against exact re-minimisation of
+$\mathrm{NCV}(\cdot\,; w_{(-h)})$ (Newton, exact gradient; mgcv's own zero-weight NCV refits stall
+in BFGS), converged refits only (all converged), boundary components excluded:
+
+| replicate | boundary (fixed) | Spearman IJ vs exact | IQR ratio IJ / exact | SD ratio |
+|---|---|---|---|---|
+| Poisson, cell 19 rep 1 | none | 0.88-0.98 | 0.95-1.02 | 1.07-1.17 |
+| binomial, cell 31 rep 1 | $s(t)$ | 0.77-0.97 | 0.88-0.99 | 0.28-0.69 |
+| binomial, cell 31 rep 2 | $s(t)$, $s(t)z$ | 0.94-0.96 | 0.80-1.06 | 0.86-1.05 |
+
+IJ reproduces the bulk of the exact leave-curve-out changes; in the binomial replicate 1 single
+deletions move $\log\hat\lambda$ of the surface penalty by up to 8 (a jump towards a boundary),
+which inflates the exact SD beyond any first-order term. Boundary components move by up to 4-14
+units under exact deletion, along directions the fit does not depend on. Independent check: criterion equal to mgcv's fixed-$\lambda$
+NCV with one curve weight 1, 1.2 or 0 (both families, $\le 3\cdot10^{-14}$); directional
+derivatives re-derived, no missing term; Hessian and scores stable in the step ($10^{-5}$ to
+$10^{-3}$). It flagged the boundary case (binomial, cell 31 rep 1: $\hat\rho_1 \approx 14.6$ with a
+flat criterion beyond), which led to the boundary rule above, and that the exact reference is a
+local optimiser whose $\hat\rho$ is poorly determined on flat stretches; validation summaries
+use converged refits and report boundary components separately.

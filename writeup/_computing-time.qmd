@@ -1,0 +1,127 @@
+# Computing time {#sec-timing}
+
+All times are elapsed seconds on one core with single-threaded BLAS (OpenBLAS, `OPENBLAS_NUM_THREADS=1`).
+The study runs used LRZ CoolMUC-4: the serial cluster (`serial_std`, one core per task) for the synthetic and
+plasmode studies, the comparators and the REML smoothing-parameter runs, and partly its `cm4` nodes, which are
+slower per core, for the NCV smoothing-parameter runs. The recipe benchmark (`analysis/timing-benchmark.R`) fits
+REML, NCV and AR(1) to the same data sets, Gaussian, G = 100, D = 61, 10 replicates for each of the nine error
+processes of the AR(1) cells; its machine is not recorded (per core, the LRZ serial nodes and the development
+laptop, an Intel Core i7-8665U, run at about the same speed). "Per fit" and "per replicate" rows
+summarise individual fits; "cell median" rows summarise the per-cell median times stored with the study
+summaries, so their spread is across cells (families, G, D and datasets differ). The REML fit time excludes CL2;
+the CL2 rows are the covariance computation alone. No times were recorded for the one- and two-step bias
+corrections of the NCV fit (`ncv-rbc/`); each step is a linear map of the fit's own matrices (@sec-ncv-intervals). The hybrid and the
+bias-aware interval need both fits and their CL2 covariances, nothing else.
+
+```{r timing}
+# ---- computing time: one long table of per-unit times -------------------------------------
+rd_csv <- \(p) readr::read_csv(p, show_col_types = FALSE)
+num_info <- \(info, key) suppressWarnings(as.numeric(ifelse(grepl(paste0(key, "="), info), sub(paste0(".*", key, "=([0-9.eE+-]+).*"), "\\1", info), NA)))
+HW_SERIAL <- "LRZ serial node, 1 core"
+HW_CM4 <- "LRZ serial or cm4 node, 1 core"
+tim_row <- \(component, setting, unit, hardware, x) {
+  x <- x[is.finite(x)]
+  tibble::tibble(component, setting, unit, hardware, n = length(x), median = median(x),
+                 q10 = unname(quantile(x, 0.1)), q90 = unname(quantile(x, 0.9)))
+}
+TB <- TIMING
+FD <- FITS
+PFT <- PFIT
+CMPF_T <- rd_csv("comparators/summaries/comparators-fits.csv") |> mutate(source = if_else(startsWith(key, "s"), "synthetic", "plasmode"))
+CAF_T <- rd_csv("comparators/summaries/cl2-arms-fits.csv") |> mutate(source = if_else(startsWith(key, "s"), "synthetic", "plasmode"), cl2_time = num_info(info, "cl2_time"))
+LCT_S <- rd_csv("lambda-correction/summaries/lc-times.csv")
+LCT_P <- rd_csv("lambda-correction/summaries-plasmode/lcp-times.csv.gz")
+NCT_S <- rd_csv("lambda-correction/summaries-ncv/ncv-times.csv")
+NCT_G <- rd_csv("lambda-correction/summaries-ncvg/ncv-times.csv")
+NCT_P <- rd_csv("lambda-correction/summaries-ncv-plasmode/ncvp-times.csv.gz")
+syn_lab <- "synthetic, Gaussian, G = 100, D = 61, 9 error processes"
+tim <- bind_rows(
+  # timing benchmark (complete recipes on identical data)
+  tim_row("REML fit", syn_lab, "per fit", "1 core", TB$fit_time[TB$method == "REML"]),
+  tim_row("NCV fit (curve blocks)", syn_lab, "per fit", "1 core", TB$fit_time[TB$method == "NCV"]),
+  tim_row("AR(1) fit (ρ profiled)", syn_lab, "per fit", "1 core", TB$fit_time[TB$method == "AR1"]),
+  tim_row("CL2 covariance of the REML fit", syn_lab, "per fit", "1 core", TB$cl2_time[TB$method == "REML"]),
+  tim_row("CL2 covariance of the NCV fit", syn_lab, "per fit", "1 core", TB$cl2_time[TB$method == "NCV"]),
+  # synthetic study, per-cell medians
+  tim_row("REML fit", "synthetic study, all cells", "cell median", HW_SERIAL, FD$median_time[FD$fit == "REML"]),
+  tim_row("NCV fit (curve blocks)", "synthetic study, all cells", "cell median", HW_SERIAL, FD$median_time[FD$fit == "NCV"]),
+  tim_row("NCV fit (pointwise)", "synthetic study, Gaussian G = 100", "cell median", HW_SERIAL, FD$median_time[FD$fit == "NCV_point"]),
+  tim_row("AR(1) fit (ρ profiled)", "synthetic study, AR(1) cells", "cell median", HW_SERIAL, FD$median_time[FD$fit == "AR1"]),
+  # plasmode study, per-cell medians
+  tim_row("REML fit", "plasmode study, all cells", "cell median", HW_SERIAL, PFT$median_time[PFT$fit == "REML"]),
+  tim_row("NCV fit (curve blocks)", "plasmode study, all cells", "cell median", HW_SERIAL, PFT$median_time[PFT$fit == "NCV"]),
+  tim_row("NCV fit (block neighbourhoods)", "plasmode stress tests, block arm", "cell median", HW_SERIAL, PFT$median_time[PFT$fit %in% c("NCV_block", "NCV_alt")]),
+  tim_row("AR(1) fit (ρ profiled)", "plasmode study, AR(1) cells", "cell median", HW_SERIAL, PFT$median_time[PFT$fit == "AR1"]),
+  tim_row("CL2 covariance of the REML fit", "plasmode study, all cells", "cell median", HW_SERIAL, PFT$median_cov_time[PFT$fit == "REML"]),
+  tim_row("CL2 covariance of the NCV fit", "plasmode study, all cells", "cell median", HW_SERIAL, PFT$median_cov_time[PFT$fit == "NCV"]),
+  tim_row("block CL2 covariance of the block-NCV fit", "plasmode stress tests, block arm", "cell median", HW_SERIAL, PFT$median_cov_time[PFT$fit %in% c("NCV_block", "NCV_alt")])
+)
+comp_lab <- c(REML = "REML fit", PCRE = "pcre fit (incl. FPCA of the residuals)", GLSfpc = "GLS fit (FPCA covariance)",
+              GLSraw = "GLS fit (raw covariance)", BOOT = "curve bootstrap (199 REML refits)")
+for (src in c("synthetic", "plasmode")) {
+  set_lab <- paste0(src, " comparator cells (", if (src == "synthetic") "Gaussian core, G = 40, 100" else "6 datasets, G = all, 40", ")")
+  for (a in names(comp_lab))
+    tim <- bind_rows(tim, tim_row(comp_lab[[a]], set_lab, "per replicate", HW_SERIAL, CMPF_T$time[CMPF_T$arm == a & CMPF_T$source == src]))
+  tim <- bind_rows(tim,
+    tim_row("CL2 covariance of the REML fit", set_lab, "per replicate", HW_SERIAL, num_info(CMPF_T$info[CMPF_T$arm == "REML" & CMPF_T$source == src], "cl2_time")),
+    tim_row("CL2 on the GLS fit (FPCA covariance)", set_lab, "per replicate", HW_SERIAL, CAF_T$cl2_time[CAF_T$arm == "GLSfpc" & CAF_T$source == src]),
+    tim_row("CL2 on the GLS fit (raw covariance)", set_lab, "per replicate", HW_SERIAL, CAF_T$cl2_time[CAF_T$arm == "GLSraw" & CAF_T$source == src]),
+    tim_row("CL2 on the pcre fit", set_lab, "per replicate", HW_SERIAL, CAF_T$cl2_time[CAF_T$arm == "PCRE" & CAF_T$source == src])
+  )
+}
+core18 <- "synthetic core cells, default signal (G = 40, 100)"
+tim <- bind_rows(tim,
+  tim_row("λ term for REML (derivatives + infinitesimal jackknife)", core18, "per replicate", HW_SERIAL, LCT_S$pieces + LCT_S$ij),
+  tim_row("λ term for REML, one-step leave-curve-out variant", core18, "per replicate", HW_SERIAL, LCT_S$pieces + LCT_S$onestep),
+  tim_row("exact curve jackknife of the REML smoothing parameters (reference)", core18, "per replicate", HW_SERIAL, LCT_S$jk_setup + LCT_S$jackknife),
+  tim_row("λ term for REML (derivatives + infinitesimal jackknife)", "plasmode study, all cells", "per replicate", HW_CM4, LCT_P$pieces + LCT_P$ij),
+  tim_row("λ term for NCV (derivatives, Hessian, curve scores)", "synthetic core cells, Gaussian", "per replicate", HW_CM4, NCT_S$pieces + NCT_S$hessian + NCT_S$scores),
+  tim_row("λ term for NCV (derivatives, Hessian, curve scores)", "synthetic core cells, Poisson and binary", "per replicate", "LRZ cm4 node, 1 core", NCT_G$pieces + NCT_G$state + NCT_G$hessian_scores),
+  tim_row("λ term for NCV (derivatives, Hessian, curve scores)", "plasmode study, all cells", "per replicate", HW_CM4, NCT_P$pieces + NCT_P$hessian + NCT_P$scores)
+)
+tim <- tim |> mutate(component = factor(component, unique(component)))
+save_tab(tim, "computing-time")
+tim_v <- \(comp, set, col = "median") tim[[col]][tim$component == comp & tim$setting == set]
+```
+
+```{r fig-timing}
+#| fig-cap: "Computing time per component (median, bar from the 10% to the 90% quantile; log scale), by setting. Cell-median rows spread over cells, per-fit and per-replicate rows over fits."
+#| fig-height: 7.5
+ascii <- \(x) gsub("λ", "lambda", gsub("ρ", "rho", x))
+d <- tim |> mutate(row = ascii(paste0(component, " [", unit, "]")), row = factor(row, rev(unique(row))),
+                   setting = factor(setting, unique(setting)))
+fig <- ggplot(d, aes(median, row)) +
+  geom_pointrange(aes(xmin = q10, xmax = q90), size = 0.2) +
+  facet_grid(setting ~ ., scales = "free_y", space = "free_y", labeller = label_wrap_gen(22)) +
+  scale_x_log10(breaks = c(0.1, 0.3, 1, 3, 10, 30, 100, 300, 1000), labels = c("0.1", "0.3", "1", "3", "10", "30", "100", "300", "1000")) +
+  labs(x = "seconds (log scale)", y = NULL) +
+  theme_doc + theme(strip.text.y = element_text(angle = 0, size = 6), axis.text.y = element_text(size = 6))
+save_fig(fig, "computing-time", 7.5, 7.5)
+fig
+```
+
+On identical data (Gaussian, G = 100) the median REML fit takes `r f(tim_v("REML fit", syn_lab), 1)` s, the
+curve-blocked NCV fit `r f(tim_v("NCV fit (curve blocks)", syn_lab), 1)` s and the AR(1) fit with ρ profiled
+`r f(tim_v("AR(1) fit (ρ profiled)", syn_lab), 0)` s (`r length(CONST$AR_RHO_GRID)` grid fits plus a refinement); a CL2 covariance adds
+`r f(tim_v("CL2 covariance of the REML fit", syn_lab), 1)` s. REML + CL2 therefore costs about
+`r f(tim_v("REML fit", syn_lab) + tim_v("CL2 covariance of the REML fit", syn_lab), 0)` s per data set, NCV + CL2 about
+`r f(tim_v("NCV fit (curve blocks)", syn_lab) + tim_v("CL2 covariance of the NCV fit", syn_lab), 0)` s and the bias-aware interval
+(both fits, both covariances) about
+`r f(tim_v("REML fit", syn_lab) + tim_v("NCV fit (curve blocks)", syn_lab) + tim_v("CL2 covariance of the REML fit", syn_lab) + tim_v("CL2 covariance of the NCV fit", syn_lab), 0)` s.
+Among the comparators the pcre fit has a median of
+`r f(tim_v("pcre fit (incl. FPCA of the residuals)", "plasmode comparator cells (6 datasets, G = all, 40)"), 0)` s on the plasmode cells
+with a long tail (90% quantile `r f(tim_v("pcre fit (incl. FPCA of the residuals)", "plasmode comparator cells (6 datasets, G = all, 40)", "q90"), 0)` s),
+the GLS fits take `r rng(tim$median[grepl("^GLS fit", tim$component)], 1)` s against
+`r rng(tim$median[tim$component == "REML fit" & grepl("comparator", tim$setting)], 1)` s for the REML fit in the same cells, and the curve bootstrap with 199 refits takes a median of
+`r f(tim_v("curve bootstrap (199 REML refits)", "plasmode comparator cells (6 datasets, G = all, 40)"), 0)` s per data set; CL2 on a GLS
+or pcre fit adds a median of `r rng(tim$median[grepl("^CL2 on the", tim$component)], 2)` s. The curve-robust smoothing-parameter term adds a median of
+`r f(tim_v("λ term for REML (derivatives + infinitesimal jackknife)", core18), 1)` s to a REML fit and
+`r rng(c(tim_v("λ term for NCV (derivatives, Hessian, curve scores)", "synthetic core cells, Gaussian"), tim_v("λ term for NCV (derivatives, Hessian, curve scores)", "plasmode study, all cells")), 1)` s
+to a Gaussian NCV fit; the exact curve jackknife it approximates takes
+`r f(tim_v("exact curve jackknife of the REML smoothing parameters (reference)", core18), 0)` s (@tbl-timing, @fig-timing).
+
+```{r}
+#| label: tbl-timing
+#| tbl-cap: "Computing time (seconds, one core): median and 10%–90% quantiles per component and setting; n = fits, replicates or cells."
+show(tim |> select(component, setting, unit, hardware, n, median, q10, q90), digits = 2)
+```

@@ -1,0 +1,2 @@
+"cell","rep","time_block_fit","time_pointwise_fit","max_abs_diff_log_sp","reldiff_coef","inv_learn_pointwise","alpha_jackfix","reldiff_Vp","reldiff_Vc"
+12,1,31.573,800.863,0,0,5.22501949414745,5.22501949414722,1.30404444290933e-13,1.28570205429251e-13

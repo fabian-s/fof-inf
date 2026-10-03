@@ -1,0 +1,48 @@
+### Relative error and informativeness of the intervals
+
+As in the synthetic study (@sec-relerr; `summaries/plasmode/relative-error.csv`, computed from the
+task records, aggregates only). Cells with all subjects and curve flips; values per dataset are medians
+over its truth × residual cells (relative error, half-width, detection) or means (coverage).
+
+```{r prelerr}
+PREL <- read_summary("plasmode", "relative-error") |>
+  mutate(role = if_else(app %in% APP_COUNTED, "counted", "stress test"), G_label = if_else(G > 40, "all", "40"))
+prel_app <- PREL |>
+  filter(flip == "curve", G_label == "all", error == "attached", arm %in% c("reml_cl2", "ncv_cl2", "ncv_cl2_bias")) |>
+  group_by(role, app, estimand, arm) |>
+  summarise(
+    cells = n(),
+    coverage = mean(coverage),
+    rel_error_max = max(rel_rmse_median),
+    rel_error = median(rel_rmse_median),
+    halfwidth = median(rel_halfwidth_median),
+    detect = median(detect),
+    .groups = "drop"
+  )
+save_tab(prel_app, "plasmode-relative-error")
+pv <- \(e, a, col, role_sel = c("counted", "stress test")) prel_app[[col]][prel_app$estimand == e & prel_app$arm == a & prel_app$role %in% role_sel]
+prel_beta <- prel_app |>
+  filter(estimand == "beta") |>
+  mutate(arm = recode(arm, reml_cl2 = "REML+CL2", ncv_cl2 = "NCV+CL2", ncv_cl2_bias = "bias-aware"), app = label_app(app)) |>
+  select(role, app, arm, cov = coverage, rel = rel_error, hw = halfwidth, det = detect) |>
+  pivot_wider(names_from = arm, values_from = c(cov, rel, hw, det), names_sep = " ") |>
+  select(-`rel bias-aware`) |>
+  arrange(role, app)
+```
+
+On the real-data truths β is weakly determined for both fits: the median relative error of the
+REML estimate is `r rng(pv("beta", "reml_cl2", "rel_error"))` across the datasets, of the NCV estimate
+`r rng(pv("beta", "ncv_cl2", "rel_error"))` (@tbl-plasmode-relerr). REML + CL2 covers at
+`r rng(pv("beta", "reml_cl2", "coverage"))` with half-widths of
+`r rng(pv("beta", "reml_cl2", "halfwidth"))` times the size of the effect and detects
+`r rng(pv("beta", "reml_cl2", "detect"))` of the clearly non-zero grid points; NCV + CL2 detects
+`r rng(pv("beta", "ncv_cl2", "detect"))` but covers at `r rng(pv("beta", "ncv_cl2", "coverage"))`. For the
+mean the relative errors are `r rng(pv("mean", "reml_cl2", "rel_error"))` (REML) and
+`r rng(pv("mean", "ncv_cl2", "rel_error"))` (NCV); for γ(t) `r rng(pv("gamma", "reml_cl2", "rel_error"))` and
+`r rng(pv("gamma", "ncv_cl2", "rel_error"))`.
+
+```{r}
+#| label: tbl-plasmode-relerr
+#| tbl-cap: "Plasmode, β(s,t), all subjects, curve flips: coverage, median relative error of the estimate (REML, NCV), median relative half-width and median detection rate per interval and dataset (over truth × residual cells)."
+show(prel_beta, digits = 2)
+```

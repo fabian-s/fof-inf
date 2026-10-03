@@ -1,0 +1,2 @@
+"n_files","n_failed","time_median","time_total_h","df_time_median","core_check_max","G_check","n_df_na","crn_tasks","crn_max_rel","check_rows","check_max_abs_diff","software"
+22000,0,7.26499999999987,145.059513611111,2.11300000000006,0,TRUE,0,15400,9.41031019539124e-06,291,0,"79a346fb8cc1220a2a6fd2dc8dd3e33166a21061 1.9-5"

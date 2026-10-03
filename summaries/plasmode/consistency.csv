@@ -1,0 +1,3 @@
+estimand,k,classes,rule,q1_reml,q1_ncv
+beta,6,ecg_gls4b:E af:U running:N dti:N gait_vc:U ecg_roahd:F,inconsistent (N),consistent for P,consistent for P
+mean,6,ecg_gls4b:E af:E running:U dti:U gait_vc:E ecg_roahd:U,unresolved,consistent for P,consistent for P

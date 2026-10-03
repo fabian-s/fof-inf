@@ -1,0 +1,26 @@
+# Raw per-task results (large; regenerate with the runs)
+results/
+results-*/
+*-results/
+lrz-results/
+# Cached per-cell study summaries (large; regenerate with analysis/run-analysis.R)
+summaries/*/study.rds
+# Render artefacts
+*_cache/
+*_files/
+.quarto/
+*.tex
+*.log
+*.rmarkdown
+paper/*.pdf
+writeup/RESULTS.pdf
+writeup/RESULTS.html
+analysis/*.html
+lambda-correction/*.pdf
+# Figures written by the write-up render
+writeup/figures/
+# R session files
+.Rhistory
+.RData
+.Rproj.user/
+competitors/fgee/upstream-sim_functional_data.R

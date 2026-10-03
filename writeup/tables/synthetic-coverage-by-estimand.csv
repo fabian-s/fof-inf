@@ -1,0 +1,97 @@
+dependence,family,estimand,arm,coverage,q05
+dependent,binary,alpha(t),NCV + CL2,0.8462903225806452,0.6387499999999999
+dependent,binary,alpha(t),"NCV + CL2, bias-aware",0.905,0.73875
+dependent,binary,alpha(t),REML + CL2,0.923225806451613,0.86625
+dependent,binary,alpha(t),"REML, model-based",0.7254032258064516,0.62625
+dependent,binary,"beta(s,t)",NCV + CL2,0.8986042183622829,0.7831250000000001
+dependent,binary,"beta(s,t)","NCV + CL2, bias-aware",0.9714609181141438,0.92
+dependent,binary,"beta(s,t)",REML + CL2,0.9514764267990073,0.93
+dependent,binary,"beta(s,t)","REML, model-based",0.7989671215880894,0.73
+dependent,binary,gamma(t),NCV + CL2,0.8397580645161291,0.7324999999999999
+dependent,binary,gamma(t),"NCV + CL2, bias-aware",0.9012903225806452,0.84
+dependent,binary,gamma(t),REML + CL2,0.9312903225806453,0.9
+dependent,binary,gamma(t),"REML, model-based",0.7349193548387096,0.6675
+dependent,binary,E(Y | X),NCV + CL2,0.8795016129032258,0.7475
+dependent,binary,E(Y | X),"NCV + CL2, bias-aware",0.9359564516129032,0.87
+dependent,binary,E(Y | X),REML + CL2,0.9401806451612903,0.91
+dependent,binary,E(Y | X),"REML, model-based",0.7369822580645161,0.6625
+dependent,Gaussian,alpha(t),NCV + CL2,0.9395967741935483,0.89625
+dependent,Gaussian,alpha(t),"NCV + CL2, bias-aware",0.946774193548387,0.92
+dependent,Gaussian,alpha(t),REML + CL2,0.9508064516129033,0.93
+dependent,Gaussian,alpha(t),"REML, model-based",0.6502419354838709,0.5700000000000001
+dependent,Gaussian,"beta(s,t)",NCV + CL2,0.933697270471464,0.8625
+dependent,Gaussian,"beta(s,t)","NCV + CL2, bias-aware",0.9831978908188586,0.9524999999999999
+dependent,Gaussian,"beta(s,t)",REML + CL2,0.942090570719603,0.915
+dependent,Gaussian,"beta(s,t)","REML, model-based",0.6642183622828783,0.573125
+dependent,Gaussian,gamma(t),NCV + CL2,0.9295161290322581,0.885
+dependent,Gaussian,gamma(t),"NCV + CL2, bias-aware",0.9408064516129032,0.915
+dependent,Gaussian,gamma(t),REML + CL2,0.9433064516129033,0.91875
+dependent,Gaussian,gamma(t),"REML, model-based",0.6587096774193548,0.60125
+dependent,Gaussian,E(Y | X),NCV + CL2,0.9299677419354839,0.8775
+dependent,Gaussian,E(Y | X),"NCV + CL2, bias-aware",0.9583338709677419,0.9225000000000001
+dependent,Gaussian,E(Y | X),REML + CL2,0.9432306451612903,0.9125000000000001
+dependent,Gaussian,E(Y | X),"REML, model-based",0.6401612903225806,0.553625
+dependent,Poisson,alpha(t),NCV + CL2,0.9305645161290322,0.87875
+dependent,Poisson,alpha(t),"NCV + CL2, bias-aware",0.948225806451613,0.9199999999999999
+dependent,Poisson,alpha(t),REML + CL2,0.9490322580645162,0.925
+dependent,Poisson,alpha(t),"REML, model-based",0.6662903225806451,0.595
+dependent,Poisson,"beta(s,t)",NCV + CL2,0.9354683622828783,0.875
+dependent,Poisson,"beta(s,t)","NCV + CL2, bias-aware",0.9833033498759304,0.955
+dependent,Poisson,"beta(s,t)",REML + CL2,0.9434739454094292,0.9175
+dependent,Poisson,"beta(s,t)","REML, model-based",0.6898542183622829,0.605
+dependent,Poisson,gamma(t),NCV + CL2,0.9269354838709678,0.8674999999999999
+dependent,Poisson,gamma(t),"NCV + CL2, bias-aware",0.9384677419354839,0.89875
+dependent,Poisson,gamma(t),REML + CL2,0.9405645161290321,0.9137500000000001
+dependent,Poisson,gamma(t),"REML, model-based",0.6695967741935485,0.61375
+dependent,Poisson,E(Y | X),NCV + CL2,0.9278596774193548,0.875
+dependent,Poisson,E(Y | X),"NCV + CL2, bias-aware",0.9568290322580644,0.92
+dependent,Poisson,E(Y | X),REML + CL2,0.9441322580645162,0.915
+dependent,Poisson,E(Y | X),"REML, model-based",0.6587258064516128,0.5774999999999999
+independent,binary,alpha(t),NCV + CL2,0.9117741935483872,0.7875000000000001
+independent,binary,alpha(t),"NCV + CL2, bias-aware",0.9203225806451611,0.8
+independent,binary,alpha(t),REML + CL2,0.9237096774193548,0.775
+independent,binary,alpha(t),"REML, model-based",0.9429032258064516,0.85
+independent,binary,"beta(s,t)",NCV + CL2,0.9820347394540944,0.94
+independent,binary,"beta(s,t)","NCV + CL2, bias-aware",0.986817617866005,0.95
+independent,binary,"beta(s,t)",REML + CL2,0.990241935483871,0.96
+independent,binary,"beta(s,t)","REML, model-based",0.99401364764268,0.97
+independent,binary,gamma(t),NCV + CL2,0.9116129032258063,0.8525
+independent,binary,gamma(t),"NCV + CL2, bias-aware",0.9167741935483872,0.8574999999999999
+independent,binary,gamma(t),REML + CL2,0.9225806451612903,0.86
+independent,binary,gamma(t),"REML, model-based",0.944516129032258,0.8975
+independent,binary,E(Y | X),NCV + CL2,0.9387645161290322,0.86
+independent,binary,E(Y | X),"NCV + CL2, bias-aware",0.9450548387096774,0.87
+independent,binary,E(Y | X),REML + CL2,0.949416129032258,0.885
+independent,binary,E(Y | X),"REML, model-based",0.9625903225806453,0.91
+independent,Gaussian,alpha(t),NCV + CL2,0.945,0.8975
+independent,Gaussian,alpha(t),"NCV + CL2, bias-aware",0.9491935483870968,0.9075
+independent,Gaussian,alpha(t),REML + CL2,0.9561290322580646,0.9275
+independent,Gaussian,alpha(t),"REML, model-based",0.9564516129032258,0.935
+independent,Gaussian,"beta(s,t)",NCV + CL2,0.9816315136476428,0.94
+independent,Gaussian,"beta(s,t)","NCV + CL2, bias-aware",0.989199751861042,0.95
+independent,Gaussian,"beta(s,t)",REML + CL2,0.9856017369727048,0.97
+independent,Gaussian,"beta(s,t)","REML, model-based",0.988939205955335,0.97
+independent,Gaussian,gamma(t),NCV + CL2,0.9458064516129032,0.8925000000000001
+independent,Gaussian,gamma(t),"NCV + CL2, bias-aware",0.9506451612903226,0.9075
+independent,Gaussian,gamma(t),REML + CL2,0.9503225806451612,0.9175
+independent,Gaussian,gamma(t),"REML, model-based",0.9603225806451612,0.9375
+independent,Gaussian,E(Y | X),NCV + CL2,0.9499193548387096,0.9
+independent,Gaussian,E(Y | X),"NCV + CL2, bias-aware",0.9578,0.91725
+independent,Gaussian,E(Y | X),REML + CL2,0.9605709677419356,0.93
+independent,Gaussian,E(Y | X),"REML, model-based",0.966567741935484,0.94
+independent,Poisson,alpha(t),NCV + CL2,0.9358064516129032,0.8674999999999999
+independent,Poisson,alpha(t),"NCV + CL2, bias-aware",0.942741935483871,0.885
+independent,Poisson,alpha(t),REML + CL2,0.9511290322580646,0.9175
+independent,Poisson,alpha(t),"REML, model-based",0.954032258064516,0.9275
+independent,Poisson,"beta(s,t)",NCV + CL2,0.9820781637717122,0.94
+independent,Poisson,"beta(s,t)","NCV + CL2, bias-aware",0.989516129032258,0.955
+independent,Poisson,"beta(s,t)",REML + CL2,0.9856327543424318,0.965
+independent,Poisson,"beta(s,t)","REML, model-based",0.9894478908188584,0.975
+independent,Poisson,gamma(t),NCV + CL2,0.9467741935483872,0.8925000000000001
+independent,Poisson,gamma(t),"NCV + CL2, bias-aware",0.9511290322580646,0.9
+independent,Poisson,gamma(t),REML + CL2,0.9553225806451612,0.9225
+independent,Poisson,gamma(t),"REML, model-based",0.9632258064516128,0.9325
+independent,Poisson,E(Y | X),NCV + CL2,0.9483870967741936,0.9
+independent,Poisson,E(Y | X),"NCV + CL2, bias-aware",0.9560967741935484,0.91
+independent,Poisson,E(Y | X),REML + CL2,0.9600387096774192,0.93
+independent,Poisson,E(Y | X),"REML, model-based",0.9659967741935483,0.94

@@ -1,0 +1,22 @@
+app,estimand,REML,NCV,flips,dataset
+ecg_gls4b,mean,E,E,FALSE,ECG strain
+ecg_gls4b,beta,U,U,FALSE,ECG strain
+af,mean,E,E,FALSE,AF trial
+af,beta,F,U,TRUE,AF trial
+af,gamma,U,U,FALSE,AF trial
+running,mean,U,U,FALSE,running
+running,beta,N,N,FALSE,running
+dti,mean,U,U,FALSE,DTI
+dti,beta,N,N,FALSE,DTI
+dti,gamma,U,U,FALSE,DTI
+gait_vc,mean,E,E,FALSE,gait
+gait_vc,beta,U,U,FALSE,gait
+ecg_roahd,mean,U,U,FALSE,ECG 8-lead
+ecg_roahd,beta,F,F,FALSE,ECG 8-lead
+ecg_roahd,gamma,U,U,FALSE,ECG 8-lead
+ocean,mean,E,U,TRUE,ocean
+ocean,beta,N,N,FALSE,ocean
+aemet,mean,N,N,FALSE,weather
+aemet,beta,N,N,FALSE,weather
+adelaide,mean,N,N,FALSE,electricity
+adelaide,beta,U,N,TRUE,electricity

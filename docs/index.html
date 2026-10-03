@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Penalized function-on-function regression with dependent residual curves</title>
+<style>
+  body { max-width: 44rem; margin: 2.5rem auto; padding: 0 1rem; font: 17px/1.55 Georgia, "Times New Roman", serif; color: #222; background: #fff; }
+  h1 { font-size: 1.5rem; line-height: 1.3; margin-bottom: 0.4rem; }
+  .author { margin-top: 0; color: #555; }
+  ul.links { padding-left: 1.2rem; }
+  ul.links li { margin: 0.3rem 0; }
+  a { color: #1a4f8b; }
+  pre { background: #f5f5f5; padding: 0.8rem; overflow-x: auto; font-size: 0.85rem; white-space: pre-wrap; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<h1>Estimation and inference in penalized function-on-function regression with dependent residual curves</h1>
+<p class="author">Fabian Scheipl &middot; Department of Statistics, LMU Munich &middot; Munich Center for Machine Learning (MCML)</p>
+
+<p>Penalized function-on-function regression, as implemented in the R package refund, treats all grid
+values of all curves as independent. Residual curves are smooth, so values within a curve are
+dependent. We study what this does to point estimates and pointwise confidence intervals, in a
+simulation with Gaussian, count and binary responses and in a plasmode study built on nine real
+datasets. Under within-curve dependence, model-based 95% intervals cover 0.63&ndash;0.82. A curve-
+clustered sandwich covariance with a leverage adjustment for the penalized hat matrix (CL2),
+computed after the usual REML fit, brings coverage close to nominal in the simulation; in the
+plasmode study it is a few points short on eight datasets and 0.84&ndash;0.91 for the coefficient
+surface on the ninth. Satterthwaite degrees of freedom recover most of the remaining shortfall
+except on that dataset, also with only 20 curves, at the cost of wider intervals. REML, however,
+undersmooths the coefficient surface: its error is two to four times that of a fit whose smoothing
+parameters are chosen by curve-blocked neighbourhood cross-validation (NCV), and its CL2 intervals
+for the surface are wide. Intervals centred at the smoother NCV estimate are narrow but undercover,
+the familiar tension between estimation and pointwise inference in nonparametric regression. We
+recommend the NCV estimate to describe the shape of the surface and REML + CL2 with Satterthwaite
+degrees of freedom for inference. For a surface that is zero everywhere, under dependent errors,
+these intervals exclude zero at about 5% of the grid points, and the NCV estimate is five to seven
+times closer to zero than REML&#x27;s. For fitted means, intercepts and scalar effects, REML + CL2
+intervals are close to nominal, except for binary intercepts and scalar effects and for
+misregistered counts. We state which defaults of refund the evidence supports.</p>
+
+<ul class="links">
+  <li><a href="paper.pdf">Paper</a> (PDF)</li>
+  <li><a href="supplement.pdf">Supplement</a> (PDF)</li>
+  <li><a href="results.html">Detailed results</a> (all tables and figures of both studies, HTML)</li>
+  <li><a href="https://github.com/fabian-s/fof-inf">Code and aggregate results</a> (GitHub)</li>
+</ul>
+
+<h2>Citation</h2>
+<pre>Scheipl, F. (2026). Estimation and inference in penalized function-on-function regression
+with dependent residual curves. Manuscript.</pre>
+</body>
+</html>

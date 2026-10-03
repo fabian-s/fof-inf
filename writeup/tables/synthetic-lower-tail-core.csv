@@ -1,0 +1,33 @@
+dependence,G,estimand,arm,q05_min,q05_median,coverage_min
+dependent,40,"beta(s,t)",NCV + CL2,0.6,0.860625,0.7845843672456576
+dependent,40,"beta(s,t)","NCV + CL2, bias-aware",0.885,0.95,0.947909429280397
+dependent,40,"beta(s,t)",REML + CL2,0.89125,0.8975,0.9234615384615384
+dependent,40,"beta(s,t)","REML, model-based",0.52,0.58,0.6089454094292804
+dependent,40,E(Y | X),NCV + CL2,0.685,0.8274999999999999,0.8421645161290323
+dependent,40,E(Y | X),"NCV + CL2, bias-aware",0.86,0.9075,0.9298516129032258
+dependent,40,E(Y | X),REML + CL2,0.88725,0.9,0.9208387096774192
+dependent,40,E(Y | X),"REML, model-based",0.515,0.56,0.6005290322580645
+dependent,100,"beta(s,t)",NCV + CL2,0.775,0.860625,0.8960732009925558
+dependent,100,"beta(s,t)","NCV + CL2, bias-aware",0.92,0.95,0.9708684863523572
+dependent,100,"beta(s,t)",REML + CL2,0.91125,0.915,0.9404032258064516
+dependent,100,"beta(s,t)","REML, model-based",0.54,0.595625,0.6529404466501241
+dependent,100,E(Y | X),NCV + CL2,0.74,0.8625,0.875916129032258
+dependent,100,E(Y | X),"NCV + CL2, bias-aware",0.865,0.92,0.9328709677419356
+dependent,100,E(Y | X),REML + CL2,0.91,0.915,0.9396967741935484
+dependent,100,E(Y | X),"REML, model-based",0.535,0.57,0.6307129032258064
+independent,40,"beta(s,t)",NCV + CL2,0.925,0.945,0.9728970223325062
+independent,40,"beta(s,t)","NCV + CL2, bias-aware",0.93,0.96,0.9790632754342432
+independent,40,"beta(s,t)",REML + CL2,0.915,0.965,0.9730334987593052
+independent,40,"beta(s,t)","REML, model-based",0.945,0.975,0.983908188585608
+independent,40,E(Y | X),NCV + CL2,0.835,0.9,0.9228516129032258
+independent,40,E(Y | X),"NCV + CL2, bias-aware",0.85,0.905,0.9347483870967742
+independent,40,E(Y | X),REML + CL2,0.825,0.925,0.9254903225806452
+independent,40,E(Y | X),"REML, model-based",0.875,0.94,0.9515258064516128
+independent,100,"beta(s,t)",NCV + CL2,0.925,0.94,0.9763833746898264
+independent,100,"beta(s,t)","NCV + CL2, bias-aware",0.945,0.95125,0.9861848635235732
+independent,100,"beta(s,t)",REML + CL2,0.955,0.965,0.9785545905707196
+independent,100,"beta(s,t)","REML, model-based",0.965,0.97,0.9826736972704716
+independent,100,E(Y | X),NCV + CL2,0.86,0.9,0.9387645161290322
+independent,100,E(Y | X),"NCV + CL2, bias-aware",0.87,0.91,0.9450548387096774
+independent,100,E(Y | X),REML + CL2,0.885,0.93,0.949416129032258
+independent,100,E(Y | X),"REML, model-based",0.91,0.935,0.9623612903225808

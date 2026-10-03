@@ -1,0 +1,42 @@
+component,setting,unit,hardware,n,median,q10,q90
+REML fit,"synthetic, Gaussian, G = 100, D = 61, 9 error processes",per fit,1 core,90,2.016500000000036,1.6602999999996428,4.041399999999956
+NCV fit (curve blocks),"synthetic, Gaussian, G = 100, D = 61, 9 error processes",per fit,1 core,90,8.558999999999969,5.9165999999996535,13.622100000000025
+AR(1) fit (ρ profiled),"synthetic, Gaussian, G = 100, D = 61, 9 error processes",per fit,1 core,90,39.04749999999991,32.058200000000305,51.53570000000011
+CL2 covariance of the REML fit,"synthetic, Gaussian, G = 100, D = 61, 9 error processes",per fit,1 core,90,0.9519999999999982,0.7790000000003602,1.2690999999998671
+CL2 covariance of the NCV fit,"synthetic, Gaussian, G = 100, D = 61, 9 error processes",per fit,1 core,90,0.9465000000000572,0.7750999999999919,1.2852000000000774
+REML fit,"synthetic study, all cells",cell median,"LRZ serial node, 1 core",123,3.0575000000000045,1.3887000000000214,18.299500000000037
+NCV fit (curve blocks),"synthetic study, all cells",cell median,"LRZ serial node, 1 core",123,11.23999999999998,4.482500000000025,58.036000000000016
+NCV fit (pointwise),"synthetic study, Gaussian G = 100",cell median,"LRZ serial node, 1 core",3,15.39450000000002,13.811699999999973,18.11569999999998
+AR(1) fit (ρ profiled),"synthetic study, AR(1) cells",cell median,"LRZ serial node, 1 core",9,49.487500000000026,45.798799999999986,51.83310000000004
+REML fit,"plasmode study, all cells",cell median,"LRZ serial node, 1 core",130,3.272749999999874,1.227799999999816,9.17605000000005
+NCV fit (curve blocks),"plasmode study, all cells",cell median,"LRZ serial node, 1 core",130,10.337000000000032,5.250899999999982,24.094050000000255
+NCV fit (block neighbourhoods),"plasmode stress tests, block arm",cell median,"LRZ serial node, 1 core",26,13.595999999999918,12.28200000000021,24.292999999999864
+AR(1) fit (ρ profiled),"plasmode study, AR(1) cells",cell median,"LRZ serial node, 1 core",12,48.48949999999997,39.62900000000137,153.29954999999993
+CL2 covariance of the REML fit,"plasmode study, all cells",cell median,"LRZ serial node, 1 core",130,0.8914999999999438,0.44484999999997965,3.1723499999999607
+CL2 covariance of the NCV fit,"plasmode study, all cells",cell median,"LRZ serial node, 1 core",130,0.8877500000002954,0.44024999999998615,3.1696500000001833
+block CL2 covariance of the block-NCV fit,"plasmode stress tests, block arm",cell median,"LRZ serial node, 1 core",26,4.2597499999999116,3.7197499999999764,8.873750000000001
+REML fit,"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,2.20000000000016,0.9687999999972814,4.598300000001473
+pcre fit (incl. FPCA of the residuals),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,13.467999999997101,2.8218000000000787,229.44180000000603
+GLS fit (FPCA covariance),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,2.96850000000268,1.3439000000042158,4.727100000005886
+GLS fit (raw covariance),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,2.869499999997065,1.369000000005687,4.173600000008448
+curve bootstrap (199 REML refits),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",600,450.27050000000054,240.8149999999992,867.9886999999985
+CL2 covariance of the REML fit,"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,0.99,0.43,1.38
+CL2 on the GLS fit (FPCA covariance),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,0.13,0.06,0.2
+CL2 on the GLS fit (raw covariance),"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",1200,0.14,0.06,0.2
+CL2 on the pcre fit,"synthetic comparator cells (Gaussian core, G = 40, 100)",per replicate,"LRZ serial node, 1 core",600,1.2850000000000001,0.6,4.121
+REML fit,"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,2.563500000000205,0.9979999999988655,9.052799999997658
+pcre fit (incl. FPCA of the residuals),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,20.220000000000248,4.296599999997851,264.6434000000026
+GLS fit (FPCA covariance),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,3.400499999999735,1.542899999998193,10.420399999999999
+GLS fit (raw covariance),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,3.662500000002185,1.591599999997557,11.79099999999813
+curve bootstrap (199 REML refits),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",1198,534.528,225.6579999999998,1919.5723999999996
+CL2 covariance of the REML fit,"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,0.85,0.4,2.390999999999999
+CL2 on the GLS fit (FPCA covariance),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,0.12,0.06,0.40099999999999913
+CL2 on the GLS fit (raw covariance),"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",2400,0.12,0.06,0.4
+CL2 on the pcre fit,"plasmode comparator cells (6 datasets, G = all, 40)",per replicate,"LRZ serial node, 1 core",1199,1.45,0.5580000000000002,4.594
+λ term for REML (derivatives + infinitesimal jackknife),"synthetic core cells, default signal (G = 40, 100)",per replicate,"LRZ serial node, 1 core",3600,1.15900000000056,0.46399999999894115,1.5320000000001075
+"λ term for REML, one-step leave-curve-out variant","synthetic core cells, default signal (G = 40, 100)",per replicate,"LRZ serial node, 1 core",3600,2.4970000000002983,0.7119999999999891,3.18000000000039
+exact curve jackknife of the REML smoothing parameters (reference),"synthetic core cells, default signal (G = 40, 100)",per replicate,"LRZ serial node, 1 core",3600,64.84000000000016,15.091199999999048,130.83609999999996
+λ term for REML (derivatives + infinitesimal jackknife),"plasmode study, all cells",per replicate,"LRZ serial or cm4 node, 1 core",26000,1.170000000000044,0.5009999999997492,3.479100000000038
+"λ term for NCV (derivatives, Hessian, curve scores)","synthetic core cells, Gaussian",per replicate,"LRZ serial or cm4 node, 1 core",1200,2.0984999999999268,0.9780000000000341,3.946100000000038
+"λ term for NCV (derivatives, Hessian, curve scores)","synthetic core cells, Poisson and binary",per replicate,"LRZ cm4 node, 1 core",2400,5.324000000000016,2.1680000000000943,12.269100000000021
+"λ term for NCV (derivatives, Hessian, curve scores)","plasmode study, all cells",per replicate,"LRZ serial or cm4 node, 1 core",13000,2.4815000000001532,0.9960000000000894,8.608999999999714

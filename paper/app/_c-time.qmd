@@ -1,0 +1,41 @@
+# Computing time {#sec-app-time}
+
+Times are wall-clock seconds on one core. They come from four sources: (A) a benchmark on one
+local core with Gaussian data, $G = 100$ curves, $D = 61$ grid points and the default bases
+(`r max(time_tab$n[time_tab$data == "A"])` replicates over the dependent error processes of the
+simulation); (B) the comparator runs on a computing cluster, Gaussian main-factorial settings and
+plasmode datasets with independent source curves, $G = 40$ to 138; (C) the smoothing-parameter-term runs on
+the main-factorial settings at the default signal ($G = 40$ and 100); (D) the same terms on the
+plasmode data. @tbl-time gives the median, the quartiles, the 90% quantile and the maximum per method.
+
+```{r}
+#| label: tbl-time
+#| tbl-cap: "Computing time in seconds per fit or per covariance, by method and data source (A: local benchmark, Gaussian, G = 100, D = 61; B: comparator runs, Gaussian synthetic settings and plasmode datasets with independent source curves; C: main-factorial settings; D: plasmode data). n: number of timed fits or covariances. CL2 and the smoothing-parameter terms are computed on top of an existing fit."
+ltab(
+  time_tab |> mutate(across(c(median, q25, q75, q90, max), \(x) signif(x, 3))),
+  digits = c(0, 0, 0, 2, 2, 2, 2, 1),
+  col.names = c("method", "data", "n", "median", "25\\%", "75\\%", "90\\%", "max"),
+  align = "llrrrrrr"
+) |>
+  kableExtra::kable_styling(font_size = 8, latex_options = "hold_position")
+```
+
+A curve-blocked NCV fit costs about `r f(tt("curve-blocked NCV fit", "A") / tt("REML fit", "A"), 1)`
+times a REML fit; the profiled AR(1) model about `r f(tt("AR(1) working model (profiled)", "A") / tt("REML fit", "A"), 0)`
+times, because it refits the model at each value of $\rho$. The CL2 covariance of a REML fit adds a
+median `r f(tt("CL2 covariance (REML fit)", "A"), 2)` s, its Satterthwaite degrees of freedom a
+median `r f(satt_df_time, 1)` s per replicate for all four estimands in the main factorial,
+`r f(SATXI$df_time_median, 1)` s in the other synthetic settings and `r f(SATPI$df_time_median, 1)` s on the
+plasmode data (cluster nodes).
+GLS needs about the time of a REML fit plus the estimation of the residual covariance; pcre's time
+grows quickly with the number of curves and grid points (median `r f(tt("pcre fit", "B"), 0)` s,
+90% quantile `r f(tt("pcre fit", "B", "q90"), 0)` s, maximum `r f(tt("pcre fit", "B", "max"), 0)` s).
+CL2 on these fits adds a median of `r f(tt("CL2 on a GLS fit", "B"), 2)` s (GLS) and
+`r f(tt("CL2 on a pcre fit", "B"), 1)` s (pcre). The curve bootstrap with 199 refits takes a median
+of `r f(tt("curve bootstrap (199 refits)", "B"), 0)` s and up to
+`r f(tt("curve bootstrap (199 refits)", "B", "max"), 0)` s per data set. The smoothing-parameter
+uncertainty terms (curve scores, Hessian and infinitesimal jackknife) add a median of
+`r f(tt("smoothing-parameter term, REML", "C"), 1)` s to a REML fit and
+`r f(tt("smoothing-parameter term, NCV", "C"), 1)` s to a Gaussian NCV fit. The one-step bias
+correction of the NCV estimate needs one linear solve with $p \times p$ matrices and was not timed
+separately.

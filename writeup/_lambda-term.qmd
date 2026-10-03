@@ -1,0 +1,213 @@
+# Smoothing-parameter uncertainty in CL2 {#sec-lambda}
+
+CL2 treats the smoothing parameters as fixed. This section reports a curve-robust term for their
+variability, added to CL2 for the REML fit and for the curve-blocked NCV fit (`lambda-correction/`).
+
+*Construction.* With $\boldsymbol\rho = \log\boldsymbol\lambda$ (for REML also $\log\phi$), give each curve $g$ a weight
+$w_g$ in the fitting criterion $C$. The implicit-function theorem gives the influence of curve $g$ on $\hat{\boldsymbol\rho}$,
+$\mathbf d_g = -\mathbf H^{-1}(\mathbf s_g - \bar{\mathbf s})$, from the curve scores
+$\mathbf s_g = \partial^2 C/\partial\boldsymbol\rho\,\partial w_g$ and the Hessian $\mathbf H$ of $C$ in $\boldsymbol\rho$ (REML
+criterion with analytic curve scores; NCV criterion with curve blocks, analytic scores for Gaussian responses and
+central differences in $\boldsymbol\rho$ for Poisson and binary responses, where a $\rho_k$ with curvature below $10^{-3}$ of
+the largest is treated as fixed). The infinitesimal jackknife (IJ) over curves gives
+$\hat{\mathbf V}_\rho = \sum_g \mathbf d_g\mathbf d_g^\top$, which enters the coefficient covariance as
+$\mathbf J\hat{\mathbf V}_\rho\mathbf J^\top$ with $\mathbf J = \partial\hat{\boldsymbol\theta}/\partial\boldsymbol\rho$, on top of
+CL2 (Bayesian form). Variants:
+
+- "+ IJ": the term above; "+ IJ ×": with the first-order cross term between the coefficient and the
+  smoothing-parameter influences of each curve (total curve influence);
+- "+ OS": $\hat{\mathbf V}_\rho$ from a one-step leave-curve-out update of ρ̂ instead of the IJ; "+ JK": from the exact
+  curve jackknife (refits with zero prior weights for one curve, warm start; REML only, reference);
+- "jackknife refit": the exact curve jackknife of $\hat{\boldsymbol\theta}$ itself plus $\mathbf V_p - \mathbf V_e$ (REML only, reference);
+- "+ mgcv J": mgcv's own first-order term $\mathbf J[\mathbf H^{-1}]_\rho\mathbf J^\top$ (model-based, not curve-robust);
+  "+ mgcv Vc − Vp": mgcv's full smoothing-parameter correction $\mathbf V_c - \mathbf V_p$ (REML only);
+- "λ fixed": CL2 of a refit with every smoothing parameter fixed at the cell's geometric-mean
+  selected value, computed from the same replicates (a diagnostic, not an interval one can compute
+  from one dataset).
+
+*Runs.* REML: the 18 core cells at the default signal (family × error process × G), the study's
+200 replicates, and all 130 plasmode cells with 200 replicates. NCV: the 6 Gaussian and 12 Poisson/binary
+core cells at the default signal with 200 replicates, and the 130 plasmode cells with replicates 1–100.
+Every run reproduces the study's estimates and CL2 standard errors on the same replicates (common random
+numbers; `lambda-correction/summaries*/` `*-crn.csv`). z intervals throughout. For the REML runs SE/SD is the
+root-mean-square estimated SE over the replicate SD; for the NCV runs, where the IJ inflation is heavy-tailed
+over replicates, the median-based SE/SD is reported.
+
+```{r lam-load}
+LAM <- \(d, f) readr::read_csv(file.path("lambda-correction", d, f), show_col_types = FALSE)
+pm_cells_lam <- read_summary("plasmode", "ncv-diag-cells") |>
+  distinct(cell, app, truth, residual, flip, error, G) |>
+  rename(p_error = error, p_G = G)
+LC_S <- LAM("summaries", "lc-cells.csv") |> filter(crit == "z")
+LC_P <- LAM("summaries-plasmode", "lcp-cells.csv") |> filter(crit == "z") |> left_join(pm_cells_lam, by = "cell")
+NC_S <- bind_rows(LAM("summaries-ncv", "ncv-cells.csv"), LAM("summaries-ncvg", "ncv-cells.csv")) |> filter(crit == "z")
+NC_P <- LAM("summaries-ncv-plasmode", "ncvp-cells.csv") |> filter(crit == "z") |> left_join(pm_cells_lam, by = "cell")
+# the plasmode runs use the main design's cell ids
+stopifnot(!anyNA(LC_P$app), all(LC_P$family == LC_P$app), all(LC_P$G == LC_P$p_G),
+          !anyNA(NC_P$app), all(NC_P$family == NC_P$app), all(NC_P$G == NC_P$p_G))
+LCT_S <- LAM("summaries", "lc-targeting.csv")
+NCT_S <- bind_rows(LAM("summaries-ncv", "ncv-targeting.csv"), LAM("summaries-ncvg", "ncv-targeting.csv"))
+dep_l <- \(e) if_else(e == "iid", "independent", "dependent")
+LC_ARMS_W <- c(cl2 = "CL2", naive = "+ mgcv J", vc = "+ mgcv Vc − Vp", ij_lin = "+ IJ", ij_linx = "+ IJ ×", os_lin = "+ OS",
+               jk_lin = "+ JK", jk_full = "jackknife refit", fix = "λ fixed")
+NC_ARMS_W <- c(cl2 = "CL2", naive_mgcv = "+ mgcv J", ij_lin = "+ IJ", ij_linx = "+ IJ ×", fix = "λ fixed")
+rel_to_cl2 <- \(d) d |>
+  group_by(cell, estimand) |>
+  mutate(width_rel = width / width[arm == "cl2"], score_rel = score / score[arm == "cl2"]) |>
+  ungroup()
+# REML, synthetic
+lc_s <- LC_S |> filter(arm %in% names(LC_ARMS_W)) |> rel_to_cl2() |> mutate(dependence = dep_l(error))
+lc_s_cov <- lc_s |>
+  group_by(estimand, dependence, G, arm) |>
+  summarise(v = mean(coverage), .groups = "drop") |>
+  mutate(arm = factor(LC_ARMS_W[arm], LC_ARMS_W), estimand = label_estimand(estimand)) |>
+  arrange(arm) |>
+  pivot_wider(names_from = arm, values_from = v) |>
+  arrange(estimand, dependence, G)
+save_tab(lc_s_cov, "lambda-reml-synthetic-coverage")
+lc_s_ws <- lc_s |>
+  filter(estimand %in% c("mean", "beta")) |>
+  group_by(estimand, dependence, G, arm) |>
+  summarise(q05 = mean(pointwise_q05), width = exp(mean(log(width_rel))), score = exp(mean(log(score_rel))),
+            se_sd = mean(se_sd_ratio), .groups = "drop") |>
+  mutate(v = sprintf("%.2f / %.3f / %.2f", width, score, se_sd), arm = factor(LC_ARMS_W[arm], LC_ARMS_W), estimand = label_estimand(estimand))
+save_tab(lc_s_ws |> select(-v), "lambda-reml-synthetic-width-score")
+lc_s_ws_w <- lc_s_ws |> select(estimand, dependence, G, arm, v) |> arrange(arm) |>
+  pivot_wider(names_from = arm, values_from = v) |> arrange(estimand, dependence, G)
+lcs <- \(a, col = "coverage", e = "beta", dep = "dependent", g = c(40, 100)) {
+  d <- lc_s |> filter(arm == a, estimand == e, dependence == dep, G %in% g)
+  if (col %in% c("width_rel", "score_rel")) exp(mean(log(d[[col]]))) else mean(d[[col]])
+}
+lct <- LCT_S |> mutate(dependence = dep_l(error)) |> group_by(arm, dependence, G) |>
+  summarise(rho = mean(spearman), lo = min(spearman), hi = max(spearman), .groups = "drop")
+lctv <- \(a, g, dep = "dependent", col = "rho") lct[[col]][lct$arm == a & lct$G == g & lct$dependence == dep]
+# REML, plasmode (curve flips, attached residuals; per dataset, mean over truth x residual sources)
+lc_p <- LC_P |> filter(arm %in% c("cl2", "naive", "vc", "ij_lin", "ij_linx"), flip == "curve", p_error == "attached") |>
+  rel_to_cl2() |> mutate(G_label = if_else(G > 40, "all", "40"))
+lc_p_tab <- lc_p |>
+  filter(estimand == "beta") |>
+  group_by(app, G_label, arm) |>
+  summarise(coverage = mean(coverage), score = exp(mean(log(score_rel))), .groups = "drop") |>
+  mutate(v = if_else(arm == "cl2", sprintf("%.3f", coverage), sprintf("%.3f (%.2f)", coverage, score)),
+         arm = factor(LC_ARMS_W[arm], LC_ARMS_W), app = label_app(app)) |>
+  select(dataset = app, G = G_label, arm, v) |> arrange(arm) |>
+  pivot_wider(names_from = arm, values_from = v) |> arrange(dataset, desc(G))
+save_tab(lc_p_tab, "lambda-reml-plasmode-beta")
+lc_p_gain <- lc_p |> filter(estimand == "beta") |> group_by(cell) |>
+  summarise(gain = coverage[arm == "ij_lin"] - coverage[arm == "cl2"], score = score_rel[arm == "ij_lin"], .groups = "drop")
+# NCV, synthetic (Gaussian, Poisson, binary)
+nc_s <- NC_S |> filter(arm %in% names(NC_ARMS_W)) |> rel_to_cl2() |> mutate(dependence = dep_l(error)) |>
+  group_by(family, estimand, dependence, G, arm) |>
+  summarise(coverage = mean(coverage), q05 = mean(pointwise_q05), width = exp(mean(log(width_rel))),
+            score = exp(mean(log(score_rel))), se_sd = mean(se_sd_median), .groups = "drop")
+save_tab(nc_s, "lambda-ncv-synthetic")
+nc_s_tab <- nc_s |>
+  filter(estimand == "beta", dependence == "dependent") |>
+  mutate(v = sprintf("%.3f (%.2f) %.2f / %.2f", coverage, q05, width, se_sd), arm = factor(NC_ARMS_W[arm], NC_ARMS_W),
+         family = label_family(family)) |>
+  select(family, G, arm, v) |> arrange(arm) |>
+  pivot_wider(names_from = arm, values_from = v) |> arrange(family, G)
+ncs <- \(fam, a, col = "coverage", g = c(40, 100), e = "beta", dep = "dependent")
+  nc_s[[col]][nc_s$family %in% fam & nc_s$arm == a & nc_s$G %in% g & nc_s$estimand == e & nc_s$dependence == dep]
+nct <- NCT_S |> filter(error != "iid", arm == "ij_lin")
+# NCV, plasmode
+nc_p <- NC_P |> filter(arm %in% c("cl2", "naive_mgcv", "ij_lin", "ij_linx"), flip == "curve", p_error == "attached") |>
+  rel_to_cl2() |> mutate(G_label = if_else(G > 40, "all", "40"))
+nc_p_tab <- nc_p |>
+  filter(estimand == "beta", G_label == "all") |>
+  group_by(app, arm) |>
+  summarise(coverage = mean(coverage), q05 = mean(pointwise_q05), se_sd = mean(se_sd_median), .groups = "drop") |>
+  mutate(v = sprintf("%.3f (%.2f) %.2f", coverage, q05, se_sd), arm = factor(NC_ARMS_W[arm], NC_ARMS_W), app = label_app(app)) |>
+  select(dataset = app, arm, v) |> arrange(arm) |>
+  pivot_wider(names_from = arm, values_from = v) |> arrange(dataset)
+save_tab(nc_p_tab, "lambda-ncv-plasmode-beta")
+ncp <- \(a, col = "coverage", r = APP_COUNTED) nc_p |> filter(estimand == "beta", G_label == "all", arm == a, app %in% r) |>
+  group_by(app) |> summarise(v = mean(.data[[col]]), .groups = "drop") |> pull(v)
+```
+
+```{r fig-lambda}
+#| fig-cap: "Coverage of β(s,t) with the curve-robust smoothing-parameter term (+ IJ) against CL2 alone, per cell, for the REML fit (left) and the curve-blocked NCV fit (right); synthetic core cells at the default signal (colour = family, open = independent errors) and plasmode cells (curve flips, attached residuals; black, G = all and 40). Dashed: no change; dotted: nominal 0.95."
+#| fig-height: 3.8
+d_fig <- bind_rows(
+  lc_s |> filter(estimand == "beta", arm %in% c("cl2", "ij_lin")) |> transmute(fit = "REML", data = "synthetic", cell = as.character(cell), family, dependence, arm, coverage),
+  lc_p |> filter(estimand == "beta", arm %in% c("cl2", "ij_lin")) |> transmute(fit = "REML", data = "plasmode", cell = as.character(cell), family = "plasmode", dependence = "dependent", arm, coverage),
+  NC_S |> filter(estimand == "beta", arm %in% c("cl2", "ij_lin")) |> transmute(fit = "NCV", data = "synthetic", cell = as.character(cell), family, dependence = dep_l(error), arm, coverage),
+  nc_p |> filter(estimand == "beta", arm %in% c("cl2", "ij_lin")) |> transmute(fit = "NCV", data = "plasmode", cell = as.character(cell), family = "plasmode", dependence = "dependent", arm, coverage)
+) |>
+  pivot_wider(names_from = arm, values_from = coverage) |>
+  mutate(fit = factor(fit, c("REML", "NCV")), family = factor(c(FAMILY_LABELS, plasmode = "plasmode")[family], c(FAMILY_LABELS[c("gaussian", "poisson", "binomial")], "plasmode")))
+fig <- ggplot(d_fig, aes(cl2, ij_lin, colour = family, shape = dependence)) +
+  geom_abline(linetype = 2, colour = "grey40") +
+  geom_hline(yintercept = LEVEL, linetype = 3, colour = "grey40") +
+  geom_point(size = 1.1, alpha = 0.8) +
+  facet_wrap(~fit) +
+  scale_colour_manual(values = c(Gaussian = "#E69F00", Poisson = "#56B4E9", binary = "#CC79A7", plasmode = "#000000"), name = NULL) +
+  scale_shape_manual(values = c(dependent = 16, independent = 1), name = NULL) +
+  labs(x = "coverage of beta, CL2", y = "coverage of beta, CL2 + IJ term") +
+  theme_doc
+save_fig(fig, "lambda-term-coverage", 6.5, 3.8)
+fig
+```
+
+**REML.** In the dependent core cells the IJ term raises REML + CL2's coverage of β from
+`r f(lcs("cl2", g = 40))` to `r f(lcs("ij_lin", g = 40))` at G = 40 and from `r f(lcs("cl2", g = 100))` to
+`r f(lcs("ij_lin", g = 100))` at G = 100, at `r f(lcs("ij_lin", "width_rel", g = 40), 2)` and
+`r f(lcs("ij_lin", "width_rel", g = 100), 2)` times the width; the interval score changes by a factor
+`r f(lcs("ij_lin", "score_rel", g = 40), 3)` and `r f(lcs("ij_lin", "score_rel", g = 100), 3)` (@tbl-lam-reml,
+@tbl-lam-reml-ws). mgcv's own terms add less (`r f(lcs("naive", g = 40))` and `r f(lcs("vc", g = 40))` at
+G = 40); the exact curve jackknife of the smoothing parameters gives `r f(lcs("jk_lin", g = 40))`, and the
+full jackknife refit overcovers (`r f(lcs("jk_full", g = 40))`). Fixing λ at the cell's geometric-mean REML
+value covers `r f(lcs("fix", g = 40))` at `r f(lcs("fix", "width_rel", g = 40), 2)` times CL2's width
+(interval score `r f(lcs("fix", "score_rel", g = 40), 3)` times): CL2's shortfall comes from which λ REML
+selects in a replicate. The added width does not go where CL2 misses: within cells, the rank correlation
+between a replicate's SE inflation and CL2's share of missed grid points in that replicate is
+`r f(lctv("ij_lin", 40), 2)` (G = 40) and `r f(lctv("ij_lin", 100), 2)` (G = 100) under dependent errors
+(`r f(lctv("ij_lin", 40, "independent"), 2)` and `r f(lctv("ij_lin", 100, "independent"), 2)` under independent
+errors; `lambda-correction/summaries/lc-targeting.csv`). On the plasmode cells the term raises β coverage by
+`r rng_pp(lc_p_gain$gain)` per cell at interval-score ratios `r rng(lc_p_gain$score, 2)` (@tbl-lam-reml-pm).
+
+**NCV.** For the curve-blocked NCV fit the term brings β coverage in the dependent synthetic cells to nominal:
+Gaussian `r rng(ncs("gaussian", "cl2"))` → `r rng(ncs("gaussian", "ij_lin"))`, Poisson `r rng(ncs("poisson", "cl2"))` →
+`r rng(ncs("poisson", "ij_lin"))`, the same as the λ-fixed diagnostic (`r rng(ncs(c("gaussian", "poisson"), "fix"))`), at
+`r rng(ncs(c("gaussian", "poisson"), "ij_lin", "width"), 2)` times the width (@tbl-lam-ncv). The median SE/SD moves only from
+`r rng(ncs(c("gaussian", "poisson"), "cl2", "se_sd"), 2)` to `r rng(ncs(c("gaussian", "poisson"), "ij_lin", "se_sd"), 2)`: the
+inflation is concentrated in a few replicates, and it is larger where CL2 misses more (within-cell rank correlation of
+SE inflation and missed share under dependent errors `r rng(nct$spearman, 2)`). mgcv's term gives
+`r rng(ncs(c("gaussian", "poisson"), "naive_mgcv"))`. For binary responses at G = 40 the term reaches
+`r f(ncs("binomial", "ij_lin", g = 40))` (`r f(ncs("binomial", "ij_linx", g = 40))` with the cross term) from
+`r f(ncs("binomial", "cl2", g = 40))`, and the λ-fixed refit covers only `r f(ncs("binomial", "fix", g = 40))`: the selected
+smoothing parameters jump between interior and boundary solutions (`lambda-correction/summaries-ncvg/ncv-boundary.csv`).
+On the counted plasmode datasets (G = all) the term raises β coverage from `r rng(ncp("cl2"))` to `r rng(ncp("ij_lin"))` per
+dataset (stress tests `r rng(ncp("cl2", r = APP_STRESS))` → `r rng(ncp("ij_lin", r = APP_STRESS))`), median SE/SD
+`r rng(ncp("cl2", "se_sd_median"), 2)` → `r rng(ncp("ij_lin", "se_sd_median"), 2)` (@tbl-lam-ncv-pm); the smoothing bias
+of the NCV fit on these data remains (@sec-ncv-intervals, @tbl-ncvi-pm). Computing times are in @sec-timing.
+
+```{r}
+#| label: tbl-lam-reml
+#| tbl-cap: "Smoothing-parameter terms for REML + CL2, synthetic core cells at the default signal (three families × error processes): coverage per estimand, dependence and G (mean over cells)."
+show(lc_s_cov, digits = 3)
+```
+
+```{r}
+#| label: tbl-lam-reml-ws
+#| tbl-cap: "Smoothing-parameter terms for REML + CL2, synthetic core cells: width / interval score relative to CL2 (geometric means of per-cell ratios) / SE/SD (RMS), for the mean and β."
+show(lc_s_ws_w)
+```
+
+```{r}
+#| label: tbl-lam-reml-pm
+#| tbl-cap: "Smoothing-parameter terms for REML + CL2 on the plasmode cells (curve flips, attached residuals), β: coverage (interval score relative to CL2) per dataset and G, mean over truth × residual sources."
+show(lc_p_tab)
+```
+
+```{r}
+#| label: tbl-lam-ncv
+#| tbl-cap: "Smoothing-parameter terms for curve-blocked NCV + CL2, synthetic dependent core cells at the default signal, β: coverage (5% pointwise quantile) width relative to CL2 / median SE/SD, mean over the two dependent error processes."
+show(nc_s_tab)
+```
+
+```{r}
+#| label: tbl-lam-ncv-pm
+#| tbl-cap: "Smoothing-parameter terms for curve-blocked NCV + CL2 on the plasmode cells (curve flips, attached residuals, G = all, replicates 1–100), β: coverage (5% pointwise quantile) median SE/SD per dataset, mean over truth × residual sources."
+show(nc_p_tab)
+```

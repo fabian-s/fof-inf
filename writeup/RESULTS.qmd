@@ -1,0 +1,2434 @@
+---
+title: "Function-on-function regression under within-curve dependence: detailed results"
+subtitle: "Synthetic study (123 cells) and plasmode study (9 datasets), with a cross-study assessment"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    embed-resources: true
+    code-fold: true
+    code-tools: true
+    fig-width: 6.5
+    fig-height: 4
+    df-print: kable
+  pdf:
+    toc: true
+    toc-depth: 2
+    number-sections: true
+    fig-width: 6.5
+    fig-height: 4
+    geometry: margin=2.2cm
+    pdf-engine: xelatex
+    mainfont: Libertinus Serif
+    sansfont: Libertinus Sans
+    monofont: Libertinus Mono
+    mathfont: Libertinus Math
+    include-in-header:
+      text: |
+        \usepackage{longtable}
+        \usepackage{booktabs}
+        \usepackage{float}
+        \usepackage{etoolbox}
+        \floatplacement{figure}{H}
+        \AtBeginEnvironment{longtable}{\scriptsize}
+        \AtBeginEnvironment{tabular}{\scriptsize}
+        \setlength{\LTleft}{0pt}
+        \setlength{\LTright}{0pt}
+execute:
+  echo: false
+  warning: false
+  message: false
+  cache: true
+knitr:
+  opts_knit:
+    root.dir: ".."
+---
+
+```{r setup}
+#| cache: false
+source("writeup/helpers.R")
+options(knitr.kable.NA = "", scipen = 100)
+CONST <- new.env()
+sys.source("R/constants.R", CONST)
+# Chunk cache: every chunk is cached (execute: cache) with automatic dependencies between
+# chunks; CACHE_KEY changes whenever an input file of the document changes (path, size,
+# modification time), which invalidates every cached chunk. Code changes invalidate the
+# changed chunk and, through autodep, the chunks that use its objects. A chunk that reads
+# from a directory not listed here must add it.
+CACHE_DIRS <- c("summaries", "ablation/summaries", "comparators/summaries", "misspec/summaries", "ncv-rbc/summaries",
+                "satterthwaite/summaries", "small-g-null/summaries", Sys.glob("lambda-correction/summaries*"))
+CACHE_INPUTS <- sort(unique(c(
+  list.files(CACHE_DIRS, pattern = "\\.(csv|rds)$", recursive = TRUE, full.names = TRUE),
+  "ncv-jack-recheck/jack-reps.csv",
+  file.path(TAB_DIR, c("synthetic-design-effects.csv", "zstats-synthetic.csv", "zstats-plasmode.csv")),
+  "writeup/helpers.R", "writeup/numbers.R", "R/constants.R"
+)))
+CACHE_KEY <- with(file.info(CACHE_INPUTS), paste(CACHE_INPUTS, size, as.numeric(mtime), collapse = "\n"))
+knitr::opts_chunk$set(autodep = TRUE, cache.extra = CACHE_KEY)
+```
+
+```{r headline-numbers}
+#| cache: false
+source("writeup/numbers.R")
+```
+
+# Notation and reading guide
+
+*Fits.* REML: the ordinary penalized fit; NCV: the same model with smoothing parameters
+chosen by curve-blocked neighbourhood cross-validation (one curve left out at a time).
+*Intervals.* model-based: the fit's own Bayesian covariance; CL2: curve-clustered
+sandwich covariance with the exact Bell–McCaffrey leverage adjustment; bias-aware: the NCV
+fit's CL2 interval widened in quadrature by the NCV–REML difference δ; hybrid: the NCV
+estimate with the REML fit's CL2 standard error; AR(1): a working AR(1) error model with
+ρ profiled (definitions in @sec-dgp and @sec-ar1-fit). *Recipes.* REML + CL2 (the recommended recipe; "fallback" in the
+recommendation rule) and NCV + CL2 + bias allowance ("proposal"). *Estimands.* the
+conditional mean E(Y | X) of a frozen test cohort on the response scale, the bivariate
+coefficient surface β(s,t) of the functional covariate term ff(X) (or f(x,t) of a
+scalar-covariate smooth), the functional intercept α(t) and the scalar-covariate effect
+γ(t). *Coverage* is the average over the evaluation grid of pointwise 95% intervals; the
+5% quantile of pointwise coverage is the lower tail over grid points. *CE* (calibration
+error): root-mean-square undercoverage over a pool of cells with each cell's Monte Carlo
+variance subtracted; a recipe is adequate if CE ≤ 2 pp. *Rule classes* per dataset: P =
+proposal, F = fallback, E = practically equivalent (simpler recipe), N = neither adequate,
+U = unresolved (a bootstrap interval straddles a threshold; by the rule an N is
+never downgraded to U, so running and DTI β are N although their fallback CE intervals
+straddle 2 pp); question 1: C = CL2 beats model-based by ≥ 2 pp. "Dependent" synthetic cells have the rough (OU) or smooth (DTI-FPC)
+error process; "core" cells form the family × error × G × signal factorial.
+
+*Interval score.* For a 95% interval $[l, u]$ and truth $y$ the score is
+$(u - l) + \frac{2}{0.05}\{(l - y)\,1(y < l) + (y - u)\,1(y > u)\}$, averaged over grid points and replicates: a proper scoring rule that rewards narrow intervals and
+penalises each miss in proportion to its distance from the interval. *Relative error* of an estimate:
+√(grid mean of (estimate − truth)² / grid mean of truth²), the truth centred at its grid mean for the mean and α(t);
+*detection*: the share of grid points with |truth| > 25% of max |truth| where the interval excludes zero on the
+side of the truth (@sec-relerr).
+
+*Interval-score ratios* (bias-aware or hybrid vs REML + CL2, proposal vs fallback) are
+always the geometric mean over the cells concerned of the per-cell ratio of mean interval
+scores, the definition used by the recommendation rule; widths likewise.
+
+*Monte Carlo precision.* Every cell has `r unique(S$n_rep)` replicates. The stored MC SE of a
+grid-average coverage is `r rng_pp(se_dep_cl2, 2)` for REML + CL2 and `r rng_pp(se_dep_model, 2)`
+for the model-based intervals in the dependent core cells at G = 100 (plasmode REML + CL2:
+`r rng_pp(se_plas_cl2, 2)`); the grid average is far more precise than a single grid
+point, whose binomial SE near 0.95 is `r pp(sqrt(0.95 * 0.05 / 200))`. Bootstrap intervals
+in brackets are 95% replicate-bootstrap intervals of pooled or paired quantities.
+
+# Summary of findings
+
+```{r summary-relerr}
+# relative error and interval informativeness (details: @sec-relerr and the plasmode subsection)
+rel_s <- read_summary("final", "relative-error") |>
+  left_join(S |> distinct(cell, error), by = "cell") |>
+  filter(estimand == "beta", error != "iid")
+rs_med <- \(a, col) median(rel_s[[col]][rel_s$arm == a])
+rel_p <- read_summary("plasmode", "relative-error") |>
+  filter(estimand == "beta", flip == "curve", G > 40, error == "attached") |>
+  group_by(app, arm) |>
+  summarise(rel = median(rel_rmse_median), det = median(detect), .groups = "drop")
+rp <- \(a, col) rel_p[[col]][rel_p$arm == a]
+# comparators, NCV-centred corrections, smoothing-parameter term, cost (details: @sec-comparators, @sec-ncv-intervals, @sec-lambda, @sec-timing)
+cmp_set <- \(d) mutate(d, setting = case_when(source == "plasmode" ~ "plasmode", error == "iid" ~ "synthetic, independent", TRUE ~ "synthetic, dependent"))
+s_cmp <- readr::read_csv("comparators/summaries/comparators-cells.csv", show_col_types = FALSE) |> cmp_set()
+s_ca <- readr::read_csv("comparators/summaries/cl2-arms-cells.csv", show_col_types = FALSE) |> filter(window == "1-100") |> cmp_set()
+s_cv <- \(d, a, set, e = "beta") d$coverage[d$arm == a & d$setting == set & d$estimand == e]
+s_cmp_mse <- s_cmp |> filter(estimand == "beta", setting == "synthetic, dependent", arm %in% c("pcre", "gls_fpc")) |>
+  select(cell, arm, mse) |>
+  left_join(S |> filter(arm == "ncv_cl2", estimand == "beta") |> select(cell, mse_ncv = mse), by = "cell")
+s_pm_keys <- read_summary("plasmode", "ncv-diag-cells") |> distinct(cell, app)
+s_comb <- readr::read_csv("ncv-rbc/summaries/combo2-pm-cells.csv", show_col_types = FALSE) |>
+  left_join(s_pm_keys, by = "cell") |> filter(estimand == "beta", arm == "rbc_p_ij", !is.na(app)) |>
+  group_by(app) |> summarise(coverage = mean(coverage), .groups = "drop")
+s_lc <- readr::read_csv("lambda-correction/summaries/lc-cells.csv", show_col_types = FALSE) |>
+  filter(crit == "z", estimand == "beta", error != "iid", arm %in% c("cl2", "ij_lin")) |>
+  group_by(cell) |> mutate(score_rel = score / score[arm == "cl2"]) |> ungroup()
+s_tim <- \(m, col = "fit_time") median(TIMING[[col]][TIMING$method == m], na.rm = TRUE)
+s_cmpf <- readr::read_csv("comparators/summaries/comparators-fits.csv", show_col_types = FALSE) |> filter(startsWith(key, "p"))
+s_boot_time <- median(s_cmpf$time[s_cmpf$arm == "BOOT"])
+# REML + CL2 in the same plasmode comparator cells: fit time plus the CL2 time stored in `info`
+s_remlcl2_time <- median(s_cmpf$time[s_cmpf$arm == "REML"] + as.numeric(sub(".*cl2_time=([0-9.eE+-]+).*", "\\1", s_cmpf$info[s_cmpf$arm == "REML"])))
+```
+
+1. **Model-based intervals fail under within-curve dependence; curve-clustered CL2 on the
+   REML fit repairs them.** Synthetic: in the `r n_distinct(core_dep$cell)` dependent core
+   cells at G = 100 the model-based intervals cover `r rng(cov_of(core_dep, "reml_model"))`
+   for the mean and β; REML + CL2 covers `r rng(cov_of(core_dep, "reml_cl2"))`. On a four
+   times denser grid model-based coverage of β falls by a further
+   `r rng_pp(-dense$estimate[dense$value == "coverage_reml_model" & dense$error != "iid"])`
+   while REML + CL2 moves by at most `r pp(max(abs(dense$estimate[dense$value == "coverage_reml_cl2" & dense$error != "iid"])))`.
+   Under independent errors at G = 100 CL2 costs at most `r pp(max(Q1$estimate[Q1$name == "iid_cost_reml"]))`
+   of coverage (at G = 40 up to `r pp(max(iid40_cost$cost))`, binary mean). This holds in
+   the synthetic study for six response families, four estimands and both term types.
+   Plasmode (Gaussian, ff model only): pooled model-based coverage `r rng(pmc("reml_model"))`
+   on the six counted datasets and `r rng(pms("reml_model"))` on the three stress tests;
+   REML + CL2 `r rng(pmc("reml_cl2"))` and `r rng(pms("reml_cl2"))`. *Against it:* REML + CL2
+   covers binary α(t) and γ(t) at `r rng(bin_ag$coverage_mean[bin_ag$arm == "reml_cl2"])`
+   (model-based `r rng(bin_ag$coverage_mean[bin_ag$arm == "reml_model" & bin_ag$error == "iid"])`
+   under iid; for α(t) partly a link-scale bias of the GLM intercept, studentised mean
+   `r rng(za_bin_core$z_mean_cl2, 2)` under dependence), the misregistered Poisson mean at `r rng(warp_pois$coverage_mean[warp_pois$arm == "reml_cl2"])`
+   (every recipe undercovers there), and its lower tail for the mean at G = 40 under iid
+   errors is `r f(min(q05_of(core_iid40, "reml_cl2")))`.
+
+2. **The limits of REML + CL2.** On the counted datasets its β intervals are
+   `r rng_pp(LEVEL - pmc("reml_cl2", "beta"))` short of nominal (stress tests
+   `r rng_pp(LEVEL - pms("reml_cl2", "beta"))`), its 5% pointwise quantile is
+   `r rng(pm_counted$q05_mean[pm_counted$arm == "reml_cl2" & pm_counted$estimand == "beta"])`
+   for β (synthetic dependent cells at G = 100: `r rng(q05_of(core_dep, "reml_cl2"))`), and at
+   G = 40 it loses a further `r rng_pp(g40_app$loss[g40_app$arm == "reml_cl2" & g40_app$role == "counted"])`
+   (synthetic dependent cells: `r rng(cov_of(core_dep40, "reml_cl2"))` at G = 40 vs
+   `r rng(cov_of(core_dep, "reml_cl2"))` at G = 100). *Against it:* under REML-fitted truths
+   the lower tail on running, DTI and electricity is `r rng(bt("reml_cl2", "REML", col = "q05")[by_truth$app[by_truth$arm == "reml_cl2" & by_truth$truth == "REML" & by_truth$estimand == "beta"] %in% c("running", "dti", "adelaide")], 3)`.
+   A curve-robust term for the uncertainty of the selected smoothing parameters raises REML + CL2's β coverage in
+   the dependent synthetic core cells from `r f(mean(s_lc$coverage[s_lc$arm == "cl2"]))` to
+   `r f(mean(s_lc$coverage[s_lc$arm == "ij_lin"]))` at an interval score `r f(exp(mean(log(s_lc$score_rel[s_lc$arm == "ij_lin"]))), 3)`
+   times CL2's (@sec-lambda).
+
+3. **Estimation: curve-blocked NCV improves the bivariate surface under dependent errors
+   in the synthetic study; in the plasmode study the gain depends on the truth source.**
+   Synthetic, dependent core cells at G = 100: NCV/REML
+   MSE ratio for β `r rng(ratio_of(r_dep, "beta"))`, mean `r rng(ratio_of(r_dep, "mean"))`,
+   γ(t) `r rng(ratio_of(r_dep, "gamma"))`, α(t) `r rng(ratio_of(r_dep, "alpha"))`; under
+   independent errors `r rng(ratio_of(r_iid, "beta"))` for β. Plasmode (geometric mean over
+   residual sources, G = all): β `r rng(rt("NCV", "beta"))` under the NCV-fitted truth,
+   `r rng(rt("MID", "beta"))` under the log-midpoint truth, `r rng(rt("REML", "beta"))` under
+   the REML-fitted truth (NCV-derived truths align the target with the NCV fit; the weather
+   data, where NCV is rougher than REML yet wins under all truths, show that this is not a
+   pure smoothness mechanism). *Against it:* NCV loses for β under the REML-fitted truth on
+   `r sum(rt("REML", "beta") > 1)` of 9 datasets, and the plasmode gains on α(t) reach
+   `r f(min(rt("NCV", "alpha")), 2)` on one dataset, so the gain is not confined to surfaces there.
+
+4. **Bias-aware NCV intervals and the NCV/REML hybrid are not reliably calibrated.** The
+   allowance inherits REML's noise (β coverage `r rng(S$coverage_mean[S$block == "basis_size" & S$basis == "xlarge" & S$error == "fpc" & S$estimand == "beta" & S$arm == "ncv_cl2_bias"], 3)`
+   with the largest bases, width `r rng(width_ratio$bias_aware[width_ratio$block == "basis_size" & width_ratio$basis == "xlarge" & width_ratio$error == "fpc" & width_ratio$estimand == "beta"], 2)`
+   times REML + CL2's) and cannot see bias shared by both fits: under real REML-fitted truths
+   its β coverage on the counted plasmode datasets is `r rng(bt("ncv_cl2_bias", "REML", role_sel = "counted"))`
+   (`r rng(bt("ncv_cl2_bias", "NCV", role_sel = "counted"))` under NCV-fitted truths), the
+   shortfall sitting at the truth's curvature peaks. Averaged over all nine datasets, under REML-fitted truths the hybrid is
+   worse than REML + CL2 on every metric (β coverage `r f(hv2s("cov hybrid", "REML"))` vs
+   `r f(hv2s("cov REML+CL2", "REML"))`, 5% quantile `r f(hyb_q05_reml, 2)` vs `r f(cl2_q05_reml, 2)`,
+   interval score `r f(hv2s("IS hybrid/REML+CL2", "REML"), 2)` times); it is better only under
+   NCV- and MID-derived truths, partly by overcovering (`r f(hv2s("cov hybrid", "NCV"))`,
+   `r f(hv2s("cov hybrid", "MID"))`). *Against it:* the
+   recommendation rule with the undercoverage-only criterion selects the bias-aware proposal
+   for both estimands in all three families on the synthetic pool (interval-score ratios
+   `r rng(REC$score_ratio[REC$proposal == "ncv_cl2_bias"])`); on the plasmode datasets it
+   does not (@sec-rule, @sec-plasmode-rule). Corrections of the NCV-centred interval do not change this on real
+   data: the one-step bias correction combined with the smoothing-parameter term covers β at
+   `r rng(s_comb$coverage)` per plasmode dataset (@sec-ncv-intervals, @sec-lambda).
+
+5. **AR(1) working models fail in the plasmode study:** `r rng(ar1_main$coverage_mean)` for the mean
+   and β on the nine plasmode datasets (real covariates and residual curves, frozen fitted truths) (log-midpoint truth, REML residuals; synthetic misregistration:
+   mean `r rng(ar1_s$coverage_mean[ar1_s$error == "warp" & ar1_s$estimand == "mean"])`, β
+   `r rng(ar1_s$coverage_mean[ar1_s$error == "warp" & ar1_s$estimand == "beta"])`). *Against
+   it:* on stationary homoskedastic synthetic errors AR(1) is conservative and competitive
+   (`r rng(ar1_s$coverage_mean[ar1_s$error %in% c("ou", "fpc", "ou0", "osc")])`).
+
+6. **Under within-curve dependence the REML estimate of β is poor, so REML + CL2 is valid but much
+   less informative there.** Synthetic dependent cells: median relative error (√ of mean squared error over
+   mean squared truth) of β `r f(rs_med("reml_cl2", "rel_rmse_median"), 2)` for REML vs
+   `r f(rs_med("ncv_cl2", "rel_rmse_median"), 2)` for NCV; REML + CL2 half-widths are
+   `r f(rs_med("reml_cl2", "rel_halfwidth_median"), 2)` times the effect's size and detect
+   `r f(rs_med("reml_cl2", "detect"), 2)` of the clearly non-zero grid points (NCV + CL2:
+   `r f(rs_med("ncv_cl2", "rel_halfwidth_median"), 2)`, `r f(rs_med("ncv_cl2", "detect"), 2)`). The REML/NCV gap
+   is present at every signal level (largest at low signal). Plasmode: relative error of β `r rng(rp("reml_cl2", "rel"))` (REML) and
+   `r rng(rp("ncv_cl2", "rel"))` (NCV) per dataset; REML + CL2 detects `r rng(rp("reml_cl2", "det"))`.
+   *Against it:* NCV-centred intervals do not cover reliably (item 4), so the better estimate comes
+   without a calibrated interval. All metrics side by side, with interval scores: @sec-metrics.
+
+7. **Modelling the residual covariance (pcre, GLS) does not replace CL2 on real residual curves; the curve
+   bootstrap covers at a much higher cost.** Under dependent
+   synthetic errors the pcre curve effect and GLS with an FPCA residual covariance cover β at
+   `r rng(s_cv(s_cmp, "pcre", "synthetic, dependent"))` and `r rng(s_cv(s_cmp, "gls_fpc", "synthetic, dependent"))`; on the
+   plasmode comparator cells at `r rng(s_cv(s_cmp, "pcre", "plasmode"))` and `r rng(s_cv(s_cmp, "gls_fpc", "plasmode"))`, against
+   `r rng(s_cv(s_cmp, "reml_cl2", "plasmode"))` for REML + CL2. CL2 on the GLS or pcre fit covers β at
+   `r rng(s_cv(s_ca, "gls_fpc_cl2", "plasmode"))` and `r rng(s_cv(s_ca, "pcre_cl2", "plasmode"))` there (@sec-comp-cl2); GLS with
+   the raw residual covariance undercovers even under independent errors (`r rng(s_cv(s_cmp, "gls_raw", "synthetic, independent"))`);
+   the curve bootstrap (percentile, 199 refits) covers `r rng(s_cv(s_cmp, "boot_pct", "plasmode"))` on the plasmode cells at a
+   median of `r f(s_boot_time, 0)` s per data set (@sec-comparators, @sec-timing). *Against it:* on dependent synthetic data pcre and GLS (FPCA) cover β like REML + CL2
+   (`r rng(s_cv(s_cmp, "reml_cl2", "synthetic, dependent"))`) and estimate it with an MSE
+   `r rng(s_cmp_mse$mse / s_cmp_mse$mse_ncv)` times NCV's.
+
+8. **Cost.** Gaussian, G = 100, one core: REML fit `r f(s_tim("REML"), 1)` s plus `r f(s_tim("REML", "cl2_time"), 1)` s for
+   CL2; curve-blocked NCV fit `r f(s_tim("NCV"), 1)` s; AR(1) with ρ profiled `r f(s_tim("AR1"), 0)` s (@sec-timing).
+
+# Synthetic study
+
+## Design
+
+```{r design-table}
+blocks <- DESIGN |>
+  mutate(fitted = if_else(family == fit_family, FAMILY_LABELS[family], paste0(FAMILY_LABELS[family], " (fitted as ", FAMILY_LABELS[fit_family], ")"))) |>
+  group_by(block) |>
+  summarise(
+    cells = n(),
+    families = paste(unique(fitted), collapse = ", "),
+    errors = paste(unique(SHORT_ERROR[error]), collapse = ", "),
+    G = paste(sort(unique(G)), collapse = ", "),
+    signal = paste(unique(signal), collapse = ", "),
+    truth = paste(unique(truth), collapse = ", "),
+    D = paste(unique(D), collapse = ", "),
+    model = paste(unique(c(M1 = "ff(X)", M2 = "f(x,t)")[model]), collapse = ", "),
+    covariate = paste(unique(covariate), collapse = ", "),
+    basis = paste(unique(basis), collapse = ", "),
+    .groups = "drop"
+  ) |>
+  arrange(match(block, c("core", "warp", "dense_grid", "rough_truth", "term_type", "families", "ar1_home", "oscillating", "warp_ar1", "heteroskedastic", "lowrank_covariate", "basis_size")))
+save_tab(blocks, "synthetic-design-blocks")
+fit_summary <- FITS |>
+  group_by(fit_family, fit) |>
+  summarise(converged = weighted.mean(converged, n), median_time_s = median(median_time), .groups = "drop")
+save_tab(fit_summary, "synthetic-fits")
+```
+
+The synthetic study has `r nrow(DESIGN)` cells in `r nrow(blocks)` blocks
+(@tbl-design), `r unique(S$n_rep)` replicates each, `r sum(FITS$n[FITS$fit == "REML"])`
+tasks, none failed. Each cell fits the model by REML and by curve-blocked NCV and scores
+the conditional mean of a frozen test cohort, the surface β(s,t) (or f(x,t)), α(t) and
+γ(t). Every cell uses the same random draws per replicate, so contrasts between cells
+are paired. NCV fits converged in `r f(100 * fit_summary$converged[fit_summary$fit == "NCV" & fit_summary$fit_family == "gaussian"], 1)`%
+of Gaussian tasks; the scaled-t family's NCV "non-convergence"
+(`r f(100 * fit_summary$converged[fit_summary$fit == "NCV" & fit_summary$fit_family == "scat"], 0)`% converged)
+is a flat optimum, not a wrong fit (refits from different starts agree to
+< `r formatC(max(SCAT$beta_max_diff), format = "e", digits = 0)` in the coefficients).
+
+```{r}
+#| label: tbl-design
+#| tbl-cap: "Blocks of the synthetic design. Errors: iid = independent; OU = rough stationary (OU kernel with nugget); smooth = curves from the DTI residual FPCs; AR(1) = exact AR(1); sign-chg. = damped cosine with sign-changing correlation; var(t) / var(z) / var(t,z) = the smooth process with a variance profile along t / a subject scale depending on the scalar covariate / both; misreg. = misregistration."
+show(blocks |> select(block, cells, families, errors, G, signal, truth, D, model, covariate, basis))
+```
+
+### Data-generating process {#sec-dgp}
+
+*Models.* For curves i = 1, …, G and the family's link g:
+M1 (default) $g\{\mathrm E\,Y_i(t)\} = \alpha(t) + \int X_i(s)\beta(s,t)\,ds + z_i\gamma(t)$ with $z_i \sim N(0, 1)$;
+M2 (term-type block) $g\{\mathrm E\,Y_i(t)\} = \alpha(t) + f(x_i, t) + z_i\gamma(t)$ with $x_i \sim U(0, 1)$, a smooth effect of a
+scalar covariate that varies over t. pffr fits f with $\sum_i \hat f(x_i, t) = 0$ at every t, so f is scored against its truth
+centred on each data set's own $x_i$, and α is not scored in M2.
+
+*Grids.* Responses are generated on `r length(CONST$T_DENSE)` equidistant points in t ∈ [0, 1] and the functional
+covariate on `r length(CONST$S_GRID)` points in s; the fitted grid keeps every fourth t point (D = 61) or all of them
+(D = 241, dense-grid block), so the grids are nested. Estimands are evaluated on fixed coarser grids, identical for
+every D: `r length(CONST$EVAL_T)` points in t, `r length(CONST$EVAL_S)` in s (β), `r length(CONST$EVAL_X)` points
+x ∈ [0.05, 0.95] (f), and the conditional mean for the `r CONST$N_TEST` curves of a frozen test cohort at the
+`r length(CONST$EVAL_T)` t points.
+
+*Covariate.* $X_i(s) = \xi_{i0} + \sum_{j=1}^{29} \xi_{ij}\sqrt 2\cos(j\pi s)$, $\xi_{ij} \sim N(0, (j+1)^{-2})$; the constant term keeps the
+s-constant part of β identified. The centred spectrum has a first-PC share of 62%, 88% for the first four and a
+99.5% rank of 24 (close to the DTI covariate's 67%, 86% and 26). The low-rank variant uses variances (j+1)⁻³ (99.5%
+rank 9, below 1.5 times the ff basis's s-dimension, like the running data's knee angle).
+
+*Truths.* $\beta(s,t) = \cos(\pi s)\sin(\pi t) + (s - \tfrac12)\cos(2\pi t)$; $f(x,t) = 2(x - \tfrac12)\cos(\pi t) + \sin(\pi x)\,t$;
+$\gamma(t) = \sin(2\pi t)$; the rough ("wiggly") truth adds $0.6\sin(3\pi s)\sin(3\pi t)$ to β (and f) and $0.5\sin(5\pi t)$ to γ. Each truth is projected by
+least squares (on `r CONST$PROJECTION_N` points per axis) onto the fitted default bases, so it is exactly representable;
+the misspecification experiment (@sec-misspec) relaxes this. The truths are scaled so that the non-intercept signal
+$S = \int \mathrm{Var}_{X,z}\{\eta(t) - \alpha(t)\}\,dt$ splits `r 100 * CONST$SIGNAL_SHARE_MAIN`% / `r 100 * (1 - CONST$SIGNAL_SHARE_MAIN)`% between the
+main term and γ, and multiplied by √S. α(t) is a Gaussian bump (centre `r CONST$BUMP_CENTER`, sd `r CONST$BUMP_SD`,
+height √S), projected onto the intercept basis, plus a constant that sets each GLM's average response level
+(found by root search on a population sample of `r CONST$N_POPULATION` covariate draws).
+
+*Signal and families.* Gaussian: error variance set for R² ∈ {0.2, 0.5, 0.8}. Poisson: √S ∈ {0.5, 1} on the
+log scale, average mean count `r CONST$MEAN_LEVEL[["poisson"]]`. Binary (Bernoulli per grid point): √S ∈ {0.5, 1} on the
+logit scale, average prevalence `r CONST$MEAN_LEVEL[["binomial"]]`. Extended families: scaled t with `r CONST$SCAT_DF` df
+(as Gaussian at R² 0.5), beta (φ = `r CONST$BETAR_PHI`, average mean `r CONST$MEAN_LEVEL[["betar"]]`) and negative binomial
+(size `r CONST$NB_SIZE`, average mean `r CONST$MEAN_LEVEL[["nb"]]`, also fitted as Poisson) at √S = 0.5. The default level is
+R² 0.5 for Gaussian and √S 0.5 otherwise.
+
+*Within-curve dependence.* A zero-mean process $Z_i \sim N(0, R)$ with correlation kernel R on the grid is scaled for
+Gaussian errors or used as the latent layer of a Gaussian copula for the other families,
+$Y_{ij} = F_{ij}^{-1}(\Phi(Z_{ij}))$, so every marginal is exactly the fitted family with mean $g^{-1}(\eta_{ij})$ and the working-independence
+model is wrong only about the dependence.
+
+| error process | kernel R(s, t) | role |
+|---|---|---|
+| iid | 1{s = t} | control |
+| OU | `r 1 - CONST$OU_NUGGET` exp(−\|s − t\|/`r CONST$OU_RANGE`) + `r CONST$OU_NUGGET`·1{s = t} (Gaussian design effect 8 at D = 61) | rough, stationary |
+| smooth | residual covariance of the DTI application (`rcst ~ ff(cca)`, 92 curves) by FPCA: 24 eigenfunctions plus 6% white noise, standardised to a correlation (design effect 11.8 at D = 61, 47 at D = 241) | smooth, realistic |
+| AR(1) | exp(−\|s − t\|/`r CONST$OU0_RANGE`), exactly AR(1) on the grid | the AR(1) model's own case |
+| sign-changing | `r 1 - CONST$OSC_NUGGET` exp(−\|s − t\|/`r CONST$OSC_RANGE`) cos(2π\|s − t\|/`r CONST$OSC_PERIOD`) + `r CONST$OSC_NUGGET`·1{s = t} | stationary, correlations change sign with lag |
+| var(t), var(z), var(t,z) | the smooth process with the DTI variance profile along t (variances 0.46–2.42, average 1); with subject i's errors scaled by exp(`r CONST$HET_SD` z_i − `r CONST$HET_SD^2`); both | heteroskedastic (Gaussian) |
+| misregistration | below | phase variability |
+
+*Misregistration.* The model holds on each curve's own clock and is observed on the common clock:
+$Y_i(t_j) = \eta_i(h_i(t_j)) + \varepsilon_i(h_i(t_j))$ with $h_i(t) = t + a_i\sin(\pi t)/\pi$, $a_i \sim N(0, `r CONST$WARP_SD`^2)$
+truncated at $|a_i| \le `r CONST$WARP_MAX`$ (monotone warps with fixed endpoints, maximal displacement SD 10%) and iid ε. For Gaussian
+responses the common-clock coefficients are the smeared functions $\tilde\alpha(t) = \mathrm E_h\,\alpha(h(t))$, $\tilde\beta(s,t) = \mathrm E_h\,\beta(s, h(t))$,
+$\tilde\gamma(t) = \mathrm E_h\,\gamma(h(t))$ (quadrature over a with `r CONST$WARP_QUAD_N` nodes), and every estimand is scored against them;
+for GLMs the observed-clock mean is not $g^{-1}$ of a linear predictor, so GLM misregistration cells score only the
+test-cohort mean, against its exact quadrature. These cells run at high signal.
+
+*Fits.* Every data set is fitted by `pffr()` (refund) with mgcv's `gam()` twice: by REML and by NCV with each curve
+as one leave-out block. Bases: cubic P-splines (mgcv `ps`, m = (2, 1), i.e. first-order difference penalties); intercept and
+γ(t) k = `r CONST$BASIS_T$k`; ff term `r CONST$BASIS_FF$k[1]` (s) × `r CONST$BASIS_FF$k[2]` (t); M2's f(x, t)
+`r CONST$BASIS_X$k` (x) × `r CONST$BASIS_T$k` (t) with the x knots fixed to [0, 1]; in the basis-size block
+`r CONST$BASES$large$t$k` and `r CONST$BASES$large$ff$k[1]` × `r CONST$BASES$large$ff$k[2]` (large) or
+`r CONST$BASES$xlarge$t$k` and `r CONST$BASES$xlarge$ff$k[1]` × `r CONST$BASES$xlarge$ff$k[2]` (xlarge), nested spline spaces.
+Extra fits: pointwise NCV (mgcv's default neighbourhoods; Gaussian core cells at G = 100 with iid and smooth errors,
+and the Gaussian sign-changing cell) and the AR(1) working model (@sec-ar1-fit).
+
+*Intervals.* All intervals are pointwise at nominal 95%, estimate ± 1.96 SE, for an estimand Lθ (rows of the
+lpmatrix for the mean, the term's basis at the evaluation points for β, f, α, γ; the inverse link applied to the
+interval ends for the mean): model-based (the REML fit's Bayesian covariance with mgcv's smoothing-parameter correction, V_c; V_p for NCV fits,
+whose V_c is not a valid covariance in the mgcv build used), CL2 (curve-clustered sandwich with the exact Bell–McCaffrey adjustment of
+each curve's residual block, Bayesian form V_p − V_e added), bias-aware (NCV + CL2 widened in quadrature by
+δ = L(θ̂_NCV − θ̂_REML)), its variant on the frequentist CL2, the hybrid (NCV estimate with REML + CL2's SE) and the AR(1)
+fit's model-based interval.
+
+*Replicates.* R = `r CONST$N_REP` per cell. Replicate r uses seed `r CONST$SEED_BASE` + r in every cell, and all draws are
+made at full size (G = `r CONST$G_MAX` curves, dense grid; G = 40 uses the first 40 curves, D = 61 the nested
+subgrid), so all cells share their random draws (common random numbers) and contrasts between cells are paired by
+replicate. The test cohort (`r CONST$N_TEST` covariate draws, seed `r CONST$SEED_TEST`) is the same in every cell.
+Software: refund `pffr-refactor` commit `r substr(CONST$REFUND_SHA_EXPECTED, 1, 8)` and mgcv `r CONST$MGCV_VERSION`
+(pre-release), both asserted in every task.
+
+## Inference
+
+### Model-based intervals versus CL2 by family and dependence
+
+```{r fig-coverage-core}
+#| fig-cap: "Coverage of the conditional mean and of the coefficient surface in the core cells at the default signal level, by family, error process and number of curves. Points are grid-averaged coverages, bars ± 2 Monte Carlo SE, the dashed line the nominal 0.95."
+#| fig-height: 5.5
+d <- S |>
+  filter(block == "core", signal == "mid", estimand %in% c("mean", "beta"), arm %in% MAIN_ARMS) |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), error = label_error(error), family = label_family(family), G = paste0("G = ", G))
+fig <- coverage_plot(d, "error", vars(G, estimand), vars(family))
+save_fig(fig, "coverage-core", 6.5, 5.5)
+fig
+```
+
+```{r q1-table}
+q1 <- Q1 |>
+  mutate(value = ci(estimate, lower, upper)) |>
+  select(family, estimand, name, value) |>
+  pivot_wider(names_from = name, values_from = value) |>
+  rename(`CE model-based (REML)` = ce_reml_model, `CE REML + CL2` = ce_reml_cl2, `CE model-based (NCV)` = ce_ncv_model, `CE NCV + CL2` = ce_ncv_cl2, `gain REML` = ce_gain_reml, `gain NCV` = ce_gain_ncv, `iid cost REML` = iid_cost_reml, `iid cost NCV` = iid_cost_ncv) |>
+  pretty()
+save_tab(Q1, "synthetic-question1")
+by_fam <- core_dep |>
+  group_by(family, arm) |>
+  summarise(lo = min(coverage_mean), hi = max(coverage_mean), .groups = "drop")
+bf <- \(fam, a) c(by_fam$lo[by_fam$family == fam & by_fam$arm == a], by_fam$hi[by_fam$family == fam & by_fam$arm == a])
+```
+
+Model-based intervals undercover in every dependent cell and every family
+(@fig-coverage-core): at G = 100, Gaussian `r rng(bf("gaussian", "reml_model"))`, Poisson
+`r rng(bf("poisson", "reml_model"))`, binary `r rng(bf("binomial", "reml_model"))`. REML + CL2
+covers `r rng(bf("gaussian", "reml_cl2"))`, `r rng(bf("poisson", "reml_cl2"))` and
+`r rng(bf("binomial", "reml_cl2"))`. The signal level does not change this (REML + CL2's
+core-factorial average per signal level is within
+`r pp(max(abs(PROF$estimate[PROF$factor == "signal" & PROF$value == "coverage_reml_cl2"] - LEVEL)))`
+of nominal; @tbl-core-coverage-all lists every cell). On the recommendation pool (dependent
+core cells at G = 100 plus the Gaussian misregistration cell) the calibration error of the
+model-based intervals is `r rng(Q1$estimate[Q1$name == "ce_reml_model"])`, that of
+REML + CL2 `r rng(Q1$estimate[Q1$name == "ce_reml_cl2"])` (@tbl-q1). NCV + CL2 without the
+bias allowance is less well calibrated (`r rng(Q1$estimate[Q1$name == "ce_ncv_cl2"])`;
+binary responses worst). Under independent errors at G = 100, CL2 costs
+`r rng_pp(Q1$estimate[Q1$name == "iid_cost_reml"])` of coverage relative to the model-based
+intervals, which overcover there (`r rng(cov_of(core_iid, "reml_model"))`); at G = 40 the
+cost is `r rng_pp(iid40_cost$cost)` (largest for the binary mean).
+
+```{r}
+#| label: tbl-q1
+#| tbl-cap: "Question 1 on the recommendation pool: calibration error (CE) of model-based and CL2 intervals for the REML and the NCV fit, the paired gain of CL2, and the coverage lost by CL2 in the independent-error core cells at G = 100. Brackets: 95% replicate-bootstrap intervals."
+show(q1)
+```
+
+### Lower tails of pointwise coverage
+
+```{r fig-lower-tail}
+#| fig-cap: "The 5% quantile over the evaluation grid of pointwise coverage (the worst 5% of grid points), core cells at the default signal level. Bars ± 2 MC SE."
+#| fig-height: 5.5
+d <- S |>
+  filter(block == "core", signal == "mid", estimand %in% c("mean", "beta"), arm %in% MAIN_ARMS) |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), error = label_error(error), family = label_family(family), G = paste0("G = ", G))
+fig <- coverage_plot(d, "error", vars(G, estimand), vars(family), x = "pointwise_q05", se = "pointwise_q05_se", xlab = "5% quantile of pointwise coverage")
+save_fig(fig, "lower-tail-core", 6.5, 5.5)
+fig
+tail_tab <- S |>
+  filter(block == "core", estimand %in% c("mean", "beta"), arm %in% MAIN_ARMS) |>
+  group_by(dependence = if_else(error == "iid", "independent", "dependent"), G, estimand, arm) |>
+  summarise(q05_min = min(pointwise_q05), q05_median = median(pointwise_q05), coverage_min = min(coverage_mean), .groups = "drop") |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand))
+save_tab(tail_tab, "synthetic-lower-tail-core")
+tq <- \(a, e, g, dep = "dependent") tail_tab$q05_min[tail_tab$arm == ARM_LABELS[a] & tail_tab$estimand == ESTIMAND_LABELS[e] & tail_tab$G == g & tail_tab$dependence == dep]
+```
+
+Grid averages hide where an interval fails. The 5% quantile of pointwise coverage
+(@fig-lower-tail; per-arm minima and medians in @tbl-lower-tail) is
+`r rng(c(tq("reml_cl2", "beta", 100), tq("reml_cl2", "mean", 100)))` or higher for
+REML + CL2 in the dependent cells at G = 100 (worst cell) and
+`r rng(c(tq("reml_cl2", "beta", 40), tq("reml_cl2", "mean", 40)))` at G = 40; for the
+model-based intervals it is as low as `r rng(c(tq("reml_model", "beta", 100), tq("reml_model", "mean", 100)))`.
+NCV + CL2 without the allowance reaches `r f(tq("ncv_cl2", "beta", 40))` for β at G = 40
+(binary responses). Under independent errors REML + CL2's lower tail for the mean is
+`r f(tq("reml_cl2", "mean", 40, "independent"))` at G = 40.
+
+### Studentised errors of the REML fit
+
+```{r zstats-synthetic}
+zs_avail <- !is.null(ZS)
+# the mean's stored records hold link-scale estimates and SEs next to the response-scale
+# truth, so z is defined for the mean only in Gaussian cells
+zs_tab <- if (zs_avail) ZS |>
+  filter(fit == "REML", !(estimand == "mean" & fit_family != "gaussian")) |>
+  group_by(block, family, error, G, basis, covariate, estimand) |>
+  summarise(across(c(z_mean_cl2, z_sd_cl2, share_big_cl2, z_mean_model, z_sd_model, share_big_model), mean), .groups = "drop") |>
+  arrange(block, family, error, G, basis, estimand) else NULL
+if (zs_avail) save_tab(zs_tab, "synthetic-zstats-reml")
+zs_blocks <- if (zs_avail) sort(unique(ZS$block)) else character()
+zs_dep <- if (zs_avail) zs_tab |> filter(error != "iid") else NULL
+zs_iid <- if (zs_avail) zs_tab |> filter(error == "iid") else NULL
+```
+
+```{r zstats-synthetic-text}
+zc <- if (zs_avail) zs_tab |> filter(block == "core") else NULL
+zcv <- \(col, dep = TRUE, g = 100, e = "beta") zc[[col]][(zc$error != "iid") == dep & zc$G == g & zc$estimand == e]
+zx <- if (zs_avail) zs_tab |> filter(block %in% c("warp", "rough_truth", "dense_grid", "oscillating", "families", "heteroskedastic", "lowrank_covariate", "term_type"), error != "iid") else NULL
+zb <- if (zs_avail) zs_tab |> filter(block == "basis_size", error != "iid", estimand == "beta") else NULL
+za <- if (zs_avail) ZS |> filter(fit == "REML", estimand == "alpha", error != "iid") else NULL
+zav <- \(fam, blk = "core", g = 100, col = "z_mean_cl2", b = "default") za[[col]][za$family == fam & za$block == blk & za$G == g & za$basis == b]
+zg <- if (zs_avail) ZS |> filter(fit == "REML", estimand == "gamma", error != "iid", block == "core") else NULL
+```
+
+`r if (zs_avail) sprintf("The studentised error z = (estimate − truth) / SE of the REML fit, pooled over grid points and replicates, is a descriptive diagnostic: an SD of z above 1 with a centred mean indicates SE underestimation, a shifted mean a bias, but the pooling over grid points cannot separate a global scale error from spatially varying bias (local biases of opposite sign cancel in the mean and inflate the SD), so the share of |z| > 1.96 is reported beside the SD (a normal pivot with that SD would give a predictable share). It is computed for β, α(t) and γ(t) in every cell (link scale) and for the mean in Gaussian cells (the stored mean records hold link-scale estimates next to response-scale truths). Means over cells (@tbl-zstats-synthetic; per-cell values in the CSV): in the dependent core cells at G = 100 the SD of z with the CL2 SE is %s for β and %s for the Gaussian mean (mean of z %s; %s%% of |z| > 1.96), against %s with the model-based SE; at G = 40 it is %s for β and %s for the mean, which matches the 1–2 pp coverage loss of REML + CL2 there. Under independent errors the CL2 SE is conservative for β (SD %s at G = 100), matching its coverage near 0.98. Across the dependent extension cells (misregistration, rough truth, dense grid, sign-changing, extended families, heteroskedastic, low-rank, smooth-effect) the SD of z for β is %s and the mean of z %s; with the largest bases the SD falls to %s. For β and the Gaussian mean, therefore, the studentised error is centred and its SD exceeds 1 by a few per cent wherever REML + CL2 falls short. The GLM intercept α(t) is different: its studentised error is shifted under dependence, mean of z %s for binary responses at G = 100 (%s at G = 40; dense grid %s; large and xlarge bases %s and %s) and %s for Poisson (independent errors: %s and %s), while Gaussian α(t) and every γ(t) stay within %s: a link-scale bias of the GLM intercept that grows with the basis size and is not corrected by CL2, which explains part of the binary α(t) shortfall.", rng(zcv("z_sd_cl2")), rng(zcv("z_sd_cl2", e = "mean")), rng(c(zcv("z_mean_cl2"), zcv("z_mean_cl2", e = "mean"))), rng(100 * c(zcv("share_big_cl2"), zcv("share_big_cl2", e = "mean")), 1), rng(c(zcv("z_sd_model"), zcv("z_sd_model", e = "mean"))), rng(zcv("z_sd_cl2", g = 40)), rng(zcv("z_sd_cl2", g = 40, e = "mean")), rng(zcv("z_sd_cl2", dep = FALSE)), rng(zx$z_sd_cl2[zx$estimand == "beta"]), rng(zx$z_mean_cl2[zx$estimand == "beta"]), f(min(zb$z_sd_cl2), 2), rng(zav("binomial")), rng(zav("binomial", g = 40)), rng(zav("binomial", "dense_grid")), rng(zav("binomial", "basis_size", b = "large")), rng(zav("binomial", "basis_size", b = "xlarge")), rng(zav("poisson")), rng(ZS$z_mean_cl2[ZS$fit == "REML" & ZS$estimand == "alpha" & ZS$error == "iid" & ZS$block == "core" & ZS$family == "binomial"]), rng(ZS$z_mean_cl2[ZS$fit == "REML" & ZS$estimand == "alpha" & ZS$error == "iid" & ZS$block == "core" & ZS$family == "poisson"]), rng(c(abs(zav("gaussian")), abs(zg$z_mean_cl2)))) else "The studentised-error diagnostics for the synthetic study are pending (LRZ task records)."`
+
+### Grid density
+
+```{r fig-grid}
+#| fig-cap: "Coverage of β and the mean at D = 61 (core, default signal) and D = 241 (dense-grid block), G = 100. Bars ± 2 MC SE."
+#| fig-height: 3.5
+d <- S |>
+  filter((block == "core" & G == 100 & signal == "mid") | block == "dense_grid", estimand %in% c("beta", "mean"), arm %in% c("reml_model", "reml_cl2", "ncv_cl2_bias")) |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), error = label_error_short(error), family = label_family(family), D = factor(D))
+fig <- ggplot(d, aes(D, coverage_mean, colour = arm, group = arm)) +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_line() +
+  geom_pointrange(aes(ymin = coverage_mean - 2 * coverage_se, ymax = coverage_mean + 2 * coverage_se), size = 0.2) +
+  facet_grid(estimand ~ family + error) +
+  scale_colour_manual(values = ARM_COLOURS, name = NULL) +
+  labs(x = "grid points per curve D", y = "coverage") +
+  theme_doc + theme(strip.text = element_text(size = 7))
+save_fig(fig, "coverage-grid", 6.5, 3.5)
+fig
+grid_tab <- MC |>
+  filter(block == "dense_grid", estimand == "beta", value %in% c("coverage_reml_model", "coverage_reml_cl2", "coverage_ncv_cl2", "coverage_ncv_cl2_bias", "log_mse_ratio_ncv_reml")) |>
+  mutate(diff = ci(estimate, lower, upper)) |>
+  select(family, error, value, diff) |>
+  pivot_wider(names_from = value, values_from = diff) |>
+  rename(`model-based` = coverage_reml_model, `REML + CL2` = coverage_reml_cl2, `NCV + CL2` = coverage_ncv_cl2, `bias-aware` = coverage_ncv_cl2_bias, `log MSE ratio` = log_mse_ratio_ncv_reml) |>
+  pretty()
+save_tab(MC |> filter(block == "dense_grid"), "synthetic-grid-contrasts")
+gd <- \(v, err = c("ou", "fpc")) dense$estimate[dense$value == v & dense$error %in% err]
+```
+
+Denser grids make model-based intervals worse, not better: from D = 61 to 241 their
+coverage of β drops by `r rng_pp(-gd("coverage_reml_model"))` under dependence
+(`r rng_pp(-gd("coverage_reml_model", "iid"))` under independent errors), while REML + CL2
+changes by `r rng_pp(gd("coverage_reml_cl2"))` and the bias-aware NCV interval by
+`r rng_pp(gd("coverage_ncv_cl2_bias"))` (@fig-grid, @tbl-grid). NCV's estimation advantage
+grows with the grid: the log NCV/REML MSE ratio falls by `r rng(-gd("log_mse_ratio_ncv_reml"))`
+under dependence, a factor of `r rng(exp(-gd("log_mse_ratio_ncv_reml")), 1)`.
+
+```{r}
+#| label: tbl-grid
+#| tbl-cap: "Dense grid (D = 241) minus the matching core cell (D = 61), β at G = 100: coverage differences and the difference of log(MSE NCV / MSE REML), 95% replicate-bootstrap intervals."
+show(grid_tab)
+```
+
+### Number of curves
+
+```{r g40}
+g_tab <- S |>
+  filter(block == "core", estimand %in% c("mean", "beta"), arm %in% c(MAIN_ARMS, "ncv_cl2f_bias")) |>
+  select(family, error, signal, estimand, arm, G, coverage_mean) |>
+  pivot_wider(names_from = G, values_from = coverage_mean, names_prefix = "G") |>
+  mutate(diff = G100 - G40)
+g_sum <- g_tab |>
+  group_by(dependence = if_else(error == "iid", "independent", "dependent"), family, estimand, arm) |>
+  summarise(`G = 40` = mean(G40), `G = 100` = mean(G100), `loss at G = 40` = mean(diff), .groups = "drop") |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), family = label_family(family)) |>
+  arrange(dependence, family, estimand, arm)
+save_tab(g_sum, "synthetic-G40-vs-100")
+gl <- \(a, dep = "dependent") g_sum$`loss at G = 40`[g_sum$arm == ARM_LABELS[a] & g_sum$dependence == dep]
+g40_bin <- g_sum |> filter(dependence == "dependent", family == "binary")
+g40_bin_ncv_beta <- g40_bin[["G = 40"]][g40_bin$arm == ARM_LABELS["ncv_cl2"] & g40_bin$estimand == ESTIMAND_LABELS["beta"]]
+```
+
+With 40 instead of 100 curves REML + CL2 loses `r rng_pp(gl("reml_cl2"))` of coverage in
+the dependent cells (averaged over signal levels and error processes per family and
+estimand; @tbl-g40), the bias-aware NCV interval `r rng_pp(gl("ncv_cl2_bias"))`. NCV + CL2
+without the allowance loses `r rng_pp(gl("ncv_cl2"))`, most for binary responses, where it
+covers β at `r f(g40_bin_ncv_beta)` at G = 40. The model-based intervals are already far
+off at both G.
+
+### Signal strength and truth roughness
+
+```{r fig-signal-truth}
+#| fig-cap: "Coverage of β by signal level and truth roughness (smooth = core cells, rough = rough-truth block), G = 100, smooth (DTI-FPC) and independent errors. Bars ± 2 MC SE."
+#| fig-height: 5
+d <- S |>
+  filter(block %in% c("core", "rough_truth"), G == 100, error %in% c("iid", "fpc"), estimand == "beta", arm %in% c("reml_cl2", "ncv_cl2", "ncv_cl2_bias", "ncv_cl2f_bias")) |>
+  mutate(arm = label_arm(arm), family = label_family(family), error = label_error(error), signal = label_signal(signal), truth = paste(if_else(truth == "wiggly", "rough", "smooth"), "truth"))
+fig <- coverage_plot(d, "signal", vars(truth, error), vars(family))
+save_fig(fig, "coverage-signal-truth", 6.5, 5)
+fig
+st <- S |> filter(block %in% c("core", "rough_truth"), G == 100, error %in% c("iid", "fpc"), estimand == "beta")
+stv <- \(a, tr, err = "fpc") st$coverage_mean[st$arm == a & st$truth == tr & st$error == err]
+st_tab <- cov_wide(st$cell, "beta", c("reml_cl2", "ncv_cl2", "ncv_cl2_bias", "ncv_cl2f_bias")) |> select(-D, -basis, -G) |> pretty()
+save_tab(st_tab, "synthetic-signal-truth-beta")
+```
+
+Signal strength changes little; truth roughness does (@fig-signal-truth, @tbl-signal-truth).
+With the rough truth and dependent errors NCV + CL2 covers β at `r rng(stv("ncv_cl2", "wiggly"))`
+(smooth truth: `r rng(stv("ncv_cl2", "smooth"))`), because NCV's extra smoothing now buys
+bias; the bias allowance restores `r rng(stv("ncv_cl2_bias", "wiggly"))`, still short of
+REML + CL2's `r rng(stv("reml_cl2", "wiggly"))`. With the smooth truth the allowance
+overcovers β (`r rng(stv("ncv_cl2_bias", "smooth"))`). The frequentist-CL2 variant of the
+allowance undercovers under independent errors with a rough truth
+(`r rng(stv("ncv_cl2f_bias", "wiggly", "iid"))`).
+
+### Estimands and term types
+
+```{r estimands}
+est_tab <- S |>
+  filter(block == "core", G == 100, signal == "mid", arm %in% MAIN_ARMS) |>
+  group_by(dependence = if_else(error == "iid", "independent", "dependent"), family, estimand, arm) |>
+  summarise(coverage = mean(coverage_mean), q05 = mean(pointwise_q05), .groups = "drop") |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), family = label_family(family))
+est_wide <- est_tab |>
+  select(-q05) |>
+  pivot_wider(names_from = arm, values_from = coverage) |>
+  arrange(dependence, family, estimand)
+save_tab(est_tab, "synthetic-coverage-by-estimand")
+ev <- \(a, e, dep = "dependent") est_tab$coverage[est_tab$arm == ARM_LABELS[a] & est_tab$estimand == ESTIMAND_LABELS[e] & est_tab$dependence == dep]
+m2 <- MC |> filter(block == "term_type", estimand == "main")
+m2_tab <- m2 |>
+  filter(value %in% c("coverage_reml_model", "coverage_reml_cl2", "coverage_ncv_cl2_bias", "log_mse_ratio_ncv_reml")) |>
+  mutate(diff = ci(estimate, lower, upper)) |>
+  select(family, error, value, diff) |>
+  pivot_wider(names_from = value, values_from = diff) |>
+  rename(`model-based` = coverage_reml_model, `REML + CL2` = coverage_reml_cl2, `bias-aware` = coverage_ncv_cl2_bias, `log MSE ratio` = log_mse_ratio_ncv_reml) |>
+  pretty()
+save_tab(MC |> filter(block == "term_type"), "synthetic-term-type-contrasts")
+m2v <- \(v, err = c("ou", "fpc")) m2$estimate[m2$value == v & m2$error %in% err]
+```
+
+The pattern is the same for all four estimands (@tbl-estimands): in the dependent cells at
+G = 100 and default signal the model-based intervals cover α(t) at
+`r rng(ev("reml_model", "alpha"))`, γ(t) at `r rng(ev("reml_model", "gamma"))`, β at
+`r rng(ev("reml_model", "beta"))` and the mean at `r rng(ev("reml_model", "mean"))`;
+REML + CL2 covers them at `r rng(c(ev("reml_cl2", "alpha"), ev("reml_cl2", "gamma"), ev("reml_cl2", "beta"), ev("reml_cl2", "mean")))`
+(the low end is binary α(t)/γ(t)). Replacing the functional covariate by a smooth effect
+f(x,t) of a scalar covariate changes REML + CL2's coverage by `r rng_pp(m2v("coverage_reml_cl2"))`
+under dependence (paired difference to the matching ff cell, @tbl-term-type); NCV's
+relative advantage for the surface is smaller in that model (the log MSE ratio is higher
+by `r rng(m2v("log_mse_ratio_ncv_reml"))`, i.e. the ratio is `r rng(exp(m2v("log_mse_ratio_ncv_reml")), 1)`
+times larger), but still below one.
+
+```{r}
+#| label: tbl-estimands
+#| tbl-cap: "Coverage by estimand (mean over error processes within dependence class), core cells, G = 100, default signal."
+show(est_wide)
+```
+
+```{r}
+#| label: tbl-term-type
+#| tbl-cap: "Smooth-effect model f(x,t) minus the matching ff(X) cell (surface estimand; G = 100, default signal): coverage differences and the difference in log(MSE NCV / MSE REML); 95% replicate-bootstrap intervals."
+show(m2_tab)
+```
+
+### Heteroskedasticity, misregistration and sign-changing correlation
+
+```{r extensions}
+het_tab <- cov_wide(DESIGN$cell[DESIGN$block == "heteroskedastic" | (DESIGN$block == "core" & DESIGN$error == "fpc" & DESIGN$family == "gaussian" & DESIGN$signal == "mid")], c("mean", "beta", "gamma"), c(MAIN_ARMS, "ar1_model")) |>
+  select(-D, -basis, -signal, -truth, -family)
+hv <- \(a, e, err) het_tab[[a]][het_tab$estimand == e & het_tab$error %in% err]
+het_show <- pretty(het_tab)
+save_tab(het_show, "synthetic-heteroskedastic-coverage")
+# misregistration: the AR(1)-on-warp cell (same DGP as the Gaussian rough-truth warp cell at G = 100) supplies the AR(1) column of that row
+warp_raw <- cov_wide(DESIGN$cell[DESIGN$block %in% c("warp", "warp_ar1")], c("mean", "beta"), c(MAIN_ARMS, "ncv_cl2f_bias", "ar1_model"))
+warp_tab <- warp_raw |>
+  group_by(family, G, signal, truth, estimand) |>
+  summarise(across(c(all_of(MAIN_ARMS), ncv_cl2f_bias, ar1_model), \(x) if (all(is.na(x))) NA_real_ else mean(x, na.rm = TRUE)), .groups = "drop")
+wv <- \(a, fam, e = "mean") warp_tab[[a]][warp_tab$family == fam & warp_tab$estimand == e]
+warp_show <- pretty(warp_tab)
+save_tab(warp_show, "synthetic-misregistration-coverage")
+osc_tab <- cov_wide(DESIGN$cell[DESIGN$block == "oscillating"], c("mean", "beta"), c(MAIN_ARMS, "ar1_model")) |>
+  select(-D, -basis, -signal, -truth, -G)
+osc_show <- pretty(osc_tab)
+save_tab(osc_show, "synthetic-oscillating-coverage")
+```
+
+A variance profile along t leaves every recipe where it was (@tbl-het). Variance that
+depends on the scalar covariate breaks the model-based intervals for γ(t)
+(`r rng(hv("reml_model", "gamma", c("fpc_het", "fpc_raw_het")))`) and the AR(1) model's
+(`r rng(na.omit(hv("ar1_model", "gamma", c("fpc_het", "fpc_raw_het"))))`), while REML + CL2
+covers γ at `r rng(hv("reml_cl2", "gamma", c("fpc_het", "fpc_raw_het")))`.
+
+Misregistration (each curve observed on its own clock, the estimand being the observed-clock
+mean and its smeared coefficients) gives model-based coverage of
+`r rng(wv("reml_model", "gaussian"))` for the Gaussian mean and REML + CL2 coverage of
+`r rng(wv("reml_cl2", "gaussian"))` (@tbl-warp). For misregistered Poisson data every
+recipe undercovers the mean (REML + CL2 `r rng(wv("reml_cl2", "poisson"))`, bias-aware NCV
+`r rng(wv("ncv_cl2_bias", "poisson"))`); binary responses are unaffected
+(`r rng(wv("reml_cl2", "binomial"))`). Sign-changing correlations behave like the other
+dependent processes: model-based `r rng(c(osc_tab$reml_model))`, REML + CL2
+`r rng(c(osc_tab$reml_cl2))` (@tbl-osc).
+
+```{r}
+#| label: tbl-warp
+#| tbl-cap: "Misregistration cells (high signal): coverage of the observed-clock estimands. GLM cells score the mean only; the AR(1) column comes from the Gaussian cells that ran the AR(1) arm."
+show(warp_show)
+```
+
+### Extended families
+
+```{r families}
+fam_cov <- cov_wide(DESIGN$cell[DESIGN$block == "families"], c("mean", "beta"), MAIN_ARMS) |>
+  left_join(distinct(DESIGN, cell, fit_family), by = "cell") |>
+  select(family, fit_family, error, estimand, all_of(MAIN_ARMS))
+fam_mse <- MSE_RATIO |>
+  filter(block == "families", estimand %in% c("mean", "beta")) |>
+  mutate(`MSE ratio NCV/REML` = ci(ratio, ratio_lower, ratio_upper, 2)) |>
+  select(family, fit_family, error, estimand, `MSE ratio NCV/REML`)
+fam_tab <- left_join(fam_cov, fam_mse, by = c("family", "fit_family", "error", "estimand"))
+fv <- \(a, err = "fpc") fam_tab[[a]][fam_tab$error == err & fam_tab$family == fam_tab$fit_family]
+fam_show <- pretty(fam_tab)
+save_tab(fam_show, "synthetic-extended-families")
+```
+
+Scaled-t, beta and negative-binomial responses repeat the pattern (@tbl-families): under
+the smooth error process model-based coverage is `r rng(fv("reml_model"))` and REML + CL2's
+`r rng(fv("reml_cl2"))`; the NCV/REML MSE ratio for β is
+`r rng(MSE_RATIO$ratio[MSE_RATIO$block == "families" & MSE_RATIO$error == "fpc" & MSE_RATIO$estimand == "beta" & MSE_RATIO$fit_family == MSE_RATIO$family])`.
+Fitting negative-binomial data as Poisson costs the model-based intervals most
+(`r rng(fam_tab$reml_model[fam_tab$fit_family == "poisson" & fam_tab$family == "nb"])`),
+REML + CL2 little (`r rng(fam_tab$reml_cl2[fam_tab$fit_family == "poisson" & fam_tab$family == "nb"])`).
+
+```{r}
+#| label: tbl-families
+#| tbl-cap: "Extended families at G = 100: coverage per arm and the NCV/REML MSE ratio (95% bootstrap interval)."
+show(fam_show)
+```
+
+### Basis size
+
+```{r fig-basis}
+#| fig-cap: "Basis size (nested bases; large and xlarge halve and quarter the knot spacing), G = 100, default signal, smooth truth. Left: EDF of the ff term under REML and NCV. Middle: NCV/REML MSE ratio for β and the mean with bootstrap intervals. Right: coverage of β."
+#| fig-height: 4.5
+basis_levels <- c("default", "large", "xlarge")
+bcells <- DESIGN |>
+  filter(block == "basis_size" | (block == "core" & G == 100 & signal == "mid" & error %in% c("iid", "fpc") & family %in% c("gaussian", "poisson", "binomial")))
+edf_b <- EDF |>
+  filter(cell %in% bcells$cell, term == "te(X.smat,X.tmat):L.X", fit %in% c("REML", "NCV")) |>
+  mutate(basis = factor(basis, basis_levels), family = label_family(family), error = label_error(error))
+p1 <- ggplot(edf_b, aes(basis, edf_mean, colour = fit, group = fit)) +
+  geom_line() + geom_point() +
+  facet_grid(error ~ family) +
+  scale_colour_manual(values = c(REML = "#0072B2", NCV = "#D55E00"), name = NULL) +
+  labs(x = NULL, y = "EDF of the ff term") + theme_doc
+mse_b <- MSE_RATIO |>
+  filter(cell %in% bcells$cell, estimand %in% c("beta", "mean")) |>
+  mutate(basis = factor(basis, basis_levels), family = label_family(family), error = label_error(error), estimand = label_estimand(estimand))
+p2 <- ggplot(mse_b, aes(basis, ratio, colour = estimand, group = estimand)) +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey40") +
+  geom_line() +
+  geom_pointrange(aes(ymin = ratio_lower, ymax = ratio_upper), size = 0.2) +
+  facet_grid(error ~ family) +
+  scale_y_log10(breaks = c(0.01, 0.03, 0.1, 0.3, 1)) +
+  scale_colour_manual(values = c("#000000", "#56B4E9"), name = NULL) +
+  labs(x = NULL, y = "MSE NCV / MSE REML") + theme_doc
+cov_b <- S |>
+  filter(cell %in% bcells$cell, estimand == "beta", arm %in% MAIN_ARMS) |>
+  mutate(basis = factor(basis, basis_levels), family = label_family(family), error = label_error(error), arm = label_arm(arm))
+p3 <- ggplot(cov_b, aes(basis, coverage_mean, colour = arm, group = arm)) +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_line() +
+  geom_pointrange(aes(ymin = coverage_mean - 2 * coverage_se, ymax = coverage_mean + 2 * coverage_se), size = 0.2) +
+  facet_grid(error ~ family) +
+  scale_colour_manual(values = ARM_COLOURS, name = NULL) +
+  guides(colour = guide_legend(nrow = 2)) +
+  labs(x = NULL, y = "coverage of beta") + theme_doc
+fig <- (p1 | p2 | p3) & theme(legend.position = "bottom", axis.text.x = element_text(angle = 30, hjust = 1), strip.text = element_text(size = 6))
+save_fig(fig, "basis-size", 9, 4.5)
+fig
+basis_tab <- cov_b |>
+  select(family, error, basis, arm, coverage_mean, score_mean, width_mean) |>
+  pivot_wider(names_from = arm, values_from = c(coverage_mean, score_mean, width_mean)) |>
+  left_join(mse_b |> filter(estimand == ESTIMAND_LABELS["beta"]) |> select(family, error, basis, mse_ratio_beta = ratio), by = c("family", "error", "basis")) |>
+  arrange(family, error, basis)
+names(basis_tab) <- sub("coverage_mean_", "cov: ", sub("score_mean_", "IS: ", sub("width_mean_", "width: ", names(basis_tab))))
+save_tab(basis_tab, "synthetic-basis-size")
+ed <- \(fit, b, err = "fpc") edf_b$edf_mean[edf_b$fit == fit & edf_b$basis == b & edf_b$error == ERROR_LABELS[err]]
+bs <- \(a, b, err = "fpc") cov_b$coverage_mean[cov_b$arm == ARM_LABELS[a] & cov_b$basis == b & cov_b$error == ERROR_LABELS[err]]
+bis <- MC |> filter(block == "basis_size", estimand == "beta", value == "log_score_ratio_proposal_fallback")
+wr_b <- width_ratio |> filter(cell %in% bcells$cell, estimand == "beta", error == "fpc")
+```
+
+As the bases grow, REML's ff EDF under the smooth error process rises from
+`r rng(ed("REML", "default"), 0)` (default) to `r rng(ed("REML", "large"), 0)` (large) and
+`r rng(ed("REML", "xlarge"), 0)` (xlarge) across the three families, while NCV's rises from
+`r rng(ed("NCV", "default"), 0)` to `r rng(ed("NCV", "large"), 0)` and `r rng(ed("NCV", "xlarge"), 0)`:
+REML absorbs the dependence into the surface. The NCV/REML MSE ratio for β falls to
+`r rng(mse_b$ratio[mse_b$basis == "xlarge" & mse_b$error == ERROR_LABELS["fpc"] & mse_b$estimand == ESTIMAND_LABELS["beta"]])`
+with the xlarge basis (@fig-basis, @tbl-basis). REML + CL2 stays calibrated
+(β `r rng(bs("reml_cl2", "xlarge"))` at xlarge), whereas the bias-aware NCV interval
+overcovers more with every step (`r rng(bs("ncv_cl2_bias", "default"))` → `r rng(bs("ncv_cl2_bias", "large"))`
+→ `r rng(bs("ncv_cl2_bias", "xlarge"))`) because the allowance is the difference of two
+estimates and inherits REML's growing noise; its width relative to REML + CL2 is
+`r rng(wr_b$bias_aware[wr_b$basis == "default"], 2)` (default) and `r rng(wr_b$bias_aware[wr_b$basis == "xlarge"], 2)`
+(xlarge), and its interval score still beats REML + CL2's (log score ratio
+`r rng(bis$estimate[bis$error == "fpc"])` under the smooth process) because REML + CL2's
+intervals widen with REML's variance. Under independent errors every arm overcovers β with
+the larger bases (`r rng(bs("reml_cl2", "xlarge", "iid"))`).
+
+```{r}
+#| label: tbl-basis
+#| tbl-cap: "Basis size: coverage (cov), interval score (IS) and mean width of β intervals per arm, and the NCV/REML MSE ratio for β."
+show(pretty(basis_tab), digits = 2)
+```
+
+## Estimation
+
+### NCV versus REML by factor and estimand
+
+```{r fig-mse}
+#| fig-cap: "MSE of the NCV fit relative to the REML fit (log scale) with 95% replicate-bootstrap intervals, G = 100, by error process, family and signal level, for the smooth truth (core), the rough truth, the smooth-effect model and the low-rank covariate. The surface column shows β(s,t) for the ff model and f(x,t) for the smooth-effect model."
+#| fig-height: 6
+d <- MSE_RATIO |>
+  filter(block %in% c("core", "rough_truth", "term_type", "lowrank_covariate"), G == 100, estimand %in% c("beta", "f", "mean", "gamma")) |>
+  mutate(
+    estimand = factor(recode(estimand, mean = "E(Y | X)", beta = "surface: beta(s,t) or f(x,t)", f = "surface: beta(s,t) or f(x,t)", gamma = "gamma(t)"), c("E(Y | X)", "surface: beta(s,t) or f(x,t)", "gamma(t)")),
+    setting = factor(recode(block, core = "smooth truth", rough_truth = "rough truth", term_type = "f(x,t) model", lowrank_covariate = "low-rank X"), c("smooth truth", "rough truth", "f(x,t) model", "low-rank X")),
+    error = label_error(error), signal = label_signal(signal), family = label_family(family)
+  )
+fig <- ggplot(d, aes(ratio, error, colour = family, shape = signal)) +
+  geom_vline(xintercept = 1, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = ratio_lower, xmax = ratio_upper), position = position_dodge(width = 0.7), size = 0.2) +
+  facet_grid(setting ~ estimand, scales = "free_y", space = "free_y") +
+  scale_shape_manual(values = c(low = 1, mid = 16, high = 17), name = "signal") +
+  scale_x_log10(breaks = c(0.05, 0.1, 0.2, 0.5, 1, 2)) +
+  scale_colour_manual(values = c(Gaussian = "#000000", Poisson = "#56B4E9", binary = "#CC79A7"), name = NULL) +
+  labs(x = "MSE of NCV / MSE of REML (log scale; G = 100)", y = NULL) +
+  theme_doc
+save_fig(fig, "mse-ratio", 6.5, 6)
+fig
+prof_err <- PROF |>
+  filter(value == "log_mse_ratio_ncv_reml", factor == "error") |>
+  mutate(ratio = ci(exp(estimate), exp(lower), exp(upper), 2)) |>
+  select(family, estimand, error = name, ratio) |>
+  pivot_wider(names_from = error, values_from = ratio) |>
+  pretty()
+save_tab(prof_err, "synthetic-mse-ratio-by-error")
+prof_G <- PROF |>
+  filter(value == "log_mse_ratio_ncv_reml", factor == "G") |>
+  mutate(ratio = exp(estimate)) |>
+  select(family, estimand, G = name, ratio) |>
+  pivot_wider(names_from = G, values_from = ratio, names_prefix = "G")
+pe <- \(e, err) exp(PROF$estimate[PROF$value == "log_mse_ratio_ncv_reml" & PROF$factor == "error" & PROF$name %in% err & PROF$estimand == e])
+rough <- MSE_RATIO |> filter(block == "rough_truth", error == "fpc")
+lowr <- MSE_RATIO |> filter(block == "lowrank_covariate")
+```
+
+NCV's gain is a dependence effect concentrated on the bivariate surface (@fig-mse,
+@tbl-mse-error). Averaged over the whole core factorial (both G, all signal levels), the
+NCV/REML MSE ratio for β is `r rng(pe("beta", c("ou", "fpc")))` under dependent errors and
+`r rng(pe("beta", "iid"))` under independent errors; for the mean `r rng(pe("mean", c("ou", "fpc")))`
+and `r rng(pe("mean", "iid"))`. In the dependent cells at G = 100 (the pool of the summary)
+the ratios are `r rng(ratio_of(r_dep, "beta"))` for β, `r rng(ratio_of(r_dep, "mean"))` for the
+mean, `r rng(ratio_of(r_dep, "gamma"))` for γ(t) and `r rng(ratio_of(r_dep, "alpha"))` for
+α(t). With the rough truth the gain for β shrinks to `r rng(rough$ratio[rough$estimand == "beta"])`
+(smooth process), the mean's to `r rng(rough$ratio[rough$estimand == "mean"])`. A low-rank
+covariate (spectrum like the running data's knee angle) makes the β gain larger under
+dependence (`r rng(lowr$ratio[lowr$estimand == "beta" & lowr$error == "fpc"])`) and removes it
+under independent errors (`r rng(lowr$ratio[lowr$estimand == "beta" & lowr$error == "iid"])`).
+The ratio is nearly the same at G = 40 and G = 100 (β: `r rng(prof_G$G40[prof_G$estimand == "beta"])`
+vs `r rng(prof_G$G100[prof_G$estimand == "beta"])`).
+
+```{r}
+#| label: tbl-mse-error
+#| tbl-cap: "NCV/REML MSE ratio: geometric mean over the core cells of each error process (all G and signal levels), 95% replicate-bootstrap intervals."
+show(prof_err)
+```
+
+### Bias and variance
+
+```{r fig-bias-variance}
+#| fig-cap: "Share of squared bias and variance in the integrated squared error of β and the mean for the REML and NCV fits, core cells at G = 100 and default signal, smooth truth and (where run) rough truth. Absolute values are in the supplementary table."
+#| fig-height: 4.5
+bv <- S |>
+  filter((block == "core" | block == "rough_truth") & G == 100 & signal == "mid", estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2")) |>
+  transmute(family = label_family(family), error = label_error_short(error), truth = if_else(truth == "wiggly", "rough", "smooth"), estimand = label_estimand(estimand), fit = if_else(arm == "reml_cl2", "REML", "NCV"), `squared bias` = bias2, variance = variance) |>
+  mutate(x = factor(paste(fit, truth), c("REML smooth", "NCV smooth", "REML rough", "NCV rough"))) |>
+  pivot_longer(c(`squared bias`, variance), names_to = "component", values_to = "value")
+fig <- ggplot(bv, aes(x, value, fill = component)) +
+  geom_col(position = "fill") +
+  facet_grid(estimand ~ family + error) +
+  scale_fill_manual(values = c(`squared bias` = "#D55E00", variance = "#0072B2"), name = NULL) +
+  labs(x = "fit and truth", y = "share of the integrated squared error") +
+  theme_doc + theme(strip.text = element_text(size = 6), axis.text.x = element_text(angle = 60, hjust = 1, size = 6))
+save_fig(fig, "bias-variance", 7.5, 4.5)
+fig
+bv_tab <- S |>
+  filter(block %in% c("core", "rough_truth"), estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2")) |>
+  transmute(family, error, G, signal, truth, estimand, fit = if_else(arm == "reml_cl2", "REML", "NCV"), mse, mse_se, bias2, bias2_se, variance, bias_share = pmax(bias2, 0) / mse) |>
+  arrange(family, error, G, signal, truth, estimand, fit)
+save_tab(bv_tab, "synthetic-bias-variance")
+bshare <- \(fit_sel, tr, e = "beta", err = c("ou", "fpc")) bv_tab$bias_share[bv_tab$fit == fit_sel & bv_tab$truth == tr & bv_tab$estimand == e & bv_tab$error %in% err & bv_tab$G == 100]
+```
+
+REML's excess error under dependence is variance, not bias: in the dependent core cells at
+G = 100 the squared-bias share of REML's β error is `r rng(bshare("REML", "smooth"))`, of
+NCV's `r rng(bshare("NCV", "smooth"))` (@fig-bias-variance). With the rough truth NCV's
+bias share for β rises to `r rng(bshare("NCV", "wiggly", err = "fpc"))` (REML
+`r rng(bshare("REML", "wiggly", err = "fpc"))`), the mechanism behind NCV + CL2's
+undercoverage there. Per-cell values with the MC SEs of the MSE and of the squared-bias
+estimate are in `synthetic-bias-variance.csv`.
+
+### Effective degrees of freedom
+
+```{r edf}
+edf_core <- EDF |>
+  filter(block == "core", G == 100, signal == "mid", fit %in% c("REML", "NCV")) |>
+  mutate(term = recode(term, `s(yindex.vec)` = "alpha(t)", `te(X.smat,X.tmat):L.X` = "beta(s,t)", `s(yindex.vec):z` = "gamma(t)")) |>
+  select(family, error, term, fit, edf_mean) |>
+  pivot_wider(names_from = fit, values_from = edf_mean) |>
+  mutate(ratio = REML / NCV) |>
+  arrange(term, family, error)
+save_tab(EDF |> select(cell, block, family, error, G, signal, truth, basis, fit, term, edf_mean, edf_se, mean_log_sp), "synthetic-term-edf")
+er <- \(term_sel, err) edf_core$ratio[edf_core$term == term_sel & edf_core$error %in% err]
+```
+
+Under dependent errors REML's ff EDF exceeds NCV's by a factor of
+`r rng(er("beta(s,t)", c("ou", "fpc")))` (independent errors: `r rng(er("beta(s,t)", "iid"))`);
+for α(t) the factor is `r rng(er("alpha(t)", c("ou", "fpc")))` and for γ(t)
+`r rng(er("gamma(t)", c("ou", "fpc")))` (@tbl-edf). NCV's gain is largest where the EDF gap
+is largest.
+
+```{r}
+#| label: tbl-edf
+#| tbl-cap: "Mean EDF per term under REML and NCV, core cells at G = 100 and default signal."
+show(pretty(edf_core))
+```
+
+{{< include _relative-error.qmd >}}
+
+### Pointwise NCV and the low-rank covariate
+
+```{r pointwise}
+pw <- W |>
+  filter(contrast == "pointwise ncv vs reml: squared error", estimand %in% c("beta", "mean")) |>
+  transmute(error, estimand, `MSE pointwise NCV / REML` = ci(ratio, ratio_lower, ratio_upper, 2)) |>
+  pretty()
+save_tab(pw, "synthetic-pointwise-ncv")
+pwv <- \(e, err) W$ratio[W$contrast == "pointwise ncv vs reml: squared error" & W$estimand == e & W$error %in% err]
+lowrank_tab <- MSE_RATIO |>
+  filter(block == "lowrank_covariate" | (block == "core" & G == 100 & signal == "mid" & error %in% c("iid", "fpc") & family %in% c("gaussian", "poisson", "binomial"))) |>
+  mutate(covariate = if_else(block == "core", "rich", "low-rank"), ratio_ci = ci(ratio, ratio_lower, ratio_upper, 2)) |>
+  select(family, error, estimand, covariate, ratio_ci) |>
+  pivot_wider(names_from = covariate, values_from = ratio_ci) |>
+  arrange(family, error, estimand) |>
+  pretty()
+save_tab(lowrank_tab, "synthetic-lowrank-mse")
+```
+
+Ordinary pointwise NCV (mgcv's default neighbourhoods) is no substitute for curve blocks:
+under the smooth and the sign-changing error processes its β MSE is
+`r rng(pwv("beta", c("fpc", "osc")))` times REML's and its mean MSE
+`r rng(pwv("mean", c("fpc", "osc")))` times (@tbl-pointwise), because a held-out point
+is predicted by its correlated neighbours.
+
+```{r}
+#| label: tbl-pointwise
+#| tbl-cap: "Pointwise (non-blocked) NCV relative to REML, Gaussian G = 100."
+show(pw)
+```
+
+## The recommendation rule under both criteria {#sec-rule}
+
+```{r rule}
+rv_syn <- RV |>
+  filter(data == "synthetic") |>
+  select(family = group, estimand, criterion, ce_proposal, ce_fallback, score_ratio, decision) |>
+  arrange(family, estimand, criterion) |>
+  pretty()
+save_tab(rv_syn, "synthetic-rule-variants")
+save_tab(REC, "synthetic-recommendation")
+save_tab(RECSIG, "synthetic-recommendation-by-signal")
+rsym <- rv_syn |> filter(criterion == "symmetric")
+runder <- rv_syn |> filter(criterion == "under only")
+```
+
+The recommendation rule compares the proposal (NCV + bias-aware CL2) with the fallback
+(REML + CL2) on the pool per family and primary estimand: a recipe is adequate if its CE is
+≤ 2 pp, and among adequate recipes the interval-score ratio decides (≤ 0.95 proposal,
+≥ 1/0.95 fallback, otherwise the simpler fallback). Two calibration criteria are reported
+(@tbl-rule): a symmetric one that counts over- and undercoverage alike, and one that counts
+undercoverage only, since width is already priced by the interval score. Under the symmetric criterion the proposal fails
+adequacy for β in every family (CE `r rng(rsym$ce_proposal[rsym$estimand == ESTIMAND_LABELS["beta"]])`,
+from overcoverage near 0.98) and the rule picks the fallback for β and the proposal for
+the mean; under the undercoverage-only criterion the proposal's CE is
+`r rng(runder$ce_proposal)` and it is chosen for both estimands in all three families on
+interval score (β ratio `r rng(runder$score_ratio[runder$estimand == ESTIMAND_LABELS["beta"]])`,
+mean `r rng(runder$score_ratio[runder$estimand == ESTIMAND_LABELS["mean"]])`), at every
+signal level (`synthetic-recommendation-by-signal.csv`).
+
+**The rule's synthetic output is not the recommendation.** On the nine plasmode datasets the
+undercoverage-only criterion does not select the proposal (@sec-plasmode-rule: no consistent
+class, and the proposal undercovers β under REML-fitted truths), and the proposal's
+interval-score advantage comes from a construction whose calibration depends on the truth's
+smoothness (@sec-bias-aware).
+
+```{r}
+#| label: tbl-rule
+#| tbl-cap: "The recommendation rule on the synthetic pool under the symmetric and the undercoverage-only calibration criterion. CE = calibration error; score ratio = geometric mean of interval-score ratios proposal / fallback."
+show(rv_syn)
+```
+
+## Bias-aware intervals: two failure mechanisms {#sec-bias-aware}
+
+```{r bias-aware}
+mc_rough <- HMC_S |> filter(truth == "wiggly")
+mcv <- \(d, m, col) d[[col]][d$method == m]
+fbias <- S |> filter(block %in% c("core", "rough_truth"), G == 100, estimand == "beta", arm == "ncv_cl2f_bias")
+# hybrid in the synthetic study: dependent core cells at G = 100 (from the per-cell hybrid summary)
+hs_cells <- HSUM_S |>
+  filter(block == "core", G == 100, error != "iid", estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2_bias", "hybrid")) |>
+  select(cell, family, error, signal, estimand, arm, coverage_mean, pointwise_q05, width_mean, score_mean)
+hs_wide <- hs_cells |>
+  pivot_wider(names_from = arm, values_from = c(coverage_mean, pointwise_q05, width_mean, score_mean))
+hsv <- \(a, col, e = "beta") hs_wide[[paste0(col, "_", a)]][hs_wide$estimand == e]
+hs_rough <- HSUM_S |>
+  filter(block == "rough_truth", error == "fpc", estimand == "beta", arm %in% c("reml_cl2", "ncv_cl2_bias", "hybrid")) |>
+  select(cell, arm, coverage_mean, pointwise_q05, width_mean, score_mean) |>
+  pivot_wider(names_from = arm, values_from = c(coverage_mean, pointwise_q05, width_mean, score_mean))
+hyb_tab <- bind_rows(
+  hs_wide |> mutate(setting = "dependent core, G = 100"),
+  HSUM_S |> filter(block == "rough_truth", error == "fpc", estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2_bias", "hybrid")) |>
+    select(cell, family, error, signal, estimand, arm, coverage_mean, pointwise_q05, width_mean, score_mean) |>
+    pivot_wider(names_from = arm, values_from = c(coverage_mean, pointwise_q05, width_mean, score_mean)) |>
+    mutate(setting = "rough truth, smooth errors")
+) |>
+  group_by(setting, estimand) |>
+  summarise(
+    n_cells = n(),
+    `cov REML+CL2` = mean(coverage_mean_reml_cl2), `cov bias-aware` = mean(coverage_mean_ncv_cl2_bias), `cov hybrid` = mean(coverage_mean_hybrid),
+    `q05 REML+CL2` = mean(pointwise_q05_reml_cl2), `q05 bias-aware` = mean(pointwise_q05_ncv_cl2_bias), `q05 hybrid` = mean(pointwise_q05_hybrid),
+    `width bias-aware/REML+CL2` = exp(mean(log(width_mean_ncv_cl2_bias / width_mean_reml_cl2))),
+    `width hybrid/REML+CL2` = exp(mean(log(width_mean_hybrid / width_mean_reml_cl2))),
+    `IS bias-aware/REML+CL2` = exp(mean(log(score_mean_ncv_cl2_bias / score_mean_reml_cl2))),
+    `IS hybrid/REML+CL2` = exp(mean(log(score_mean_hybrid / score_mean_reml_cl2))),
+    .groups = "drop"
+  ) |>
+  mutate(estimand = ESTIMAND_LABELS[estimand])
+save_tab(hyb_tab, "synthetic-hybrid-bias-aware")
+ht <- \(col, setting_sel = "dependent core, G = 100", e = "beta(s,t)") hyb_tab[[col]][hyb_tab$setting == setting_sel & hyb_tab$estimand == e]
+```
+
+The allowance δ = L(β̂_NCV − β̂_REML), added in quadrature to the CL2 standard error of the
+NCV fit, fails in two ways.
+
+*Inflation by REML's noise.* δ is a difference of two estimates and carries the sampling
+variance of the REML fit, which the interval ignores. Where REML is noisy the interval is
+too wide: in the dependent core cells at G = 100 the bias-aware β interval covers
+`r f(ht("cov bias-aware"))` against REML + CL2's `r f(ht("cov REML+CL2"))` at
+`r f(ht("width bias-aware/REML+CL2"), 2)` times the width (interval score ratio
+`r f(ht("IS bias-aware/REML+CL2"), 2)`); with the larger bases the coverage reaches
+`r rng(bs("ncv_cl2_bias", "xlarge"), 3)` (@tbl-hybrid-synth).
+
+*Blindness to bias shared by both fits.* δ measures only how far NCV moved away from REML.
+Where the truth is rougher than both fits, both are biased in the same direction and δ is
+small. In the rough-truth cells with the smooth error process NCV + CL2 covers β at
+`r rng(mcv(mc_rough, "ncv_cl2", "coverage_mean"))` with `r rng(100 * mcv(mc_rough, "ncv_cl2", "share_below_90"), 0)`%
+of grid points below 0.90; the allowance lifts the average to `r rng(mcv(mc_rough, "ncv_cl2_bias", "coverage_mean"))`
+but leaves `r rng(100 * mcv(mc_rough, "ncv_cl2_bias", "share_below_90"), 0)`% of points below 0.90,
+and the remaining shortfall follows the truth's curvature (Spearman correlation of the
+pointwise shortfall with |∂²β/∂s²| + |∂²β/∂t²|: `r rng(mcv(mc_rough, "ncv_cl2_bias", "cor_curv_spearman"))`,
+against `r rng(mcv(mc_rough, "reml_cl2", "cor_curv_spearman"))` for REML + CL2;
+@fig-maps-synthetic). The bias-aware interval's rough-truth lower tail
+(`r f(ht("q05 bias-aware", "rough truth, smooth errors"))`) is no better than NCV + CL2's
+smooth-truth tail (`r f(mean(S$pointwise_q05[S$block == "core" & S$G == 100 & S$error != "iid" & S$estimand == "beta" & S$arm == "ncv_cl2"]), 2)`).
+The frequentist-CL2 variant is worse wherever the Bayesian one is
+short (rough truth, β: `r rng(fbias$coverage_mean[fbias$truth == "wiggly"])`).
+
+*The hybrid.* The NCV estimate with the REML fit's CL2 standard error covers β at
+`r f(ht("cov hybrid"))` in the dependent core cells (5% quantile `r f(ht("q05 hybrid"))`,
+width `r f(ht("width hybrid/REML+CL2"), 2)` and interval score `r f(ht("IS hybrid/REML+CL2"), 2)`
+times REML + CL2's) and at `r f(ht("cov hybrid", "rough truth, smooth errors"))` with the
+rough truth (5% quantile `r f(ht("q05 hybrid", "rough truth, smooth errors"))` against
+REML + CL2's `r f(ht("q05 REML+CL2", "rough truth, smooth errors"))`). Its real-data results
+are in @sec-hybrid.
+
+```{r}
+#| label: tbl-hybrid-synth
+#| tbl-cap: "Bias-aware NCV interval and the hybrid (NCV estimate with REML's CL2 SE) next to REML + CL2: coverage (cov), 5% pointwise quantile (q05), and width and interval score (IS) relative to REML + CL2 (geometric means of per-cell ratios); dependent core cells at G = 100 and the rough-truth cells with the smooth error process."
+show(hyb_tab, digits = 3)
+```
+
+```{r fig-maps-synthetic}
+#| fig-cap: "Pointwise coverage of β(s,t) over the evaluation grid for four interval constructions, Gaussian, default signal, G = 100, smooth error process: smooth truth (top) and rough truth (bottom); the white contour marks 0.90. Right column: the truth's curvature |∂²β/∂s²| + |∂²β/∂t²|."
+#| fig-height: 4.2
+maps_s <- read_maps("synthetic")
+map_cells <- maps_s |> filter(family == "gaussian", signal == "mid", error == "fpc", basis == "default") |> distinct(cell, truth)
+mp <- maps_s |>
+  filter(cell %in% map_cells$cell) |>
+  mutate(method = label_arm(method), truth = paste(if_else(truth == "wiggly", "rough", "smooth"), "truth"))
+curv <- mp |> filter(method == ARM_LABELS["reml_cl2"]) |> mutate(method = "curvature of truth")
+p_cov <- ggplot(mp, aes(s, t)) +
+  geom_raster(aes(fill = coverage)) +
+  geom_contour(aes(z = coverage), breaks = 0.9, colour = "white", linewidth = 0.3) +
+  facet_grid(truth ~ method) +
+  scale_fill_viridis_c(limits = c(0, 1), name = "coverage") +
+  coord_equal() + theme_doc + theme(strip.text = element_text(size = 6))
+p_curv <- ggplot(curv, aes(s, t, fill = curvature)) +
+  geom_raster() +
+  facet_grid(truth ~ method) +
+  scale_fill_viridis_c(option = "magma", name = "curvature") +
+  coord_equal() + theme_doc + theme(strip.text = element_text(size = 6), axis.title.y = element_blank())
+fig <- p_cov + p_curv + plot_layout(widths = c(4, 1.15))
+save_fig(fig, "coverage-maps-synthetic", 8, 4.2)
+fig
+```
+
+## The AR(1) working model {#sec-ar1-fit}
+
+*Fit.* The AR(1) working model is `pffr(algorithm = "bam", method = "fREML", rho = rho)`: mgcv's `bam()` with AR(1)
+errors that restart at the first grid point of every curve, so curves stay independent and each curve's errors are
+whitened with the same ρ. ρ is profiled. The model is fitted at every ρ in
+{`r paste(CONST$AR_RHO_GRID, collapse = ", ")`}; the criterion is bam's fREML score, which already contains the
+whitening log-determinant $-(n - G)\log(1/\sqrt{1 - \rho^2})$ (n data points, G curves), i.e. the restricted likelihood of the
+AR(1) model. The minimising grid value is refined by a one-dimensional search (`optimize()`) between its two
+neighbouring grid values, and the refined ρ replaces it if its criterion is lower. A ρ̂ at either end of the grid
+(0 or 0.99) is flagged as a boundary solution. Intervals use the AR(1) fit's model-based covariance. The arm is
+Gaussian only and runs in the Gaussian cells at
+G = 100 with the OU (default signal), smooth (default signal), exact-AR(1), sign-changing, heteroskedastic and
+misregistration (both truths) errors, and in the plasmode cells listed in @tbl-plasmode-ar1. Each fit costs
+`r length(CONST$AR_RHO_GRID)` grid fits plus the refinement (@sec-timing). Mean ρ̂ per cell and the share of
+boundary solutions are in @tbl-ar1-rho.
+
+```{r ar1}
+ar1_cells <- DESIGN$cell[!is.na(DESIGN$extra) & grepl("ar1", DESIGN$extra) | DESIGN$block %in% c("ar1_home", "warp_ar1")]
+ar1_tab <- cov_wide(ar1_cells, c("mean", "beta"), c("reml_model", "reml_cl2", "ncv_cl2_bias", "ar1_model")) |>
+  filter(!is.na(ar1_model)) |>
+  select(-D, -basis, -family, -signal)
+ar1_is <- W |>
+  filter(contrast == "ar1 vs proposal: interval score", estimand %in% c("mean", "beta")) |>
+  transmute(error, truth, estimand, `IS AR(1) / bias-aware NCV` = ci(ratio, ratio_lower, ratio_upper, 2))
+ar1_mse <- W |>
+  filter(contrast == "ar1 vs ncv: squared error", estimand %in% c("mean", "beta")) |>
+  transmute(error, truth, estimand, `MSE AR(1) / NCV` = ci(ratio, ratio_lower, ratio_upper, 2))
+ar1_full <- ar1_tab |> left_join(ar1_is, by = c("error", "truth", "estimand")) |> left_join(ar1_mse, by = c("error", "truth", "estimand")) |> pretty()
+save_tab(ar1_full, "synthetic-ar1")
+rho <- FITS |> filter(fit == "AR1") |> select(cell, error, truth, rho_mean, rho_boundary)
+av <- \(a, err) ar1_tab[[a]][ar1_tab$error %in% err]
+```
+
+Modelling the dependence as AR(1) (ρ profiled) is conservative and competitive when the
+errors are stationary and homoskedastic: coverage `r rng(av("ar1_model", c("ou", "fpc", "ou0", "osc")))`
+on the OU, smooth, exact-AR(1) and sign-changing processes, with interval scores for β
+`r rng(W$ratio[W$contrast == "ar1 vs proposal: interval score" & W$estimand == "beta" & W$error %in% c("ou", "fpc", "ou0", "osc")])`
+times the bias-aware NCV interval's (@tbl-ar1). It fails under misregistration (mean
+`r rng(ar1_tab$ar1_model[ar1_tab$error == "warp" & ar1_tab$estimand == "mean"])`, β
+`r rng(ar1_tab$ar1_model[ar1_tab$error == "warp" & ar1_tab$estimand == "beta"])`; ρ̂ averages
+`r rng(rho$rho_mean[rho$error == "warp"])`) and for γ(t) under covariate-dependent variance
+(above). Fit times: median `r f(median(TIMING$fit_time[TIMING$method == "AR1"]), 0)` s per
+AR(1) fit against `r f(median(TIMING$fit_time[TIMING$method == "REML"]), 1)` s (REML) and
+`r f(median(TIMING$fit_time[TIMING$method == "NCV"]), 1)` s (NCV) plus about
+`r f(median(TIMING$cl2_time, na.rm = TRUE), 1)` s per CL2 covariance, Gaussian G = 100 (10
+replicates per error process).
+
+```{r}
+#| label: tbl-ar1
+#| tbl-cap: "AR(1) cells (Gaussian, G = 100): coverage, the interval-score ratio AR(1) / bias-aware NCV and the MSE ratio AR(1) / NCV, 95% bootstrap intervals."
+show(ar1_full)
+```
+
+```{r}
+#| label: tbl-ar1-rho
+#| tbl-cap: "AR(1) fits in the synthetic cells: mean profiled ρ̂ over replicates, share of replicates with ρ̂ at a grid end, and the median fit time."
+show(FITS |> filter(fit == "AR1") |> transmute(cell, error = SHORT_ERROR[error], truth, `mean rho` = rho_mean, `boundary share` = rho_boundary, `median time s` = median_time) |> arrange(cell), digits = 3)
+```
+
+{{< include _revision-synthetic.qmd >}}
+
+{{< include _satt-smallg-null.qmd >}}
+
+{{< include _revision-misspec.qmd >}}
+
+{{< include _comparators.qmd >}}
+
+{{< include _ncv-intervals.qmd >}}
+
+{{< include _lambda-term.qmd >}}
+
+# Plasmode study
+
+```{r datasets}
+n_cells_p <- P |> distinct(app, truth, residual, flip, error, G) |> nrow()
+n_tasks_p <- PFIT |> filter(fit == "REML") |> summarise(n = sum(n)) |> pull(n)
+conv_p <- PFIT |> filter(fit == "NCV") |> summarise(c = weighted.mean(converged, n)) |> pull(c)
+cohort <- PD_MODEL |>
+  transmute(dataset = label_app(app), G, `cohort` = if_else(test_cohort_first50 == 1, "first 50 rows", "seeded sample of 50"), `one-sided at 5%` = test_cohort_one_sided == 1, `permutation p` = test_cohort_p, `SMD z` = test_smd_z, `SMD PC1` = test_smd_PC1, `SMD PC2` = test_smd_PC2, `SMD PC3` = test_smd_PC3)
+save_tab(cohort, "plasmode-test-cohort")
+mid_above <- DATASETS |> filter(edf_ff_MID > pmax(edf_ff_REML, edf_ff_NCV))
+save_tab(DATASETS, "plasmode-datasets")
+
+# Dataset descriptions (source, access, variables, preprocessing): from the dataset screening,
+# plasmode/sources.R and plasmode/export-public.R. Every number is taken from the
+# diagnostics tables below; this table holds the textual facts only.
+DS_META <- tibble::tribble(
+  ~app, ~source, ~access, ~response, ~native, ~grid_note, ~covariate, ~z, ~prep, ~interest,
+  "ecg_gls4b", "ECG-to-strain study (consulting project with N. Bouchahda's group, 2025–26); first beat per subject", "local only (patient and volunteer data; de-identified arrays on LRZ, aggregates here)", "global longitudinal strain, 4-chamber view (%), one cardiac cycle normalised to [0, 1]", "about 52 frames per beat (29–83)", "interpolated to 61 points", "simultaneously recorded ECG of the same beat (digitised pixel intensity, shape usable, amplitude up to scale), 51 points", "age (standardised)", "cycle time normalised to the R–R interval; subjects with at least two beats (the second beat supplies the beat-to-beat difference curves)", "real cardiac misregistration (largest phase share), strongest dependence among the cardiology sets with sign-changing correlations and near-zero variance at both ends of the cycle; the only model-free error source",
+  "af", "atrial-fibrillation trial (N. Bouchahda's group): patients randomised to digoxin or beta-blocker", "local only (patient data; de-identified arrays on LRZ, aggregates here)", "left-atrial strain, 4-chamber view, at day 30 (%), one cycle on [0, 1]", "30 points per cycle", "used as is", "the same strain curve at day 0, 51 points", "randomised treatment (digoxin = 1)", "none beyond the cycle normalisation; a baseline-adjusted functional ANCOVA", "a randomised binary covariate, so γ(t) is a model-defined target informed by a trial; the coarsest grid; large phase variability with a broad, noisy peak",
+  "running", "Fukuchi, Fukuchi & Duarte 2017 (PeerJ 5:e3298) via tidyfundata::running; one row per person, first condition", "public (tidyfundata, MIT; original data public)", "sagittal knee moment over normalised stance", "101 points", "interpolated to 61 points (as in the original 16 cells)", "sagittal knee angle over the same stance, 51 points", "body mass (standardised)", "one row per person (post-intervention rows dropped); speed and backpack conditions differ between persons and stay in the residuals", "the lowest-rank functional covariate together with gait, very smooth residuals (strongest dependence of the counted datasets)",
+  "dti", "refund::DTI, baseline visit (Goldsmith et al. 2011): multiple-sclerosis patients and controls", "public (refund, GPL ≥ 2)", "fractional anisotropy along the right corticospinal tract", "55 points", "used as is", "fractional anisotropy along the corpus callosum, 51 points", "case status (MS = 1)", "complete cases of both tracts", "the study's application and the source of the synthetic smooth error process; no phase variation (registration control), richest covariate rank",
+  "gait_vc", "Van Criekinge et al. 2023 (Sci Data 10:852; figshare 24192489), able-bodied adults walking barefoot at preferred speed", "public (CC0)", "sagittal knee moment over one stride, one mean stride per subject", "1001 points (0.1% of the stride)", "every 10th point (101)", "sagittal knee angle over the stride, 51 points", "age (standardised; from the subject-characteristics file)", "the authors' stride normalisation and averaging over strides (within-subject stride variability is averaged out)", "the largest G; the running data's model on an independent cohort with a walking task; a third of the residual correlations negative; no phase variation",
+  "ecg_roahd", "roahd::mfD_healthy and mfD_LBBB (Ieva et al.), 50 healthy and 50 left-bundle-branch-block subjects", "public (roahd, GPL-3)", "ECG lead V5 (µV) over one beat", "1024 points at 1 kHz", "interpolated to 101 points", "ECG lead I (presumed from the documented lead order), 51 points", "LBBB indicator", "registered and smoothed by the package authors; lead identities resolved from the R-wave progression", "the strongest sign-changing residual correlation and the most extreme variance profile along the beat; residual phase (QRS width, LBBB morphology) survives the registration; larger intercept and γ bases",
+  "ocean", "Hawaii Ocean Time-series profiles (FRegSigCom::ocean), monthly casts", "public (FRegSigCom, GPL ≥ 2; HOT data public)", "dissolved oxygen over depth", "101 points", "used as is", "temperature over depth, 51 points", "cast order (standardised)", "none; casts kept in time order", "stress test: consecutive monthly casts (no residual-score autocorrelation found, so the block arm is a pure cost check); very smooth residuals",
+  "aemet", "AEMET open data via fda.usc::aemet, 73 Spanish stations, daily means 1980–2009", "public (fda.usc, GPL-2)", "log precipitation over the year", "365 days", "every 5th day (73)", "daily mean temperature over the year, 51 points", "altitude (standardised)", "none beyond the day thinning", "stress test: spatially correlated stations (residual scores correlated up to about 250 km); the lowest covariate rank of all datasets; rough residuals with almost no negative correlations; NCV rougher than REML",
+  "adelaide", "Adelaide electricity demand (fds::mondaydemand, fds::mondaytempairport; Magnano, Boland & Hyndman 2008), every 5th Monday 1997–2007", "public (fds, GPL-3)", "half-hourly electricity demand over the day", "48 half-hours", "used as is", "airport temperature over the same day, 51 points", "week index (standardised; absorbs the linear trend)", "every 5th Monday (thins, not removes, the week-to-week dependence; the annual cycle stays)", "stress test: a weekly time series with dependence to about five weeks; strongly positively correlated residuals (2 FPCs for 90%), the largest REML–NCV EDF gap"
+)
+DS <- DATASETS |> mutate(app = as.character(app)) |> left_join(DS_META, by = "app") |>
+  left_join(PD_RESID |> filter(residual == "REML") |> select(app, lag10), by = "app") |>
+  left_join(PD_TRUTH |> select(app, truth, edf_alpha = `edf:s(yindex.vec)`, edf_gamma = `edf:s(yindex.vec):z`) |>
+              pivot_wider(names_from = truth, values_from = c(edf_alpha, edf_gamma)), by = "app") |>
+  left_join(PD_BLOCKS |> select(app, n_blocks, block_size_min, block_size_max, score_corr_within, score_corr_between, n_pairs_between, n_blocks_alt), by = "app") |>
+  left_join(PD_MODEL |> select(app, test_cohort_first50, test_cohort_one_sided, test_cohort_p), by = "app") |>
+  mutate(dataset = label_app(app), public = !startsWith(access, "local"))
+# (b) data table
+data_tab <- DS |>
+  transmute(dataset, role, access = if_else(public, "public", "local only"), G, `native grid` = native, `fitted D` = D, `grid used` = grid_note, response, covariate, z)
+save_tab(data_tab, "plasmode-data-table")
+# (c) model table: bases per dataset (R/constants.R BASES$default and BASES$ecg8)
+model_tab <- DS |>
+  transmute(
+    dataset, model = "Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t), Gaussian, identity link",
+    `intercept basis k` = if_else(app == "ecg_roahd", 40L, 12L),
+    `gamma(t) basis k` = if_else(app == "ecg_roahd", 30L, 12L),
+    `ff basis (s × t)` = "8 × 10",
+    `R²` = R2,
+    `ff EDF REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_ff_REML, 1), f(edf_ff_NCV, 1), f(edf_ff_MID, 1)),
+    `total EDF REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_total_REML, 1), f(edf_total_NCV, 1), f(edf_total_MID, 1)),
+    `MID interior` = mid_interior
+  )
+save_tab(model_tab, "plasmode-model-table")
+edf_tab <- DS |>
+  transmute(dataset, `alpha(t): REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_alpha_REML, 1), f(edf_alpha_NCV, 1), f(edf_alpha_MID, 1)),
+            `ff REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_ff_REML, 1), f(edf_ff_NCV, 1), f(edf_ff_MID, 1)),
+            `gamma(t): REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_gamma_REML, 1), f(edf_gamma_NCV, 1), f(edf_gamma_MID, 1)),
+            `total REML / NCV / MID` = sprintf("%s / %s / %s", f(edf_total_REML, 1), f(edf_total_NCV, 1), f(edf_total_MID, 1)))
+save_tab(edf_tab, "plasmode-edf-table")
+# (d) residual / dependence table
+dep_tab <- DS |>
+  transmute(dataset, role, DE, `DE/D` = DE_per_D, `lag 1 step` = lag1, `lag 10%` = lag10, `lag 25%` = lag25,
+            `neg. corr. share` = neg_share, `min r` = min_r, `sd ratio` = sd_ratio, FPC90 = fpc90, `rank X` = rank_X, `phase share` = phase_share)
+save_tab(dep_tab, "plasmode-dependence-table")
+block_tab <- DS |>
+  filter(role == "stress test") |>
+  transmute(dataset,
+            `block rule` = c(ocean = "3 consecutive monthly casts (cost check; the autocorrelation rule gives single casts)", aemet = "complete-linkage clusters of station distance cut at 250 km (mismatch arm: 150 km)", adelaide = "2 consecutive frame curves (10 weeks)")[app],
+            `blocks` = n_blocks, `block size` = if_else(block_size_min == block_size_max, as.character(block_size_min), sprintf("%d–%d", block_size_min, block_size_max)), `alt. blocks` = n_blocks_alt,
+            `score corr. within` = score_corr_within, `score corr. between` = score_corr_between, `between pairs` = n_pairs_between)
+save_tab(block_tab, "plasmode-block-table")
+ecg8_note <- "intercept k = 40 and γ k = 30 for ECG 8-lead because with k = 12 neither the functional intercept nor the LBBB effect can follow the QRS complex (22% of the REML residual sum of squares was mean-curve misfit; 0.2% with the larger bases), so that mean structure does not leak into the frozen truth's residuals"
+```
+
+## Datasets and models
+
+Nine datasets, each fitted with the study's model Y(t) ~ α(t) + ∫X(s)β(s,t)ds + z γ(t)
+(Gaussian, identity link; ff basis 8 × 10, intercept and γ(t) bases k = 12, except
+`r ecg8_note`). Six datasets with independent curves are counted in the consistency
+criterion; three whose curves are serially or spatially dependent units are stress tests.
+The cardiology datasets are patient or volunteer data of N. Bouchahda's group: they are
+described here in aggregate only and never enter the repository. @tbl-data-table lists the
+data, @tbl-model-table the fitted models and their frozen fits (EDF per term in @tbl-edf-table), @tbl-dep-table the residual
+dependence and covariate diagnostics, @tbl-block-table the block construction of the stress
+tests; the test-cohort balance is tabulated at the end of the section on the construction of the plasmode cells.
+
+```{r dataset-paragraphs}
+#| output: asis
+for (i in seq_len(nrow(DS))) {
+  d <- DS[i, ]
+  cat(sprintf(
+    "**%s** (%s; %s). %s: %d curves; response: %s, native grid %s (fitted grid: %s); functional covariate: %s; scalar covariate z: %s. Preprocessing: %s. Fit: R² %s, ff EDF %s (REML) vs %s (NCV); residual design effect %s (DE/D %s), lag-1 correlation %s, %s%% negative correlations (minimum r %s), SD ratio along t %s, %d FPCs for 90%% of the residual variance, covariate rank %d, phase share %s%%%s. Why it is here: %s.\n\n",
+    d$dataset, d$source, d$access,
+    if (d$role == "counted") "Counted dataset" else "Stress test",
+    d$G, d$response, d$native, d$grid_note, d$covariate, d$z, d$prep,
+    f(d$R2, 2), f(d$edf_ff_REML, 1), f(d$edf_ff_NCV, 1), f(d$DE, 1), f(d$DE_per_D, 2), f(d$lag1, 2),
+    f(100 * d$neg_share, 0), f(d$min_r, 2), f(d$sd_ratio, 0), as.integer(d$fpc90), as.integer(d$rank_X), f(100 * d$phase_share, 0),
+    if (d$role == "stress test") sprintf("; %d blocks of %s curves, residual-score correlation %s within and %s between blocks", d$n_blocks, if (d$block_size_min == d$block_size_max) as.character(d$block_size_min) else sprintf("%d–%d", d$block_size_min, d$block_size_max), f(d$score_corr_within, 2), f(d$score_corr_between, 2)) else "",
+    d$interest
+  ))
+}
+```
+
+```{r}
+#| label: tbl-data-table
+#| tbl-cap: "Plasmode datasets: role, access, number of curves G, native and fitted grids and the scalar covariate z (std. = standardised). Response and functional covariate (always on 51 points of its own domain) are described in the paragraphs above and listed in the CSV."
+show(data_tab |> select(-covariate, -response) |> mutate(role = if_else(role == "stress test", "stress", role), z = sub(" \\(standardised.*\\)", " (std.)", z)) |> rename(`native` = `native grid`))
+```
+
+```{r}
+#| label: tbl-model-table
+#| tbl-cap: "Fitted models: bases per term (cubic P-splines with first-order difference penalties; the ff term's s × t basis), R² of the REML fit, ff-term and total EDF of the three frozen fits (REML / NCV / MID), and whether MID's EDF is interior for every term."
+show(model_tab |> select(-model), digits = 2)
+```
+
+
+```{r}
+#| label: tbl-dep-table
+#| tbl-cap: "Residual dependence and covariate diagnostics (REML residual curves): design effect DE = 1'Σ1/trΣ and its normalisation DE/D; residual correlation at one grid step, 10% and 25% of the domain; share of negative correlations and the most negative one; max/min SD along t; FPCs for 90% of the residual variance; centred covariate rank (99.5%); share of response variance removed by registration in the screening."
+show(dep_tab |> select(-role), digits = 2)
+```
+
+```{r}
+#| label: tbl-block-table
+#| tbl-cap: "Stress tests: block construction for the block arm; residual-score correlation within and between blocks (first three residual FPCs); number of between-block pairs below the distance cut (weather) or adjacent (others)."
+show(block_tab, digits = 2)
+```
+
+MID is a third smoothing level, not a midpoint in fit: its ff EDF lies strictly between the
+two fits for every term on `r sum(DATASETS$mid_interior)` of 9 datasets
+(`r paste(APP_LABELS[as.character(DATASETS$app[DATASETS$mid_interior])], collapse = ", ")`)
+and exceeds both fits' on `r paste(APP_LABELS[as.character(mid_above$app)], collapse = ", ")`.
+
+## Construction of the plasmode cells
+
+Each dataset's model is fitted to the real data by REML and by curve-blocked NCV; each
+fit's fitted means are frozen as a truth, and the MID truth refits with every smoothing
+parameter fixed at the log-midpoint of the REML and NCV values. Replicates add each
+subject's real residual curve (from the REML or the NCV fit) with a random sign, attached
+to its own covariates; the ECG strain data add beat-to-beat difference curves as a
+model-free error source at two scales. Cells cross truth source × residual source × G (all
+subjects or 40); the three stress tests add block-flip cells with an imposed within-block
+dependence and a block-NCV arm. `r n_cells_p` cells, `r n_tasks_p` tasks, NCV converged in
+`r f(100 * conv_p, 1)`% of them. The mean estimand is the conditional mean of a fixed test
+cohort of 50 subjects (a seeded sample on `r sum(cohort$cohort == "seeded sample of 50")`
+datasets, the first 50 rows on `r sum(cohort$cohort == "first 50 rows")`; the choice was made
+by a permutation test of the cohort's balance in the scalar covariate and the first three
+covariate scores; table below), evaluated at the native grid points and scored conditional
+on that cohort. Nothing per subject leaves the analysis: all tables are aggregates.
+
+Replicate data sets are $Y^*_i(t) = \mu_i(t) + w_i\,e_{\pi(i)}(t)$: $\mu_i$ is subject i's fitted mean under the frozen truth,
+$e_j$ the residual curve of subject j from the REML or the NCV fit to the real data (or a beat-to-beat difference
+curve), $w_i = \pm 1$ an independent random sign per curve (curve flips) or one sign per block of curves (block flips,
+stress tests only, all subjects), and $\pi$ the identity (attached: each subject keeps its own residual curve) or a
+random permutation (detached: residual curves reassigned across subjects; running data only, @tbl-detached). At
+G = 40 every replicate draws its own random subset of 40 subjects. Each cell has 200 replicates; the replicate's
+random draws (signs, subset, permutation) depend only on the replicate number, so cells of a dataset are paired.
+Every replicate is fitted and scored exactly like a synthetic data set (same bases except ECG 8-lead, same arms).
+
+```{r detached}
+det_tab <- P |>
+  filter(app == "running", flip == "curve", estimand %in% c("mean", "beta"), arm %in% c("reml_model", "reml_cl2", "ncv_cl2", "ncv_cl2_bias")) |>
+  semi_join(P |> filter(error == "detached") |> distinct(app, truth, residual, G), by = c("app", "truth", "residual", "G")) |>
+  select(truth, residual, G, estimand, arm, error, coverage_mean) |>
+  pivot_wider(names_from = error, values_from = coverage_mean) |>
+  mutate(difference = detached - attached, arm = ARM_LABELS[arm], estimand = ESTIMAND_LABELS[estimand]) |>
+  arrange(truth, desc(G), estimand, arm)
+save_tab(det_tab, "plasmode-attached-detached")
+```
+
+```{r}
+#| label: tbl-detached
+#| tbl-cap: "Running data: coverage with each subject's own residual curve (attached) and with residual curves permuted across subjects (detached), per truth and residual source, G and interval."
+show(det_tab, digits = 3)
+```
+
+```{r}
+#| label: tbl-test-cohort
+#| tbl-cap: "Plasmode test cohort for the mean estimand: rule, permutation p-value of the balance test and standardised mean differences (cohort vs all subjects) of the scalar covariate and the first three covariate scores."
+show(cohort)
+```
+
+## Coverage per arm, truth source, residual source and G
+
+```{r fig-plasmode-coverage}
+#| fig-cap: "Plasmode coverage of the mean and of β at G = all subjects, by dataset (rows), truth source (y axis), residual source (shape) and arm (colour). The AR(1) arm was run in the (MID, REML residuals) cell of every dataset and in two further ECG strain and running cells. Bars ± 2 MC SE."
+#| fig-height: 7.6
+d <- P_POOL |>
+  filter(estimand %in% c("mean", "beta"), arm %in% c(MAIN_ARMS, "ar1_model"), residual %in% c("REML", "NCV")) |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand), app = label_app(app), truth = factor(truth, TRUTH_LEVELS), residual = RESIDUAL_LABELS[residual])
+fig <- ggplot(d, aes(coverage_mean, truth, colour = arm, shape = residual)) +
+  geom_vline(xintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = coverage_mean - 2 * coverage_se, xmax = coverage_mean + 2 * coverage_se), position = position_dodge(width = 0.7), size = 0.2) +
+  facet_grid(app ~ estimand) +
+  scale_colour_manual(values = ARM_COLOURS, name = NULL) +
+  scale_shape_manual(values = c(16, 1), name = NULL) +
+  guides(colour = guide_legend(nrow = 2), shape = guide_legend(nrow = 2)) +
+  labs(x = "coverage (grid average, nominal 0.95)", y = "truth source") +
+  theme_doc
+save_fig(fig, "plasmode-coverage", 6.5, 8.4)
+fig
+pool_wide <- POOL_MEANS_MAIN |>
+  filter(arm %in% c(MAIN_ARMS, "ar1_model"), estimand %in% c("mean", "beta")) |>
+  select(app, role, estimand, arm, coverage) |>
+  pivot_wider(names_from = arm, values_from = coverage) |>
+  mutate(app = label_app(app)) |>
+  arrange(role, app, estimand) |>
+  pretty()
+save_tab(POOL_MEANS_MAIN, "plasmode-pool-means")
+pv <- \(a, e, r = "counted") pool_wide[[ARM_LABELS[a]]][pool_wide$estimand == ESTIMAND_LABELS[e] & pool_wide$role == r]
+```
+
+Across the pooled cells of the six counted datasets (@fig-plasmode-coverage,
+@tbl-plasmode-pool) model-based intervals cover the mean at `r rng(pv("reml_model", "mean"))`
+and β at `r rng(pv("reml_model", "beta"))`; REML + CL2 covers them at
+`r rng(pv("reml_cl2", "mean"))` and `r rng(pv("reml_cl2", "beta"))`. The bias-aware NCV
+interval covers the mean at `r rng(pv("ncv_cl2_bias", "mean"))` and β at
+`r rng(pv("ncv_cl2_bias", "beta"))`, NCV + CL2 alone `r rng(pv("ncv_cl2", "beta"))` for β.
+On the three stress tests every arm is lower: REML + CL2 `r rng(pv("reml_cl2", "beta", "stress test"))`
+for β and `r rng(pv("reml_cl2", "mean", "stress test"))` for the mean; CL2 improves on the
+model-based intervals on every dataset but is not calibrated on the stress tests. Their
+curve-flip replicates have independent errors across curves, so these shortfalls are
+properties of the datasets' covariates and residual shapes, not of between-curve
+dependence (@sec-block isolates that). REML + CL2's coverage is nearly flat across truth source
+and residual source (largest range within a counted dataset:
+`r pp(max((POOL_MEANS |> filter(role == "counted", arm == "reml_cl2", estimand %in% c("mean", "beta")) |> mutate(r = coverage_max - coverage_min))$r))`;
+within a stress test up to `r pp(max((POOL_MEANS |> filter(role == "stress test", arm == "reml_cl2", estimand %in% c("mean", "beta")) |> mutate(r = coverage_max - coverage_min))$r))`
+on the weather data),
+whereas the bias-aware NCV interval's β coverage moves with the truth source: on the counted
+datasets `r rng(bt("ncv_cl2_bias", "REML", role_sel = "counted"))` under the REML-fitted truth,
+`r rng(bt("ncv_cl2_bias", "MID", role_sel = "counted"))` under MID and `r rng(bt("ncv_cl2_bias", "NCV", role_sel = "counted"))`
+under the NCV-fitted truth.
+
+```{r}
+#| label: tbl-plasmode-pool
+#| tbl-cap: "Mean coverage over each dataset's pooled cells (all subjects, own residual curves, curve flips; all truth × residual combinations) per arm. The AR(1) column is the (MID, REML residuals) cell."
+show(pool_wide)
+```
+
+### Lower tails, by truth source
+
+```{r plasmode-tails}
+tails_p <- POOL_MEANS |>
+  filter(arm %in% MAIN_ARMS, estimand %in% c("mean", "beta")) |>
+  select(app, role, estimand, arm, q05_mean, q05_min) |>
+  pivot_wider(names_from = arm, values_from = c(q05_mean, q05_min)) |>
+  mutate(app = label_app(app)) |>
+  arrange(role, app, estimand)
+names(tails_p) <- sub("q05_mean_", "q05 mean: ", sub("q05_min_", "q05 min: ", names(tails_p)))
+save_tab(pretty(tails_p), "plasmode-lower-tails")
+tv <- \(a, e, col = "q05 mean", r = "counted") tails_p[[paste0(col, ": ", a)]][tails_p$estimand == e & tails_p$role == r]
+# REML + CL2 per truth source (beta, G = all, model residuals)
+cl2_truth <- by_truth |>
+  filter(arm == "reml_cl2", estimand == "beta") |>
+  select(app, role, truth, coverage, q05) |>
+  pivot_wider(names_from = truth, values_from = c(coverage, q05)) |>
+  mutate(app = label_app(app)) |>
+  select(app, role, `cov REML truth` = coverage_REML, `cov MID` = coverage_MID, `cov NCV truth` = coverage_NCV, `q05 REML truth` = q05_REML, `q05 MID` = q05_MID, `q05 NCV truth` = q05_NCV) |>
+  arrange(role, app)
+share90 <- HMC_P |> filter(method == "reml_cl2") |> mutate(dataset = label_app(app)) |> select(dataset, truth, share_below_90, coverage_q05)
+save_tab(cl2_truth, "plasmode-remlcl2-by-truth")
+ct <- \(col, r = "counted") cl2_truth[[col]][cl2_truth$role == r]
+```
+
+REML + CL2's 5% pointwise quantile is `r rng(tv("reml_cl2", "beta"))` for β and
+`r rng(tv("reml_cl2", "mean"))` for the mean on the counted datasets (mean over pool cells;
+worst cell `r rng(tv("reml_cl2", "beta", "q05 min"))` for β); the bias-aware NCV interval's
+is `r rng(tv("ncv_cl2_bias", "beta"))` for β and NCV + CL2's `r rng(tv("ncv_cl2", "beta"))`
+(@tbl-plasmode-tails). REML + CL2's own tail depends on the truth source (@tbl-cl2-truth):
+under the REML-fitted truth its β quantile on the counted datasets is `r rng(ct("q05 REML truth"))`
+(stress tests `r rng(ct("q05 REML truth", "stress test"))`), under the NCV-fitted truth
+`r rng(ct("q05 NCV truth"))`; on the running data under the REML truth
+`r f(100 * share90$share_below_90[share90$dataset == "running" & share90$truth == "REML"], 0)`%
+of β's grid points have pointwise coverage below 0.90 (DTI
+`r f(100 * share90$share_below_90[share90$dataset == "DTI" & share90$truth == "REML"], 0)`%).
+
+```{r}
+#| label: tbl-cl2-truth
+#| tbl-cap: "REML + CL2 for β at G = all subjects by truth source (mean over the two model-residual sources): grid-average coverage and 5% pointwise quantile."
+show(cl2_truth)
+```
+
+```{r zstats-plasmode}
+zp_avail <- !is.null(ZP)
+zp_tab <- if (zp_avail) ZP |>
+  filter(fit == "REML", flip == "curve", error == "attached", G > 40, residual %in% c("REML", "NCV"), estimand %in% c("mean", "beta")) |>
+  group_by(app, truth, estimand) |>
+  summarise(across(c(z_mean_cl2, z_sd_cl2, share_big_cl2, z_mean_model, z_sd_model, share_big_model), mean), .groups = "drop") |>
+  mutate(role = if_else(app %in% APP_COUNTED, "counted", "stress test"), dataset = label_app(app), truth = factor(truth, TRUTH_LEVELS)) |>
+  select(dataset, role, truth, estimand, everything(), -app) |>
+  arrange(estimand, role, dataset, truth) else NULL
+if (zp_avail) save_tab(zp_tab |> mutate(estimand = ESTIMAND_LABELS[estimand]), "plasmode-zstats-reml")
+zpb <- if (zp_avail) zp_tab |> filter(estimand == "beta") else NULL
+zpv <- \(col, r = "counted", tr = TRUTH_LEVELS) zpb[[col]][zpb$role == r & zpb$truth %in% tr]
+zp_worst <- if (zp_avail) zpb |> arrange(desc(z_sd_cl2)) |> slice(1) else NULL
+zp_cell_max <- if (zp_avail) ZP |> filter(fit == "REML", flip == "curve", error == "attached", G > 40, estimand == "beta", app %in% APP_STRESS) |> summarise(sd = max(z_sd_cl2), big = share_big_cl2[which.max(z_sd_cl2)]) else NULL
+zp_norm_share <- \(sd) 2 * (1 - pnorm(1.96 / sd))
+```
+
+`r if (zp_avail) sprintf("The pooled studentised error of the REML fit (descriptive, see the synthetic section for its limits) reads differently on the two groups of datasets (@tbl-zstats-plasmode, means over the two model-residual sources). On the counted datasets the SD of z for β at G = all is %s with %s%% of |z| > 1.96 (mean of z %s): a mild scale error, consistent with the 1–3 pp shortfall. On the stress tests the SD is %s (per-cell maximum %s on %s) with only %s%% of |z| > 1.96, where a normal pivot with SD %s would give %s%%: a scale mixture, i.e. SE failure concentrated on a subset of grid points or replicates rather than a uniform underestimation. With the model-based SE the SD of z is %s on the counted datasets. Under the REML-fitted truth the SD is %s against %s under the NCV-fitted truth (counted datasets). A region-wise view is not available from the stored aggregates.", rng(zpv("z_sd_cl2")), rng(100 * zpv("share_big_cl2"), 1), rng(zpv("z_mean_cl2")), rng(zpv("z_sd_cl2", "stress test")), f(zp_cell_max$sd, 2), zp_worst$dataset, rng(100 * zpv("share_big_cl2", "stress test"), 1), f(zp_worst$z_sd_cl2, 2), f(100 * zp_norm_share(zp_worst$z_sd_cl2), 0), rng(zpv("z_sd_model")), rng(zpv("z_sd_cl2", tr = "REML")), rng(zpv("z_sd_cl2", tr = "NCV"))) else "Studentised-error diagnostics for the plasmode study are pending."`
+
+### G = 40
+
+```{r plasmode-g40}
+g40_tab <- g40_app |>
+  filter(arm %in% MAIN_ARMS) |>
+  mutate(arm = label_arm(arm), app = label_app(app)) |>
+  pivot_wider(names_from = arm, values_from = loss) |>
+  arrange(role, app, estimand)
+save_tab(g40 |> mutate(app = label_app(app)), "plasmode-G40-paired")
+g40v <- \(a, e = c("mean", "beta"), r = "counted") g40_app$loss[g40_app$arm == a & g40_app$estimand %in% e & g40_app$role == r]
+# the rule on the G = 40 cells (point estimates, no bootstrap flags)
+rule40 <- P_G40 |>
+  filter(estimand %in% c("mean", "beta"), arm %in% c("ncv_cl2_bias", "reml_cl2")) |>
+  group_by(app, role, estimand) |>
+  group_modify(\(d, k) rule_both(d)) |>
+  ungroup() |>
+  mutate(app = label_app(app)) |>
+  arrange(estimand, role, app)
+save_tab(rule40, "plasmode-rule-G40-point")
+```
+
+With 40 subjects instead of all, REML + CL2 loses `r rng_pp(g40v("reml_cl2"))` on the
+counted datasets (paired over truth × residual cells; @tbl-plasmode-g40), the bias-aware
+NCV interval `r rng_pp(g40v("ncv_cl2_bias"))` and NCV + CL2 alone `r rng_pp(g40v("ncv_cl2"))`.
+The rule's point decisions on the G = 40 cells (no bootstrap flags; @tbl-rule40) are
+`r paste(sprintf("%s %s", rule40$app[rule40$estimand == "beta"], rule40$decision_under[rule40$estimand == "beta"]), collapse = ", ")`
+for β and `r paste(sprintf("%s %s", rule40$app[rule40$estimand == "mean"], rule40$decision_under[rule40$estimand == "mean"]), collapse = ", ")`
+for the mean.
+
+## Estimation by truth source {#sec-estimation-truth}
+
+```{r fig-plasmode-mse}
+#| fig-cap: "NCV/REML MSE ratio per plasmode cell (G = all subjects, curve flips) by dataset, truth source (colour) and residual source (shape), with 95% paired bootstrap intervals; log scale."
+#| fig-height: 5
+d <- PM |>
+  filter(error == "attached", flip == "curve", G_label == "all", residual %in% c("REML", "NCV")) |>
+  mutate(estimand = label_estimand(estimand), app = label_app(app), truth = factor(truth, TRUTH_LEVELS), residual = RESIDUAL_LABELS[residual])
+fig <- ggplot(d, aes(mse_ratio_ncv_reml, app, colour = truth, shape = residual)) +
+  geom_vline(xintercept = 1, linetype = 2, colour = "grey40") +
+  geom_pointrange(aes(xmin = ratio_lower, xmax = ratio_upper), position = position_dodge(width = 0.7), size = 0.2) +
+  facet_wrap(~estimand, nrow = 1) +
+  scale_x_log10(breaks = c(0.03, 0.1, 0.3, 1, 3)) +
+  scale_colour_manual(values = c(REML = "#0072B2", MID = "#009E73", NCV = "#D55E00"), name = "truth") +
+  scale_shape_manual(values = c(16, 1), name = NULL) +
+  labs(x = "MSE of NCV / MSE of REML", y = NULL) +
+  theme_doc
+save_fig(fig, "plasmode-mse-ratio", 7.5, 5)
+fig
+ratio_wide <- RATIO_BY_TRUTH |>
+  select(app, role, estimand, truth, ratio) |>
+  pivot_wider(names_from = truth, values_from = ratio) |>
+  mutate(app = label_app(app)) |>
+  select(role, app, estimand, REML, MID, NCV) |>
+  arrange(estimand, role, app) |>
+  pretty()
+save_tab(RATIO_BY_TRUTH, "plasmode-mse-ratio-by-truth")
+order_ok <- RATIO_BY_TRUTH |> filter(estimand == "beta") |> select(app, truth, ratio) |> pivot_wider(names_from = truth, values_from = ratio) |> mutate(ok = NCV < MID & MID < REML)
+losers <- RATIO_BY_TRUTH |> filter(truth == "REML", estimand == "beta", ratio > 1)
+# univariate gains with intervals (NCV truth, REML residuals)
+uni <- PM |>
+  filter(error == "attached", flip == "curve", G_label == "all", truth == "NCV", residual == "REML", estimand %in% c("alpha", "gamma"), ratio_upper < 0.9) |>
+  mutate(dataset = label_app(app), value = ci(mse_ratio_ncv_reml, ratio_lower, ratio_upper, 2)) |>
+  select(dataset, estimand, value)
+wr <- DATASETS |> filter(app %in% c("aemet", "running"))
+```
+
+The NCV/REML MSE ratio depends on which fit supplied the truth (@fig-plasmode-mse,
+@tbl-plasmode-mse). For β it is `r rng(rt("NCV", "beta"))` under the NCV-fitted truth,
+`r rng(rt("MID", "beta"))` under MID and `r rng(rt("REML", "beta"))` under the REML-fitted
+truth; NCV loses under the REML truth on `r nrow(losers)` datasets
+(`r paste(APP_LABELS[losers$app], collapse = ", ")`), and the ordering NCV truth < MID <
+REML truth holds on `r sum(order_ok$ok)` of 9. For the mean the ratios are
+`r rng(rt("NCV", "mean"))`, `r rng(rt("MID", "mean"))` and `r rng(rt("REML", "mean"))`. The
+gains are not confined to the surface in the plasmode study: for γ(t) the ratio is
+`r rng(rt("NCV", "gamma"))` under the NCV truth and `r rng(rt("REML", "gamma"))` under the
+REML truth, for α(t) `r rng(rt("NCV", "alpha"))` and `r rng(rt("REML", "alpha"))`, with
+resolved univariate gains (bootstrap interval below 0.9, NCV truth, REML residuals) on
+`r paste(sprintf("%s %s %s", uni$dataset, ESTIMAND_LABELS[uni$estimand], uni$value), collapse = "; ")`.
+Changing the truth source changes the truth's shape and signal as well as its smoothness,
+and an NCV-derived truth aligns the target with the NCV fit, so this is a truth-source
+sensitivity and not evidence for a pure smoothness mechanism: on the weather data NCV is rougher than REML (ff EDF
+`r f(wr$edf_ff_NCV[wr$app == "aemet"], 1)` vs `r f(wr$edf_ff_REML[wr$app == "aemet"], 1)`)
+yet wins for β under all three truths (REML truth `r f(rt("REML", "beta")[RATIO_BY_TRUTH$app[RATIO_BY_TRUTH$truth == "REML" & RATIO_BY_TRUTH$estimand == "beta"] == "aemet"], 2)`),
+and on the running data the two fits have the same ff EDF (ratio
+`r f(wr$edf_ratio[wr$app == "running"], 2)`) yet the MID-truth ratio is
+`r f(rt("MID", "beta")[RATIO_BY_TRUTH$app[RATIO_BY_TRUTH$truth == "MID" & RATIO_BY_TRUTH$estimand == "beta"] == "running"], 2)`.
+
+```{r}
+#| label: tbl-plasmode-mse
+#| tbl-cap: "NCV/REML MSE ratio per dataset and truth source (geometric mean over residual sources, G = all subjects)."
+show(ratio_wide)
+```
+
+{{< include _relative-error-plasmode.qmd >}}
+
+## The per-dataset rule and cross-dataset consistency {#sec-plasmode-rule}
+
+```{r plasmode-rule}
+rule_all <- PR |>
+  filter(pool == "all") |>
+  transmute(
+    dataset = label_app(app), role, estimand, n_cells,
+    `CE proposal` = ci(ce_proposal, ce_proposal_lower, ce_proposal_upper),
+    `CE fallback` = ci(ce_fallback, ce_fallback_lower, ce_fallback_upper),
+    `score ratio` = ci(score_ratio, score_ratio_lower, score_ratio_upper, 2),
+    decision, class, `Q1 class (REML)` = q1_class_reml, `Q1 class (NCV)` = q1_class_ncv
+  ) |>
+  arrange(role, estimand, dataset)
+save_tab(PR, "plasmode-rule")
+save_tab(PC, "plasmode-consistency")
+prc <- PR |> filter(pool == "all", role == "counted")
+prs <- PR |> filter(pool == "all", role == "stress test")
+n_labels <- prc |> filter(class == "N", estimand %in% c("mean", "beta"))
+q1_gain <- prc |> filter(estimand %in% c("mean", "beta"))
+q1_gain_s <- prs |> filter(estimand %in% c("mean", "beta"))
+# the symmetric criterion on the nine-dataset pools (point estimates)
+rule_sym <- P_POOL |>
+  filter(estimand %in% c("mean", "beta"), arm %in% c("ncv_cl2_bias", "reml_cl2")) |>
+  group_by(app, role, estimand) |>
+  group_modify(\(d, k) rule_both(d)) |>
+  ungroup() |>
+  mutate(app = label_app(app)) |>
+  arrange(estimand, role, app)
+save_tab(rule_sym, "plasmode-rule-both-criteria-point")
+sym_diff <- rule_sym |> filter(decision_under != decision_sym)
+rv_pl <- RV |> filter(data == "plasmode") |> mutate(group = recode(group, ecg_gls4 = "ECG strain (79-subject frame)", running = "running (first-50 cohort)"))
+```
+
+The rule was applied per dataset on its pooled cells (@tbl-plasmode-rule). Question 1 is
+consistent: on every counted dataset CL2 reduces the calibration error of the REML fit's
+intervals by `r rng(q1_gain$q1_reml)` (stress tests `r rng(q1_gain_s$q1_reml)`; class C
+everywhere for both fits; consistency label "`r PC$q1_reml[PC$estimand == "beta"]`"). The
+recipe decision is not: for β the classes are `r relabel_apps(PC$classes[PC$estimand == "beta"])`
+and the label "`r PC$rule[PC$estimand == "beta"]`"; for the mean
+`r relabel_apps(PC$classes[PC$estimand == "mean"])`, "`r PC$rule[PC$estimand == "mean"]`". The
+proposal is the point decision on `r sum(prc$decision == "P" & prc$estimand %in% c("mean", "beta"))`
+of the 12 counted dataset-estimand pairs, the fallback on
+`r sum(prc$decision == "F" & prc$estimand %in% c("mean", "beta"))`, neither on
+`r sum(prc$decision == "N" & prc$estimand %in% c("mean", "beta"))`, equivalent on
+`r sum(prc$decision == "E" & prc$estimand %in% c("mean", "beta"))`.
+
+The N labels are fragile. They arise because the fallback's calibration error for β
+exceeds 2 pp on `r paste(APP_LABELS[n_labels$app], collapse = " and ")`
+(`r paste(sprintf("%s: %s", APP_LABELS[n_labels$app], ci(n_labels$ce_fallback, n_labels$ce_fallback_lower, n_labels$ce_fallback_upper)), collapse = "; ")`),
+i.e. by `r rng_pp(n_labels$ce_fallback - ADEQUATE)` with bootstrap intervals that include
+2 pp, while the proposal's is `r rng(n_labels$ce_proposal)`. Under the
+symmetric criterion (point decisions on the same nine-dataset pools, @tbl-rule-sym) the
+decision differs from the undercoverage-only one on `r nrow(sym_diff)` of `r nrow(rule_sym)`
+dataset-estimand pairs`r if (nrow(sym_diff)) paste0(" (", paste(sprintf("%s %s: %s vs %s", sym_diff$app, ESTIMAND_LABELS[sym_diff$estimand], sym_diff$decision_under, sym_diff$decision_sym), collapse = "; "), ")") else ""`;
+these are point classifications without bootstrap flags, and the agreement is not a
+robustness result: the proposal already fails the undercoverage bound for β on
+`r sum(rule_sym$ce_proposal_under[rule_sym$estimand == "beta"] > ADEQUATE)` of 9 datasets, so
+adding overcoverage to the criterion cannot change its class there.
+
+```{r}
+#| label: tbl-plasmode-rule
+#| tbl-cap: "The recommendation rule per dataset (pool = all attached curve-flip cells with all subjects), with 95% replicate-bootstrap intervals; classes as defined in the reading guide."
+show(rule_all)
+```
+
+```{r}
+#| label: tbl-rule-sym
+#| tbl-cap: "The rule on the nine-dataset pools under both calibration criteria (point estimates; under = undercoverage only, sym = symmetric)."
+show(rule_sym |> select(app, role, estimand, n_cells, ce_proposal_under, ce_fallback_under, ce_proposal_sym, ce_fallback_sym, score_ratio, decision_under, decision_sym))
+```
+
+## Attribution: truth source versus residual source
+
+```{r attribution}
+att <- PA |>
+  filter(!grepl("beat", effect), quantity %in% c("log_mse_ratio", "coverage:reml_cl2", "coverage:ncv_cl2_bias", "coverage:reml_model")) |>
+  mutate(dataset = label_app(app), value = ci(estimate, lower, upper)) |>
+  select(dataset, estimand, quantity, effect, value, verdict)
+att_wide <- att |>
+  select(-verdict) |>
+  pivot_wider(names_from = effect, values_from = value) |>
+  left_join(att |> filter(effect == "residual") |> select(dataset, estimand, quantity, `residual verdict` = verdict), by = c("dataset", "estimand", "quantity")) |>
+  arrange(quantity, estimand, dataset)
+save_tab(PA, "plasmode-attribution")
+lm_truth <- PA |> filter(quantity == "log_mse_ratio", effect == "truth", estimand == "beta")
+lm_resid <- PA |> filter(quantity == "log_mse_ratio", effect == "residual", estimand == "beta")
+lm_int <- PA |> filter(quantity == "log_mse_ratio", effect == "interaction", estimand == "beta")
+cov_resid <- PA |> filter(startsWith(quantity, "coverage:"), effect == "residual")
+cov_exc <- cov_resid |> filter(verdict != "small") |> mutate(dataset = label_app(app), arm = ARM_LABELS[sub("coverage:", "", quantity)])
+flips <- PF |> mutate(dataset = label_app(app))
+save_tab(flips, "plasmode-flips")
+n_pf <- sum(flips$flips & ((flips$REML == "P" & flips$NCV == "F") | (flips$REML == "F" & flips$NCV == "P")))
+```
+
+On the 2 × 2 of REML/NCV truths × REML/NCV residuals (G = all), the truth-source main
+effect on log(MSE NCV / MSE REML) for β is `r rng(lm_truth$estimate)` (NCV truth minus
+REML truth; the ratio is multiplied by `r rng(exp(lm_truth$estimate))`), the residual-source
+main effect `r rng(lm_resid$estimate)` and the interaction `r rng(lm_int$estimate)`
+(@tbl-attribution). The residual-source effect on the log ratio is "small" (inside
+log[0.95, 1.05] with its interval) on `r plural(sum(lm_resid$verdict == "small"), "dataset")`,
+"not small" on `r sum(lm_resid$verdict == "not small")`
+(`r paste(sprintf("%s %s", APP_LABELS[lm_resid$app[lm_resid$verdict == "not small"]], f(lm_resid$estimate[lm_resid$verdict == "not small"], 3)), collapse = ", ")`)
+and undetermined on the remaining `r sum(lm_resid$verdict == "undetermined")`. Of the
+`r nrow(cov_resid)` residual-source effects on coverage, `r sum(cov_resid$verdict == "small")`
+are inside ±2 pp with their interval; the exceptions are
+`r paste(sprintf("%s %s %s (%s)", cov_exc$dataset, ESTIMAND_LABELS[cov_exc$estimand], cov_exc$arm, pp(cov_exc$estimate)), collapse = "; ")`.
+The rule's class on the REML-residual cells alone differs from that on the NCV-residual
+cells alone on `r sum(flips$flips)` of `r nrow(flips)` dataset-estimand pairs
+(`r paste(sprintf("%s %s: %s vs %s", flips$dataset[flips$flips], flips$estimand[flips$flips], flips$REML[flips$flips], flips$NCV[flips$flips]), collapse = "; ")`);
+`r plural(n_pf, "flip")` `r if (n_pf == 1) "is" else "are"` between P and F. Truth source is
+the dominant factor for estimation; the residual source matters on two datasets.
+
+## Beat-to-beat errors (ECG strain)
+
+```{r beats}
+beat_cov <- P_POOL |>
+  filter(app == "ecg_gls4b", estimand %in% c("mean", "beta"), arm %in% c(MAIN_ARMS, "ar1_model")) |>
+  select(truth, residual, estimand, arm, coverage_mean) |>
+  pivot_wider(names_from = arm, values_from = coverage_mean) |>
+  mutate(residual = RESIDUAL_LABELS[residual], truth = factor(truth, TRUTH_LEVELS)) |>
+  arrange(estimand, truth, residual)
+beat_mse <- PM |>
+  filter(app == "ecg_gls4b", error == "attached", G_label == "all", estimand %in% c("mean", "beta")) |>
+  select(truth, residual, estimand, mse_ratio_ncv_reml) |>
+  mutate(residual = RESIDUAL_LABELS[residual])
+beat_tab <- left_join(beat_cov, beat_mse, by = c("truth", "residual", "estimand")) |> pretty()
+save_tab(beat_tab, "plasmode-ecg-beats")
+bc <- PA |> filter(grepl("beat", effect), quantity %in% c("coverage:reml_cl2", "coverage:ncv_cl2_bias", "coverage:reml_model"))
+bcv <- \(q, which) bc$estimate[bc$quantity == q & grepl(which, bc$effect)]
+bm <- \(res, e = "beta") beat_mse$mse_ratio_ncv_reml[beat_mse$residual == RESIDUAL_LABELS[res] & beat_mse$estimand == e]
+resid_de <- PD_RESID |> filter(app == "ecg_gls4b") |> select(residual, DE, residual_variance, sd_ratio)
+```
+
+The beat-to-beat difference curves are the one error source not shaped by any fit
+(design effect `r rng(resid_de$DE[resid_de$residual %in% c("beat_m", "beat_1")], 1)` against
+`r rng(resid_de$DE[resid_de$residual == "REML"], 1)` for the REML residuals). With them,
+REML + CL2's coverage changes by `r rng_pp(bcv("coverage:reml_cl2", "beat_m"))`
+(variance-matched) and `r rng_pp(bcv("coverage:reml_cl2", "beat_1"))` (own scale) relative
+to the REML-residual cells with the same truth, the bias-aware NCV interval's by
+`r rng_pp(bcv("coverage:ncv_cl2_bias", "beat_m"))` and `r rng_pp(bcv("coverage:ncv_cl2_bias", "beat_1"))`,
+and the model-based intervals' by `r rng_pp(bcv("coverage:reml_model", "beat_m"))` and
+`r rng_pp(bcv("coverage:reml_model", "beat_1"))` (@tbl-beats). NCV's β gain is larger with
+the variance-matched beat errors than with the REML residuals under every truth
+(ratios `r rng(bm("beat_m"))` vs `r rng(bm("REML"))`) and smaller at the beats' own scale
+(`r rng(bm("beat_1"))`).
+
+```{r}
+#| label: tbl-beats
+#| tbl-cap: "ECG strain, all 78 subjects: coverage per arm and NCV/REML MSE ratio by truth source and residual source, including the beat-to-beat difference curves."
+show(beat_tab)
+```
+
+## AR(1) in the plasmode study
+
+```{r plasmode-ar1}
+ar1_pt <- P_POOL |>
+  filter(arm == "ar1_model", estimand %in% c("mean", "beta", "gamma")) |>
+  select(app, role, truth, residual, estimand, coverage_mean, pointwise_q05) |>
+  left_join(PFIT |> filter(fit == "AR1") |> select(app, truth, residual, rho, median_time), by = c("app", "truth", "residual")) |>
+  left_join(P_POOL |> filter(arm == "reml_cl2") |> select(app, truth, residual, estimand, reml_cl2 = coverage_mean), by = c("app", "truth", "residual", "estimand")) |>
+  mutate(dataset = label_app(app), cell_role = if_else(truth == "MID" & residual == "REML", "principal", "sensitivity")) |>
+  select(dataset, role, cell_role, truth, residual, estimand, `AR(1)` = coverage_mean, `AR(1) q05` = pointwise_q05, `REML + CL2` = reml_cl2, rho, `fit time s` = median_time) |>
+  arrange(role, dataset, cell_role, estimand)
+save_tab(pretty(ar1_pt), "plasmode-ar1")
+ar1_v <- \(e, r = c("counted", "stress test")) ar1_pt[["AR(1)"]][ar1_pt$estimand == e & ar1_pt$role %in% r & ar1_pt$cell_role == "principal"]
+ar1_n_ok <- sum((ar1_pt |> filter(cell_role == "principal", estimand %in% c("mean", "beta")) |> group_by(dataset) |> summarise(ok = all(.data[["AR(1)"]] >= 0.93)))$ok)
+ar1_sens_tab <- ar1_pt |> filter(cell_role == "sensitivity", estimand %in% c("mean", "beta"))
+```
+
+In the common (MID truth, REML residuals) cell the AR(1) working model covers the mean at
+`r rng(ar1_v("mean"))` and β at `r rng(ar1_v("beta"))` across the nine datasets
+(@tbl-plasmode-ar1), with ρ̂ at `r rng(ar1_pt$rho)` (at its 0.99 cap on the running data)
+and median fit times of `r rng(ar1_pt[["fit time s"]], 0)` s. It reaches 0.93 for both
+primary estimands on `r plural(ar1_n_ok, "dataset")`. The sensitivity cells (running under
+the REML- and NCV-fitted truths, ECG strain with beat errors) give
+`r rng(ar1_sens_tab[["AR(1)"]])`.
+
+## Block arm on the dependent-curve datasets {#sec-block}
+
+```{r block}
+blk <- PB |>
+  filter(name %in% c("mse_ratio_block", "mse_ratio_mismatch", "coverage_loss", "coverage_loss_recipe"), cells %in% c("block_flips", "curve_flips")) |>
+  mutate(dataset = label_app(app), value = ci(estimate, lower, upper)) |>
+  select(dataset, estimand, verdict, cells, name, value) |>
+  pivot_wider(names_from = name, values_from = value) |>
+  arrange(dataset, estimand, cells)
+blk_cov <- PB |>
+  filter(startsWith(name, "coverage:"), cells %in% c("block_flips", "curve_flips")) |>
+  mutate(dataset = label_app(app), recipe = sub("coverage:", "", name)) |>
+  select(dataset, estimand, cells, recipe, estimate) |>
+  pivot_wider(names_from = recipe, values_from = estimate) |>
+  arrange(dataset, estimand, cells)
+save_tab(PB, "plasmode-block-arm")
+save_tab(blk_cov, "plasmode-block-arm-coverage")
+bgain <- PB |> filter(name == "mse_ratio_block", cells == "block_flips")
+bcost <- PB |> filter(name == "coverage_loss", cells == "curve_flips")
+blocks_d <- PD_BLOCKS |> select(app, n_blocks, block_size_min, block_size_max, score_corr_within, score_corr_between)
+# between-curve dependence effect: block-flip minus curve-flip coverage of the standard recipes
+bf_effect <- PB |>
+  filter(name %in% c("coverage:standard", "coverage:reml_curvecl2"), cells %in% c("block_flips", "curve_flips")) |>
+  select(app, estimand, name, cells, estimate) |>
+  pivot_wider(names_from = cells, values_from = estimate) |>
+  mutate(diff = block_flips - curve_flips, dataset = label_app(app), recipe = recode(name, `coverage:standard` = "bias-aware NCV (curve)", `coverage:reml_curvecl2` = "REML + curve CL2"))
+```
+
+The stress tests' curve-flip cells generate independent errors across curves, so the only
+evidence about between-curve dependence is the contrast of block-flip against curve-flip
+cells. Under imposed block dependence REML + curve-clustered CL2 changes by
+`r rng_pp(bf_effect$diff[bf_effect$name == "coverage:reml_curvecl2"])` relative to the
+curve-flip cells (bias-aware NCV `r rng_pp(bf_effect$diff[bf_effect$name == "coverage:standard"])`).
+Leaving out and clustering on blocks does not help estimation: the paired MSE ratio
+block-NCV / NCV is `r rng(bgain$estimate)` (@tbl-block), and under independent curves block
+clustering costs `r rng_pp(bcost$estimate)` of coverage. Verdicts:
+`r paste(sprintf("%s %s: %s", label_app(bgain$app), bgain$estimand, bgain$verdict), collapse = "; ")`.
+Block-clustered CL2 does not recover the shortfall on the weather data (REML + block CL2
+`r rng(blk_cov$reml_blockcl2[blk_cov$dataset == "weather" & blk_cov$cells == "block_flips"])`
+against REML + curve CL2 `r rng(blk_cov$reml_curvecl2[blk_cov$dataset == "weather" & blk_cov$cells == "block_flips"])`
+under block flips); its `r blocks_d$n_blocks[blocks_d$app == "aemet"]` blocks are below the
+≥ 40 clusters of the study's operating range, and the mechanism is untested there. The
+partition-mismatch arm (150 km blocks against 250 km generating blocks) gives an MSE ratio
+of `r rng((PB |> filter(name == "mse_ratio_mismatch", cells == "block_flips"))$estimate)`.
+
+```{r}
+#| label: tbl-block
+#| tbl-cap: "Block arm on the three stress-test datasets: MSE ratio block-NCV / curve-NCV, and the coverage lost by block-clustered CL2 relative to curve-clustered CL2 within a fit and between the two recipes, under imposed block dependence (block flips) and under independent curves (curve flips)."
+show(blk)
+```
+
+## The hybrid interval and coverage maps in the plasmode study {#sec-hybrid}
+
+```{r hybrid-plasmode}
+hyb_p <- HSUM_P |>
+  filter(flip == "curve", error == "attached", G > 40, residual %in% c("REML", "NCV"), estimand %in% c("beta", "mean"), arm %in% c("reml_cl2", "ncv_cl2_bias", "hybrid")) |>
+  select(cell, app, truth, estimand, arm, coverage_mean, pointwise_q05, width_mean, score_mean) |>
+  pivot_wider(names_from = arm, values_from = c(coverage_mean, pointwise_q05, width_mean, score_mean))
+hyb_truth <- hyb_p |>
+  group_by(truth, estimand) |>
+  summarise(
+    n_cells = n(),
+    `cov REML+CL2` = mean(coverage_mean_reml_cl2), `cov bias-aware` = mean(coverage_mean_ncv_cl2_bias), `cov hybrid` = mean(coverage_mean_hybrid),
+    `q05 REML+CL2` = mean(pointwise_q05_reml_cl2), `q05 bias-aware` = mean(pointwise_q05_ncv_cl2_bias), `q05 hybrid` = mean(pointwise_q05_hybrid),
+    `width bias-aware/REML+CL2` = exp(mean(log(width_mean_ncv_cl2_bias / width_mean_reml_cl2))),
+    `width hybrid/REML+CL2` = exp(mean(log(width_mean_hybrid / width_mean_reml_cl2))),
+    `IS bias-aware/REML+CL2` = exp(mean(log(score_mean_ncv_cl2_bias / score_mean_reml_cl2))),
+    `IS hybrid/REML+CL2` = exp(mean(log(score_mean_hybrid / score_mean_reml_cl2))),
+    .groups = "drop"
+  ) |>
+  mutate(truth = factor(truth, TRUTH_LEVELS), estimand = ESTIMAND_LABELS[estimand]) |>
+  arrange(estimand, truth)
+save_tab(hyb_truth, "plasmode-hybrid-by-truth")
+hyb_app <- HP |>
+  filter(estimand %in% c("mean", "beta")) |>
+  mutate(dataset = label_app(app)) |>
+  select(dataset, estimand, n_cells, incl, cov_reml_cl2, cov_ncv_cl2_bias, cov_hybrid, q05_reml_cl2, q05_ncv_cl2_bias, q05_hybrid, `IS_ncv_cl2_bias/reml_cl2`, `IS_hybrid/reml_cl2`) |>
+  arrange(estimand, dataset)
+save_tab(HP, "plasmode-hybrid-digest")
+hv2 <- \(col, tr, e = "beta(s,t)") hyb_truth[[col]][hyb_truth$truth == tr & hyb_truth$estimand == e]
+mcp <- HMC_P |> mutate(dataset = label_app(app))
+mcpv <- \(m, tr, col, a = "running") mcp[[col]][mcp$method == m & mcp$truth == tr & mcp$app == a]
+```
+
+Averaged over all nine datasets, the hybrid (NCV estimate, REML's CL2 standard error) is worse than REML + CL2 on every
+metric under REML-fitted truths and better only under the NCV- and MID-derived truths, partly
+by overcovering (@tbl-hybrid-truth; β at G = all, model residuals, equal-weighted means over
+the nine datasets and two residual sources, not over truth sources): under the
+REML truth it covers `r f(hv2("cov hybrid", "REML"))` against REML + CL2's `r f(hv2("cov REML+CL2", "REML"))`
+with 5% quantiles `r f(hv2("q05 hybrid", "REML"))` against `r f(hv2("q05 REML+CL2", "REML"))`
+and interval score `r f(hv2("IS hybrid/REML+CL2", "REML"), 2)` times REML + CL2's; under MID
+`r f(hv2("cov hybrid", "MID"))` against `r f(hv2("cov REML+CL2", "MID"))` (quantiles
+`r f(hv2("q05 hybrid", "MID"))` vs `r f(hv2("q05 REML+CL2", "MID"))`); under the NCV truth
+`r f(hv2("cov hybrid", "NCV"))` against `r f(hv2("cov REML+CL2", "NCV"))` (quantiles
+`r f(hv2("q05 hybrid", "NCV"))` vs `r f(hv2("q05 REML+CL2", "NCV"))`). Its width equals
+REML + CL2's by construction; the bias-aware interval is `r rng(hyb_truth[["width bias-aware/REML+CL2"]][hyb_truth$estimand == "beta(s,t)"], 2)`
+times as wide across truth sources. The coverage maps (@fig-maps-plasmode) show where
+the intervals built on the NCV estimate fall short under a REML-fitted truth: on the
+running data NCV + CL2 has `r f(100 * mcpv("ncv_cl2", "REML", "share_below_90"), 0)`% of
+grid points below 0.90 coverage, the bias-aware interval `r f(100 * mcpv("ncv_cl2_bias", "REML", "share_below_90"), 0)`%
+and the hybrid `r f(100 * mcpv("hybrid", "REML", "share_below_90"), 0)`%, against REML + CL2's
+`r f(100 * mcpv("reml_cl2", "REML", "share_below_90"), 0)`%; the pointwise shortfall of the
+bias-aware interval correlates with the truth's curvature (Spearman
+`r f(mcpv("ncv_cl2_bias", "REML", "cor_curv_spearman"), 2)` running, `r f(mcpv("ncv_cl2_bias", "REML", "cor_curv_spearman", "dti"), 2)` DTI)
+and with (β̂_NCV − β̂_REML)² / se²_CL2,NCV (`r f(mcpv("ncv_cl2_bias", "REML", "cor_delta_spearman"), 2)`,
+`r f(mcpv("ncv_cl2_bias", "REML", "cor_delta_spearman", "dti"), 2)`). Under the NCV-fitted
+truth the same maps are near nominal for every construction. Per-dataset values are in
+@tbl-hybrid-plasmode. On the six counted datasets alone its average coverage under the REML-fitted truth is close to REML + CL2's and its interval score slightly lower; its 5% pointwise quantile is far lower (paper, §6.4).
+
+```{r}
+#| label: tbl-hybrid-truth
+#| tbl-cap: "Hybrid and bias-aware intervals next to REML + CL2 in the plasmode study by truth source (all subjects, model residuals, equal-weighted mean over the nine datasets): coverage (cov), 5% pointwise quantile (q05), and width and interval score (IS) relative to REML + CL2."
+show(hyb_truth, digits = 3)
+```
+
+```{r fig-maps-plasmode}
+#| fig-cap: "Pointwise coverage of β(s,t) on the running and the DTI data (all subjects, REML residuals) under the REML-fitted and the NCV-fitted truth, for REML + CL2, NCV + CL2, the bias-aware NCV interval and the hybrid; the white contour marks 0.90."
+#| fig-height: 5.4
+maps_p <- read_maps("plasmode") |>
+  filter(truth %in% c("REML", "NCV")) |>
+  mutate(method = label_arm(method), dataset = label_app(app), panel = paste(dataset, truth, "truth"))
+fig <- ggplot(maps_p, aes(s, t)) +
+  geom_raster(aes(fill = coverage)) +
+  geom_contour(aes(z = coverage), breaks = 0.9, colour = "white", linewidth = 0.3) +
+  facet_grid(panel ~ method) +
+  scale_fill_viridis_c(limits = c(0, 1), name = "coverage") +
+  coord_equal() + theme_doc + theme(strip.text = element_text(size = 6))
+save_fig(fig, "coverage-maps-plasmode", 7, 6.5)
+fig
+```
+
+{{< include _dti-application.qmd >}}
+
+{{< include _metrics.qmd >}}
+
+# Cross-study assessment
+
+```{r cross-data}
+syn_core100 <- S |> filter(block == "core", G == 100, estimand %in% c("mean", "beta"))
+syn_cov <- \(a, err, e = c("mean", "beta")) syn_core100$coverage_mean[syn_core100$arm == a & syn_core100$error %in% err & syn_core100$estimand %in% e]
+syn_ratio <- \(err, e = "beta", blk = "core") MSE_RATIO$ratio[MSE_RATIO$block == blk & MSE_RATIO$G == 100 & MSE_RATIO$error %in% err & MSE_RATIO$estimand == e]
+
+# Per-dataset outcomes: pool means over the attached curve-flip cells at G = all (all truth x
+# residual combinations), MSE ratios by truth source (geometric mean over residual sources),
+# the AR(1) principal cell, and the dataset diagnostics (REML residuals).
+cross <- DATASETS |>
+  mutate(app = as.character(app)) |>
+  left_join(
+    POOL_MEANS_MAIN |> filter(arm %in% c("reml_model", "reml_cl2", "ncv_cl2", "ncv_cl2_bias", "ar1_model"), estimand %in% c("mean", "beta")) |>
+      select(app, estimand, arm, coverage) |>
+      pivot_wider(names_from = c(arm, estimand), values_from = coverage),
+    by = "app"
+  ) |>
+  left_join(
+    RATIO_BY_TRUTH |> filter(estimand %in% c("beta", "mean", "gamma", "alpha")) |> select(app, truth, estimand, ratio) |>
+      pivot_wider(names_from = c(truth, estimand), values_from = ratio, names_prefix = "ratio_"),
+    by = "app"
+  ) |>
+  left_join(g40_app |> filter(arm == "reml_cl2", estimand == "beta") |> select(app, g40_loss_beta = loss), by = "app") |>
+  left_join(by_truth |> filter(arm == "ncv_cl2_bias", truth == "REML", estimand == "beta") |> select(app, ba_beta_remltruth = coverage), by = "app") |>
+  mutate(
+    shortfall_model_beta = LEVEL - reml_model_beta,
+    shortfall_model_mean = LEVEL - reml_model_mean,
+    shortfall_cl2_beta = LEVEL - reml_cl2_beta,
+    log_ratio_MID_beta = log(ratio_MID_beta),
+    dataset = label_app(app)
+  )
+save_tab(cross, "cross-study-dataset-outcomes")
+cc <- cross |> filter(role == "counted")
+A <- \(x, y, d = cross) rho_text(d[[x]], d[[y]])
+Av <- \(x, y, d = cross) rho_perm(d[[x]], d[[y]])$rho
+Ap <- \(x, y, d = cross) rho_perm(d[[x]], d[[y]])$p
+
+# Synthetic cell-level quantities for the scatter plots.
+syn_cells <- S |>
+  filter(estimand %in% c("mean", "beta"), arm %in% c("reml_model", "reml_cl2", "ncv_cl2_bias")) |>
+  select(cell, block, family, error, G, signal, truth, D, covariate, basis, estimand, arm, coverage_mean) |>
+  pivot_wider(names_from = arm, values_from = coverage_mean) |>
+  left_join(MSE_RATIO |> select(cell, estimand, ratio), by = c("cell", "estimand")) |>
+  left_join(
+    EDF |> filter(term == "te(X.smat,X.tmat):L.X", fit %in% c("REML", "NCV")) |> select(cell, fit, edf_mean) |> pivot_wider(names_from = fit, values_from = edf_mean, names_prefix = "edf_") |> mutate(edf_ratio = edf_REML / edf_NCV),
+    by = "cell"
+  )
+# Design effect: realized values (analysis/describe-cells.R on LRZ) where available, else the
+# design values of the error kernels (iid 1; OU 8; smooth 11.8 at D = 61 and 47 at D = 241; AR(1) 8).
+DE_DESIGN <- c(iid = 1, ou = 8, fpc = 11.8, ou0 = 8)
+syn_cells <- syn_cells |>
+  mutate(DE_design = if_else(error == "fpc" & D == 241, 47, unname(DE_DESIGN[error])))
+if (!is.null(SDE)) syn_cells <- left_join(syn_cells, SDE |> select(cell, DE = design_effect), by = "cell")
+has_de <- "DE" %in% names(syn_cells)
+if (!has_de) syn_cells$DE <- NA_real_
+syn_cells <- syn_cells |> mutate(DE_realized = !is.na(DE), DE_plot = coalesce(DE, DE_design), DE_per_D = DE_plot / D)
+de_missing <- syn_cells |> filter(!DE_realized) |> distinct(cell, block, family, error)
+save_tab(syn_cells, "cross-study-synthetic-cells")
+de_label <- if (has_de) "design effect 1'S1/tr(S) of the residual curves" else "design effect (synthetic: design values, realized values pending)"
+syn_de_span <- syn_cells |> filter(block == "core", G == 100, error != "iid") |> summarise(lo = min(DE_plot), hi = max(DE_plot))
+```
+
+```{r fig-cross}
+#| fig-cap: "Synthetic cells (small coloured points, G = 100; colour = family) and plasmode datasets (large black symbols: circles = counted, triangles = stress tests; labelled) on common axes. (a) model-based coverage of β against the design effect of the residual curves (synthetic: realized values from 20 replicates per cell without uncertainty, design values for the two negative-binomial-as-Poisson cells; the D = 241 dense-grid cells are included; crosses mark the sign-changing and misregistration cells, whose dependence the design effect does not capture); (b) REML + CL2 coverage of β against the same; axes cover all points; (c) NCV/REML MSE ratio for β against the REML/NCV EDF ratio of the ff term (plasmode: MID truth, EDF ratio of the two real-data fits; synthetic: all cells with a smooth truth at G = 100); (d) REML + CL2 coverage of β against G (synthetic: core cells at both G; plasmode: the G = all pool means, and in grey the same datasets at G = 40)."
+#| fig-height: 6.2
+#| warning: true
+label_pts <- \(d) geom_text(data = d, aes(x, y, label = dataset), size = 2.2, vjust = -0.8, colour = "black")
+sy <- syn_cells |> filter(estimand == "beta", G == 100, block %in% c("core", "dense_grid", "oscillating", "ar1_home", "heteroskedastic", "lowrank_covariate", "rough_truth", "basis_size"))
+fam_cols <- c(gaussian = "#000000", poisson = "#56B4E9", binomial = "#CC79A7")
+base <- \(xl, yl, ylim = NULL) list(labs(x = xl, y = yl), theme_doc, scale_colour_manual(values = fam_cols, name = "synthetic family"), scale_shape_manual(values = c(counted = 16, `stress test` = 17), name = "plasmode dataset"))
+sy_de <- sy |> mutate(de_shape = if_else(error %in% c("osc", "warp"), "sign-changing / misregistration cell", "other synthetic cell"))
+pa <- ggplot() +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_point(data = sy_de |> filter(de_shape == "other synthetic cell"), aes(DE_plot, reml_model, colour = family), size = 0.9, alpha = 0.6) +
+  geom_point(data = sy_de |> filter(de_shape != "other synthetic cell"), aes(DE_plot, reml_model, colour = family), size = 1.6, shape = 4, show.legend = FALSE) +
+  geom_point(data = cross |> mutate(x = DE, y = reml_model_beta), aes(x, y, shape = role), size = 2.5) +
+  label_pts(cross |> mutate(x = DE, y = reml_model_beta)) +
+  base(de_label, "model-based coverage of beta") + ggtitle("(a)")
+pb <- ggplot() +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_point(data = sy_de |> filter(de_shape == "other synthetic cell"), aes(DE_plot, reml_cl2, colour = family), size = 0.9, alpha = 0.6) +
+  geom_point(data = sy_de |> filter(de_shape != "other synthetic cell"), aes(DE_plot, reml_cl2, colour = family), size = 1.6, shape = 4, show.legend = FALSE) +
+  geom_point(data = cross |> mutate(x = DE, y = reml_cl2_beta), aes(x, y, shape = role), size = 2.5) +
+  label_pts(cross |> mutate(x = DE, y = reml_cl2_beta)) +
+  base(de_label, "REML + CL2 coverage of beta") + ggtitle("(b)")
+pc <- ggplot() +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey40") +
+  geom_point(data = sy |> filter(!is.na(edf_ratio), truth == "smooth"), aes(edf_ratio, ratio, colour = family), size = 0.9, alpha = 0.6) +
+  geom_point(data = cross |> mutate(x = edf_ratio, y = ratio_MID_beta), aes(x, y, shape = role), size = 2.5) +
+  label_pts(cross |> mutate(x = edf_ratio, y = ratio_MID_beta)) +
+  scale_y_log10(breaks = c(0.01, 0.03, 0.1, 0.3, 1, 3)) + scale_x_log10() +
+  scale_colour_manual(values = fam_cols, name = "synthetic family") + scale_shape_manual(values = c(counted = 16, `stress test` = 17), name = "plasmode dataset") +
+  labs(x = "EDF ratio REML / NCV of the ff term", y = "MSE NCV / MSE REML for beta") + theme_doc + ggtitle("(c)")
+syG <- syn_cells |> filter(estimand == "beta", block == "core")
+pd_ <- ggplot() +
+  geom_hline(yintercept = LEVEL, linetype = 2, colour = "grey40") +
+  geom_jitter(data = syG, aes(G, reml_cl2, colour = family), size = 0.9, alpha = 0.6, width = 2, height = 0) +
+  geom_point(data = cross |> mutate(x = G, y = reml_cl2_beta), aes(x, y, shape = role), size = 2.5) +
+  geom_point(data = cross |> mutate(x = 40, y = reml_cl2_beta - g40_loss_beta), aes(x, y, shape = role), size = 2.5, colour = "grey50", show.legend = FALSE) +
+  label_pts(cross |> mutate(x = G, y = reml_cl2_beta)) +
+  base("number of curves G", "REML + CL2 coverage of beta") + ggtitle("(d)")
+fig <- (pa | pb) / (pc | pd_) + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+save_fig(fig, "cross-study-scatter", 8, 7)
+fig
+```
+
+```{r cross-table}
+# Rankings and associations computed here; the table cells are short, the evidence follows as a list.
+rank_cl2 <- cc |> arrange(reml_cl2_beta) |> mutate(rank = row_number())
+rank_gain_all <- cross |> arrange(ratio_MID_beta) |> mutate(rank = row_number())
+low_rank <- cc |> arrange(rank_X) |> slice(1:2)
+alpha_gain_n <- sum(cross$ratio_NCV_alpha < 0.9)
+signal_p <- c(Ap("R2", "shortfall_model_beta"), Ap("R2", "log_ratio_MID_beta"))
+n_adequate_beta <- sum(PR$ce_fallback[PR$pool == "all" & PR$role == "counted" & PR$estimand == "beta"] <= ADEQUATE)
+de_osc <- syn_cells$DE_plot[syn_cells$error == "osc" & syn_cells$estimand == "beta"]
+de_warp <- syn_cells$DE_plot[syn_cells$error == "warp" & syn_cells$estimand == "beta" & syn_cells$DE_realized]
+cov_oscwarp <- syn_cells$reml_model[syn_cells$error %in% c("osc", "warp") & syn_cells$estimand == "beta"]
+cross_rows <- tibble::tribble(
+  ~property, ~`synthetic: inference`, ~`synthetic: estimation`, ~`plasmode`, ~verdict,
+  "Dependence strength (design effect DE)",
+  sprintf("model-based %s (iid) → %s (dependent); REML + CL2 %s", rng(syn_cov("reml_model", "iid")), rng(syn_cov("reml_model", c("ou", "fpc"))), rng(syn_cov("reml_cl2", c("iid", "ou", "fpc")))),
+  sprintf("β ratio %s (iid) vs %s (dependent)", rng(syn_ratio("iid")), rng(syn_ratio(c("ou", "fpc")))),
+  sprintf("DE %s; model-based shortfall vs DE %s; CL2 improves coverage on every dataset and meets the point adequacy bound for β on %s of 6 counted datasets", rng(cross$DE, 0), A("DE", "shortfall_model_beta"), n_adequate_beta),
+  "reinforces the direction; DE is a grid-mean variance inflation that misses sign-changing and misregistration dependence and is confounded with D",
+  "Dependence shape (sign changes; variance along t or by covariate)",
+  sprintf("sign-changing: model-based %s, REML + CL2 %s; covariate-dependent variance breaks model-based γ (%s) and AR(1) (%s), not CL2 (%s)", rng(osc_tab$reml_model), rng(osc_tab$reml_cl2), rng(hv("reml_model", "gamma", c("fpc_het", "fpc_raw_het"))), rng(na.omit(hv("ar1_model", "gamma", c("fpc_het", "fpc_raw_het")))), rng(hv("reml_cl2", "gamma", c("fpc_het", "fpc_raw_het")))),
+  sprintf("one cell per family; the realized DE of the sign-changing (%s) and misregistration (%s) cells is near 1 although model-based coverage is %s", rng(de_osc, 1), rng(de_warp, 1), rng(cov_oscwarp)),
+  sprintf("negative-correlation share %s%%, SD ratio %s; shortfall vs SD ratio %s; CL2 β coverage vs SD ratio %s (counted only %s)", rng(100 * cross$neg_share, 0), rng(cross$sd_ratio, 0), A("sd_ratio", "shortfall_model_beta"), A("sd_ratio", "reml_cl2_beta"), A("sd_ratio", "reml_cl2_beta", cc)),
+  "not separately testable (shape, DE and dataset role are confounded)",
+  "Misregistration (phase variability)",
+  sprintf("model-based %s, REML + CL2 %s, AR(1) mean %s; Poisson mean undercovers for every recipe (%s)", rng(wv("reml_model", "gaussian")), rng(wv("reml_cl2", "gaussian")), rng(na.omit(warp_tab$ar1_model[warp_tab$estimand == "mean"])), rng(wv("reml_cl2", "poisson"))),
+  sprintf("β ratio %s", rng(MSE_RATIO$ratio[MSE_RATIO$block == "warp" & MSE_RATIO$estimand == "beta"])),
+  sprintf("phase share %s%%; AR(1) β vs phase %s; CL2 β vs phase %s", rng(100 * cross$phase_share, 0), A("phase_share", "ar1_model_beta"), A("phase_share", "reml_cl2_beta")),
+  "partly (CL2 near nominal on the two cardiac datasets with real misregistration; AR(1)'s real-data shortfall has no single attributable cause)",
+  "Number of curves G",
+  sprintf("REML + CL2 loses %s at G = 40; NCV + CL2 %s", rng_pp(gl("reml_cl2")), rng_pp(gl("ncv_cl2"))),
+  sprintf("β ratio %s (G = 40) vs %s (G = 100)", rng(prof_G$G40[prof_G$estimand == "beta"]), rng(prof_G$G100[prof_G$estimand == "beta"])),
+  sprintf("within-dataset G = all vs 40: REML + CL2 loses %s, NCV + CL2 %s; across datasets (G %s) CL2 β vs G %s", rng_pp(g40_app$loss[g40_app$arm == "reml_cl2" & g40_app$estimand == "beta"]), rng_pp(g40_app$loss[g40_app$arm == "ncv_cl2" & g40_app$estimand == "beta"]), rng(cross$G, 0), A("G", "reml_cl2_beta")),
+  "reinforces (paired within-dataset contrast of the same size)",
+  "Grid density D",
+  sprintf("D 61 → 241: model-based β −%s; REML + CL2 %s", rng_pp(-gd("coverage_reml_model")), rng_pp(gd("coverage_reml_cl2"))),
+  sprintf("NCV β advantage × %s", rng(exp(-gd("log_mse_ratio_ncv_reml")), 1)),
+  sprintf("not varied within a dataset (D %s); DE/D = (1'S1/trS)/D %s; shortfall vs DE/D %s", rng(cross$D, 0), rng(cross$DE_per_D, 2), A("DE_per_D", "shortfall_model_beta")),
+  "not testable",
+  "Covariate rank (identifiability of β)",
+  sprintf("low-rank X: REML + CL2 β %s", rng(S$coverage_mean[S$block == "lowrank_covariate" & S$error == "fpc" & S$estimand == "beta" & S$arm == "reml_cl2"])),
+  sprintf("β ratio %s (low-rank) vs %s (rich), smooth process", rng(lowr$ratio[lowr$estimand == "beta" & lowr$error == "fpc"]), rng(MSE_RATIO$ratio[MSE_RATIO$block == "core" & MSE_RATIO$G == 100 & MSE_RATIO$error == "fpc" & MSE_RATIO$signal == "mid" & MSE_RATIO$estimand == "beta" & MSE_RATIO$family %in% c("gaussian", "poisson", "binomial")])),
+  sprintf("rank %s; MID-truth β gain vs rank %s; CL2 β vs rank %s; the two lowest-rank counted datasets (%s) rank %s of 6 in CL2 β coverage", rng(cross$rank_X, 0), A("rank_X", "log_ratio_MID_beta"), A("rank_X", "reml_cl2_beta"), paste(APP_LABELS[as.character(low_rank$app)], collapse = ", "), paste(rank_cl2$rank[match(low_rank$app, rank_cl2$app)], collapse = " and ")),
+  "partly (estimation direction consistent; coverage association uninformative at n = 9)",
+  "Truth roughness / EDF gap between REML and NCV",
+  sprintf("rough truth: NCV + CL2 β %s, bias-aware %s, REML + CL2 %s", rng(stv("ncv_cl2", "wiggly")), rng(stv("ncv_cl2_bias", "wiggly")), rng(stv("reml_cl2", "wiggly"))),
+  sprintf("β ratio %s (rough) vs %s (smooth); EDF ratio %s", rng(rough$ratio[rough$estimand == "beta"]), rng(syn_ratio("fpc")), rng(er("beta(s,t)", c("ou", "fpc")))),
+  sprintf("β ratio ordered NCV < MID < REML truth on %s of 9; NCV loses under REML truth on %s; MID gain vs EDF ratio %s; weather: NCV rougher than REML yet wins under all truths", sum(order_ok$ok), nrow(losers), A("edf_ratio", "log_ratio_MID_beta")),
+  "partly (strong truth-source sensitivity; the EDF-gap mechanism is not identified in the plasmode study)",
+  "Signal strength",
+  sprintf("REML + CL2 within %s of nominal across signal levels", pp(max(abs(PROF$estimate[PROF$factor == "signal" & PROF$value == "coverage_reml_cl2"] - LEVEL)))),
+  sprintf("β ratio %s (low) to %s (high), Gaussian smooth process", rng(MSE_RATIO$ratio[MSE_RATIO$block == "core" & MSE_RATIO$G == 100 & MSE_RATIO$error == "fpc" & MSE_RATIO$family == "gaussian" & MSE_RATIO$signal == "low" & MSE_RATIO$estimand == "beta"]), rng(MSE_RATIO$ratio[MSE_RATIO$block == "core" & MSE_RATIO$G == 100 & MSE_RATIO$error == "fpc" & MSE_RATIO$family == "gaussian" & MSE_RATIO$signal == "high" & MSE_RATIO$estimand == "beta"])),
+  sprintf("R² %s; shortfall vs R² %s; MID gain vs R² %s", rng(cross$R2, 2), A("R2", "shortfall_model_beta"), A("R2", "log_ratio_MID_beta")),
+  "uninformative at n = 9 (confounded)",
+  "Term type and estimand",
+  sprintf("same pattern for α, γ, β, mean, f(x,t); REML + CL2 differs by %s between f(x,t) and ff", rng_pp(m2v("coverage_reml_cl2"))),
+  sprintf("gain on the surface: γ(t) ratio %s, α(t) %s (dependent, G = 100)", rng(ratio_of(r_dep, "gamma")), rng(ratio_of(r_dep, "alpha"))),
+  sprintf("ff model only; γ ratio %s / %s (NCV / REML truth), α %s / %s; α gains < 0.9 on %s datasets under the NCV truth", rng(rt("NCV", "gamma")), rng(rt("REML", "gamma")), rng(rt("NCV", "alpha")), rng(rt("REML", "alpha")), alpha_gain_n),
+  "partly (gains most consistent for the surface; univariate gains on several datasets; f(x,t) not testable)",
+  "Basis size",
+  sprintf("bias-aware β %s → %s; REML + CL2 %s → %s (default → xlarge)", rng(bs("ncv_cl2_bias", "default")), rng(bs("ncv_cl2_bias", "xlarge")), rng(bs("reml_cl2", "default")), rng(bs("reml_cl2", "xlarge"))),
+  sprintf("β ratio %s → %s", rng(mse_b$ratio[mse_b$basis == "default" & mse_b$error == ERROR_LABELS["fpc"] & mse_b$estimand == ESTIMAND_LABELS["beta"]]), rng(mse_b$ratio[mse_b$basis == "xlarge" & mse_b$error == ERROR_LABELS["fpc"] & mse_b$estimand == ESTIMAND_LABELS["beta"]])),
+  sprintf("default bases except ECG 8-lead (k = 40/30 by design), whose MID-truth β gain ranks %s of 9 (1 = largest)", rank_gain_all$rank[rank_gain_all$app == "ecg_roahd"]),
+  "not testable (one dataset, two changes)",
+  "Response family",
+  sprintf("six families: model-based %s, REML + CL2 %s (smooth process, G = 100)", rng(c(syn_cov("reml_model", "fpc"), fv("reml_model"))), rng(c(syn_cov("reml_cl2", "fpc"), fv("reml_cl2")))),
+  sprintf("β ratio %s across families", rng(c(syn_ratio("fpc"), MSE_RATIO$ratio[MSE_RATIO$block == "families" & MSE_RATIO$error == "fpc" & MSE_RATIO$estimand == "beta" & MSE_RATIO$fit_family == MSE_RATIO$family]))),
+  "Gaussian only",
+  "not testable",
+  "Between-curve dependence",
+  "not in the design (independent curves)",
+  "—",
+  sprintf("block-flip minus curve-flip coverage: REML + curve CL2 %s; block NCV/CL2 MSE ratio %s", rng_pp(bf_effect$diff[bf_effect$name == "coverage:reml_curvecl2"]), rng(bgain$estimate)),
+  "plasmode only (imposed block dependence; curve-flip shortfalls are not evidence about it)",
+  "Other remedies for dependent residuals (pcre, GLS, curve bootstrap)",
+  sprintf("dependent, Gaussian: pcre β %s, GLS (FPCA) %s, REML + CL2 %s", rng(s_cv(s_cmp, "pcre", "synthetic, dependent")), rng(s_cv(s_cmp, "gls_fpc", "synthetic, dependent")), rng(s_cv(s_cmp, "reml_cl2", "synthetic, dependent"))),
+  sprintf("β MSE pcre and GLS (FPCA) %s times NCV's", rng(s_cmp_mse$mse / s_cmp_mse$mse_ncv)),
+  sprintf("pcre β %s, GLS (FPCA) %s; with CL2 %s and %s; bootstrap percentile %s; REML + CL2 %s", rng(s_cv(s_cmp, "pcre", "plasmode")), rng(s_cv(s_cmp, "gls_fpc", "plasmode")), rng(s_cv(s_ca, "pcre_cl2", "plasmode")), rng(s_cv(s_ca, "gls_fpc_cl2", "plasmode")), rng(s_cv(s_cmp, "boot_pct", "plasmode")), rng(s_cv(s_cmp, "reml_cl2", "plasmode"))),
+  sprintf("pcre and GLS: synthetic coverage does not transfer (on real residual curves their estimates keep a bias that CL2 on the same fit does not remove); the curve bootstrap covers on both, at about %s times the time of REML + CL2", f(s_boot_time / s_remlcl2_time, 0)),
+  "Intervals centred at the NCV fit with corrections",
+  sprintf("smoothing-parameter term: NCV + CL2 β %s → %s (Gaussian, Poisson, dependent); binary G = 40 %s", rng(ncs(c("gaussian", "poisson"), "cl2")), rng(ncs(c("gaussian", "poisson"), "ij_lin")), f(ncs("binomial", "ij_lin", g = 40), 2)),
+  "—",
+  sprintf("one-step bias correction + smoothing-parameter term: β %s per dataset", rng(s_comb$coverage)),
+  "does not transfer (smoothing bias of the NCV fit on real data remains)"
+)
+save_tab(cross_rows, "cross-study-assessment")
+```
+
+@tbl-cross summarises, property by property, what the synthetic study found and what the
+nine plasmode datasets can say about it; the evidence behind each row is in the list that
+follows. Associations across datasets are Spearman rank correlations over n = 9 (or the 6
+counted) datasets with two-sided permutation p-values; at n = 9 a |rho| below about 0.6 is
+uninformative, and the datasets' properties are confounded with each other and with the data
+source. Each correlation uses, per dataset, the pool mean over its attached curve-flip cells
+at G = all subjects (all truth × residual combinations) for coverages, the geometric mean over
+residual sources of the MID-truth cell ratios for the NCV gain, the (MID truth, REML residual)
+cell for AR(1), and the diagnostics of the REML residual curves (`cross-study-dataset-outcomes.csv`).
+The synthetic study spans design effects `r rng(syn_de_span$lo, 0)`–`r rng(syn_de_span$hi, 0)` in its
+dependent core cells (D = 61; `r if (has_de) "realized" else "design"` values; realized
+values are means over 20 replicates without an uncertainty estimate and are missing for
+`r nrow(de_missing)` cells, the negative-binomial data fitted as Poisson, where the design
+values stand in); the plasmode datasets span `r rng(cross$DE, 0)` with grid sizes
+`r rng(cross$D, 0)`. Because 1'Σ1/trΣ grows with the grid size, the normalisation
+DE/D = (1'Σ1/trΣ)/D (`r rng(cross$DE_per_D, 2)`) is reported beside it. The design effect is
+the grid-mean variance inflation and does not capture sign-changing or misregistration
+dependence: the sign-changing cells have realized DE `r rng(de_osc, 1)` and the
+misregistration cells `r rng(de_warp, 1)` while their model-based coverage is
+`r rng(cov_oscwarp)`.
+
+```{r}
+#| label: tbl-cross
+#| tbl-cap: "Cross-study assessment: for each data or model property varied in the synthetic study, its synthetic effect on inference and on estimation, what the plasmode data can say about it, and a verdict. Associations are Spearman rho with permutation p over the nine datasets unless marked counted only."
+show(cross_rows)
+```
+
+```{r cross-sentences}
+z_de <- rho_perm(cross$DE, cross$shortfall_model_beta)
+z_ded <- rho_perm(cross$DE_per_D, cross$shortfall_model_beta)
+z_edf <- rho_perm(cross$edf_ratio, cross$log_ratio_MID_beta)
+z_sd <- rho_perm(cross$sd_ratio, cross$reml_cl2_beta)
+z_sd_c <- rho_perm(cc$sd_ratio, cc$reml_cl2_beta)
+resid_excess <- cross |> mutate(pred = predict(lm(shortfall_model_beta ~ log(DE), data = cross)), excess = shortfall_model_beta - pred) |> arrange(desc(excess))
+min_de <- cross |> filter(DE == min(DE))
+gain_order <- cross |> arrange(desc(ratio_MID_beta))
+gain_order_c <- cc |> arrange(desc(ratio_MID_beta))
+```
+
+Evidence per row:
+
+- *Dependence strength.* Model-based shortfall for β against DE: `r A("DE", "shortfall_model_beta")`;
+  against DE/D: `r A("DE_per_D", "shortfall_model_beta")`. The dataset with the smallest DE,
+  `r APP_LABELS[as.character(min_de$app)]` (DE `r f(min_de$DE, 1)`, DE/D `r f(min_de$DE_per_D, 2)`),
+  still has a shortfall of `r pp(min_de$shortfall_model_beta)`; the dataset furthest above the
+  shortfall-on-log-DE trend is `r APP_LABELS[as.character(resid_excess$app[1])]`. REML + CL2
+  β coverage against DE: `r A("DE", "reml_cl2_beta")` (counted only `r A("DE", "reml_cl2_beta", cc)`).
+- *Dependence shape.* `r APP_LABELS[as.character(min_de$app)]`'s residuals have the strongest
+  sign-changing correlations of all datasets (minimum r `r f(min_de$min_r, 2)`) and the most
+  extreme variance profile (SD ratio `r f(min_de$sd_ratio, 0)`). The design effect
+  1'Σ1/trΣ is a grid-mean variance inflation that does not capture such features (see the
+  sign-changing and misregistration cells above); REML + CL2
+  β coverage against the SD ratio is `r f(z_sd$rho, 2)` (p = `r f(z_sd$p, 2)`) over all nine
+  datasets and `r f(z_sd_c$rho, 2)` (p = `r f(z_sd_c$p, 2)`) over the counted six, i.e. driven by
+  the stress tests.
+- *Misregistration.* The two cardiac datasets with real misregistration (ECG strain
+  `r f(100 * cross$phase_share[cross$app == "ecg_gls4b"], 0)`%, AF `r f(100 * cross$phase_share[cross$app == "af"], 0)`%)
+  have REML + CL2 β coverage `r f(cross$reml_cl2_beta[cross$app == "ecg_gls4b"], 3)` and
+  `r f(cross$reml_cl2_beta[cross$app == "af"], 3)` and AR(1) coverage `r f(cross$ar1_model_beta[cross$app == "ecg_gls4b"], 3)`
+  and `r f(cross$ar1_model_beta[cross$app == "af"], 3)`; AR(1)'s lowest real-data coverages are
+  on `r paste(APP_LABELS[as.character((cross |> arrange(ar1_model_beta) |> slice(1:2))$app)], collapse = " and ")`
+  (phase shares `r paste(f(100 * (cross |> arrange(ar1_model_beta) |> slice(1:2))$phase_share, 0), collapse = "% and ")`%).
+- *Number of curves.* Paired within-dataset losses at G = 40 are in @tbl-plasmode-g40 and
+  the synthetic ones in @tbl-g40.
+- *Covariate rank.* MID-truth β gain against rank: `r A("rank_X", "log_ratio_MID_beta")`;
+  REML + CL2 β coverage against rank: `r A("rank_X", "reml_cl2_beta")` (counted only
+  `r A("rank_X", "reml_cl2_beta", cc)`). Counted datasets ordered by REML + CL2 β coverage:
+  `r paste(sprintf("%s %s", APP_LABELS[as.character(rank_cl2$app)], f(rank_cl2$reml_cl2_beta, 3)), collapse = ", ")`.
+- *Truth roughness / EDF gap.* MID-truth β gain against the EDF ratio: `r f(z_edf$rho, 2)`
+  (p = `r f(z_edf$p, 2)`, n = 9). Datasets ordered by the MID-truth ratio (largest gain last):
+  `r paste(sprintf("%s %s (EDF ratio %s)", APP_LABELS[as.character(gain_order$app)], f(gain_order$ratio_MID_beta, 2), f(gain_order$edf_ratio, 2)), collapse = "; ")`.
+  In @fig-cross (c) `r sum(cross$log_ratio_MID_beta < predict(lm(log(ratio) ~ log(edf_ratio), data = sy |> filter(truth == "smooth", !is.na(edf_ratio))), newdata = cross))` of 9
+  datasets lie below the synthetic cells' log-log trend.
+- *Signal.* Shortfall against R²: `r A("R2", "shortfall_model_beta")`; MID gain against R²:
+  `r A("R2", "log_ratio_MID_beta")`.
+- *Term type.* Datasets with resolved α(t) or γ(t) gains under the NCV truth   are listed in
+  @sec-estimation-truth; the surface gain is the only one present on every dataset under the NCV and MID truths
+  (`r sum(cross$ratio_NCV_beta < 1 & cross$ratio_MID_beta < 1)` of 9).
+- *Basis size.* MID-truth β gains ordered: `r paste(sprintf("%s %s", APP_LABELS[as.character(rank_gain_all$app)], f(rank_gain_all$ratio_MID_beta, 2)), collapse = ", ")`;
+  among the counted datasets ECG 8-lead ranks `r which(gain_order_c$app[order(gain_order_c$ratio_MID_beta)] == "ecg_roahd")` of 6 (1 = largest gain).
+- *Other remedies.* Per-cell results and CL2 on the GLS and pcre fits: @sec-comparators, @sec-comp-cl2.
+- *NCV-centred corrections.* Per-dataset results: @sec-ncv-intervals, @sec-lambda; all metrics of the main
+  recipes side by side: @sec-metrics.
+- *Between-curve dependence.* Block-flip minus curve-flip coverages per recipe and dataset:
+  `r paste(sprintf("%s %s %s %s", bf_effect$dataset, ESTIMAND_LABELS[bf_effect$estimand], bf_effect$recipe, pp(bf_effect$diff)), collapse = "; ")`.
+
+{{< include _computing-time.qmd >}}
+
+# Limitations
+
+```{r limitations}
+n_rep <- unique(S$n_rep)
+```
+
+*Error law of the plasmode.* Sign-flipped frozen residual curves reproduce each subject's
+empirical within-curve covariance exactly and nothing else: the error law is a two-point
+mixture, symmetric by construction, with no between-subject variation in the residual
+shapes beyond the observed ones. Residuals are attached to the subject's own covariates; on
+the two datasets run both attached and detached, the two versions gave the same decisions.
+
+*Frozen truths favour their own selector.* A truth taken from the REML fit is REML-shaped,
+one from the NCV fit is NCV-shaped, and MID (log-midpoint smoothing parameters) is interior
+for every term only on `r sum(DATASETS$mid_interior)` of 9 datasets. Changing the truth source
+changes the truth's shape and signal as well as its smoothness, so the plasmode estimation
+results are stated per truth source; the synthetic study is the only place where the truth
+is independent of both selectors.
+
+*Representable truths.* All synthetic truths of the main design are projected onto the fitted
+bases, so approximation bias is absent by design; the rough-truth cells add roughness that the
+bases can represent but the penalties shrink. Truths outside the spline space are studied only
+in the misspecification experiment (@sec-misspec: Gaussian, three truths, two basis sizes).
+
+*Precision.* `r n_rep` replicates give stored MC SEs of the grid-average coverage of
+`r rng_pp(se_dep_cl2, 2)` (REML + CL2) to `r rng_pp(se_dep_model, 2)` (model-based) in the
+dependent synthetic cells and `r rng_pp(se_plas_cl2, 2)` for REML + CL2 in the plasmode
+cells; a single grid point's coverage has a binomial SE of `r pp(sqrt(0.95 * 0.05 / n_rep))`
+near 0.95. A 2 pp undercoverage in one cell is therefore resolved for grid averages but
+the rule's calibration error pools cells and subtracts the MC variance, and several plasmode
+classes are "unresolved" because their bootstrap intervals straddle the 2 pp threshold.
+
+*The calibration error.* The undercoverage-only CE selects the undercovering cells by their
+estimated coverage before subtracting the MC variance, so the variance correction is
+approximate (cells that undercover by chance are counted, cells that overcover by chance are
+not).
+
+*Two calibration criteria.* The undercoverage-only and the symmetric criterion are both
+reported. Under both, the plasmode decision is inconsistent across datasets for β.
+
+*Selected datasets.* The nine datasets were chosen to spread design effect, covariate rank
+and phase variability, not sampled; three have dependent curves and are stress tests; all
+are Gaussian; the ECG 8-lead model uses larger bases than the others; the running data
+keep one condition per person with the other conditions' variation in the residuals; the
+mean estimand is scored on a fixed cohort of 50 subjects. The cardiology datasets are not
+public.
+
+*Diagnostics.* The realized synthetic design effects are means over 20 replicates per cell
+(`analysis/describe-cells.R`), without an uncertainty estimate.
+The studentised-error diagnostics (`writeup/lrz-zstats.R`) cover all `r if (zs_avail) n_distinct(ZS$cell) else 0`
+synthetic cells and all plasmode cells, for β everywhere and for the mean in Gaussian cells.
+
+*Scope.* Simultaneous bands, G < 40, non-Gaussian real data, native-grid density on real
+data, dependence models beyond AR(1), pcre and GLS (@sec-comparators) and the finite-sample calibration error of the
+sandwich pivot itself are outside both studies.
+
+# Supplementary tables {.appendix}
+
+All tables are also written as CSV files to `writeup/tables/`; the per-cell tables (S1–S5)
+are the full study, the tables in the main text are views of them. Column abbreviations:
+cov = grid-average coverage, q05 = 5% quantile of pointwise coverage, IS = interval score,
+CE = calibration error.
+
+## Detail tables referenced in the main text
+
+```{r}
+#| label: tbl-lower-tail
+#| tbl-cap: "Worst-case 5% pointwise-coverage quantile (minimum and median over core cells) and the minimum grid-average coverage, by dependence, G, estimand and arm."
+show(tail_tab)
+```
+
+```{r}
+#| label: tbl-g40
+#| tbl-cap: "Synthetic coverage at G = 40 and G = 100 (mean over the core cells' error processes and signal levels) and the loss at G = 40, dependent cells."
+show(g_sum |> filter(dependence == "dependent"))
+```
+
+```{r}
+#| label: tbl-signal-truth
+#| tbl-cap: "Coverage of β by family, error, truth and signal level, G = 100."
+show(st_tab)
+```
+
+```{r}
+#| label: tbl-het
+#| tbl-cap: "Heteroskedastic Gaussian errors (smooth process with the DTI variance profile along t = var(t), a subject-level scale depending on z = var(z), or both) next to the homoskedastic smooth process."
+show(het_show)
+```
+
+```{r}
+#| label: tbl-osc
+#| tbl-cap: "Sign-changing (damped-cosine) error correlation, G = 100."
+show(osc_show)
+```
+
+```{r}
+#| label: tbl-lowrank
+#| tbl-cap: "NCV/REML MSE ratio with the rich and the low-rank functional covariate, G = 100, default signal."
+show(lowrank_tab)
+```
+
+```{r}
+#| label: tbl-edf-table
+#| tbl-cap: "EDF per term of the three frozen fits (REML / NCV / MID)."
+show(edf_tab)
+```
+
+
+```{r}
+#| label: tbl-plasmode-tails
+#| tbl-cap: "5% quantile of pointwise coverage: mean and minimum over each dataset's pooled cells."
+show(pretty(tails_p))
+```
+
+```{r}
+#| label: tbl-plasmode-g40
+#| tbl-cap: "Plasmode coverage at G = all minus coverage at G = 40 (mean of paired cell differences)."
+show(g40_tab)
+```
+
+```{r}
+#| label: tbl-rule40
+#| tbl-cap: "The recommendation rule on each dataset's G = 40 cells (point estimates under both criteria; no bootstrap flags)."
+show(rule40 |> select(app, role, estimand, n_cells, ce_proposal_under, ce_fallback_under, ce_proposal_sym, ce_fallback_sym, score_ratio, decision_under, decision_sym))
+```
+
+```{r}
+#| label: tbl-rule-variants-plasmode
+#| tbl-cap: "The rule on a 16-cell plasmode design with two datasets (ECG strain on the 79-subject frame, running with the first-50 cohort) under both calibration criteria."
+show(rv_pl |> select(dataset = group, estimand, criterion, n_cells, ce_proposal, ce_fallback, score_ratio, decision) |> pretty())
+```
+
+```{r}
+#| label: tbl-attribution
+#| tbl-cap: "Truth-source and residual-source main effects and their interaction (paired, 95% bootstrap intervals) on the log NCV/REML MSE ratio and on the coverage of three arms. Verdict for the residual effect: small = inside the band (2 pp; log[0.95, 1.05]) with its interval."
+show(att_wide)
+```
+
+```{r}
+#| label: tbl-plasmode-ar1
+#| tbl-cap: "AR(1) working model in the plasmode study: the principal (MID truth, REML residuals) cell of every dataset and the sensitivity cells (running under the REML- and NCV-fitted truths; ECG strain with variance-matched beat errors): coverage, 5% pointwise quantile, REML + CL2 in the same cell, the profiled rho and the fit time."
+show(pretty(ar1_pt))
+```
+
+```{r}
+#| label: tbl-block-coverage
+#| tbl-cap: "Coverage of the block-arm recipes (standard = curve NCV + curve CL2 + allowance; block = block NCV + block CL2 + allowance; cross combinations; REML with curve or block CL2; mismatch = 150 km blocks on weather)."
+show(blk_cov)
+```
+
+```{r}
+#| label: tbl-hybrid-plasmode
+#| tbl-cap: "Hybrid interval in the plasmode study per dataset (all attached curve-flip cells at both G): coverage, 5% quantile and interval score relative to REML + CL2; incl = share of grid points where the NCV estimate lies inside the REML + CL2 interval."
+show(hyb_app)
+```
+
+```{r}
+#| label: tbl-zstats-synthetic
+#| tbl-cap: "Descriptive pooled studentised-error diagnostics of the REML fit, synthetic study: mean and SD of (estimate − truth) / SE and share of |z| > 1.96 with the CL2 SE and the model-based SE, per block, family, error, G, basis and estimand (means over cells; pooled over grid points, so local bias and scale error are not separated; the mean estimand for Gaussian cells only)."
+if (zs_avail) show(pretty(zs_tab)) else cat("pending")
+```
+
+```{r}
+#| label: tbl-zstats-plasmode
+#| tbl-cap: "Descriptive pooled studentised-error diagnostics of the REML fit in the plasmode study (all subjects, model residuals, mean over residual sources; pooled over grid points, so local bias and scale error are not separated) by dataset, truth source and estimand, with the CL2 SE and the model-based SE."
+if (zp_avail) show(zp_tab |> mutate(estimand = ESTIMAND_LABELS[estimand])) else cat("pending")
+```
+
+## S1 Synthetic coverage per cell (mean and β), all arms
+
+```{r supp-tables}
+supp_cov <- S |>
+  filter(estimand %in% c("mean", "beta"), arm %in% c(MAIN_ARMS, "ncv_model", "ncv_cl2f_bias", "ar1_model")) |>
+  select(cell, block, family, fit_family, error, G, signal, truth, D, model, covariate, basis, estimand, arm, coverage_mean, coverage_se, pointwise_q05, width_mean, score_mean)
+save_tab(supp_cov, "S1-synthetic-coverage-per-cell")
+supp_cov_wide <- supp_cov |>
+  mutate(v = sprintf("%s (%s)", f(coverage_mean, 3), f(coverage_se, 3))) |>
+  select(cell, block, family, error, G, signal, truth, D, basis, estimand, arm, v) |>
+  pivot_wider(names_from = arm, values_from = v) |>
+  pretty()
+supp_ag <- S |>
+  filter(estimand %in% c("alpha", "gamma", "f"), arm %in% MAIN_ARMS) |>
+  select(cell, block, family, error, G, signal, truth, D, basis, estimand, arm, coverage_mean, coverage_se, pointwise_q05)
+save_tab(supp_ag, "S2-synthetic-coverage-alpha-gamma-f")
+supp_ag_wide <- supp_ag |>
+  mutate(v = sprintf("%s (%s)", f(coverage_mean, 3), f(coverage_se, 3))) |>
+  select(-coverage_mean, -coverage_se, -pointwise_q05) |>
+  pivot_wider(names_from = arm, values_from = v) |>
+  pretty()
+supp_mse <- S |>
+  filter(arm %in% c("reml_cl2", "ncv_cl2")) |>
+  transmute(cell, block, family, error, G, signal, truth, D, basis, estimand, fit = if_else(arm == "reml_cl2", "REML", "NCV"), mse, mse_se, bias2, bias2_se, variance) |>
+  left_join(MSE_RATIO |> select(cell, estimand, ratio, ratio_lower, ratio_upper), by = c("cell", "estimand"))
+save_tab(supp_mse, "S3-synthetic-mse-per-cell")
+supp_mse_wide <- supp_mse |>
+  select(cell, block, family, error, G, signal, truth, basis, estimand, fit, mse) |>
+  pivot_wider(names_from = fit, values_from = mse, names_prefix = "MSE ") |>
+  left_join(MSE_RATIO |> transmute(cell, estimand, `ratio NCV/REML` = ci(ratio, ratio_lower, ratio_upper, 2)), by = c("cell", "estimand")) |>
+  pretty()
+supp_p <- P |>
+  filter(estimand %in% c("mean", "beta", "alpha", "gamma")) |>
+  mutate(dataset = label_app(app)) |>
+  select(dataset, role, truth, residual, flip, error, G, estimand, arm, n_rep, coverage_mean, coverage_se, pointwise_q05, width_mean, score_mean, mse, bias2, variance)
+save_tab(supp_p, "S4-plasmode-coverage-per-cell")
+supp_p_wide <- supp_p |>
+  filter(arm %in% c(MAIN_ARMS, "ar1_model"), estimand %in% c("mean", "beta")) |>
+  mutate(v = sprintf("%s (%s)", f(coverage_mean, 3), f(coverage_se, 3))) |>
+  select(dataset, truth, residual, flip, error, G, estimand, arm, v) |>
+  pivot_wider(names_from = arm, values_from = v) |>
+  arrange(dataset, estimand, desc(G), truth, residual) |>
+  pretty()
+supp_pm <- PM |>
+  mutate(dataset = label_app(app)) |>
+  select(dataset, role, truth, residual, flip, error, G, estimand, n_pairs, mse_ratio_ncv_reml, ratio_lower, ratio_upper)
+save_tab(supp_pm, "S5-plasmode-mse-ratio-per-cell")
+supp_pm_wide <- supp_pm |>
+  mutate(v = ci(mse_ratio_ncv_reml, ratio_lower, ratio_upper, 2)) |>
+  select(dataset, truth, residual, flip, error, G, estimand, v) |>
+  pivot_wider(names_from = estimand, values_from = v) |>
+  arrange(dataset, desc(G), truth, residual) |>
+  pretty()
+```
+
+```{r}
+#| label: tbl-core-coverage-all
+#| tbl-cap: "Grid-average coverage (MC SE) of the conditional mean and β per synthetic cell and arm."
+show(supp_cov_wide)
+```
+
+## S2 Synthetic coverage of α(t), γ(t) and f(x,t)
+
+```{r}
+#| label: tbl-supp-ag
+#| tbl-cap: "Coverage (MC SE) of α(t), γ(t) and f(x,t) per cell."
+show(supp_ag_wide)
+```
+
+## S3 Synthetic MSE per cell
+
+```{r}
+#| label: tbl-supp-mse
+#| tbl-cap: "Integrated MSE of the REML and NCV fits per cell and estimand and their paired ratio with 95% bootstrap interval; the squared-bias/variance split with MC SEs is in the CSV."
+show(supp_mse_wide, digits = 4)
+```
+
+## S4 Plasmode coverage per cell
+
+```{r}
+#| label: tbl-supp-plasmode
+#| tbl-cap: "Grid-average coverage (MC SE) per plasmode cell and arm."
+show(supp_p_wide)
+```
+
+## S5 Plasmode MSE ratios per cell
+
+```{r}
+#| label: tbl-supp-plasmode-mse
+#| tbl-cap: "NCV/REML MSE ratio per plasmode cell and estimand with 95% paired bootstrap intervals."
+show(supp_pm_wide)
+```
+
+## S7 Relative error and interval informativeness per cell
+
+```{r}
+#| label: tbl-s7
+#| tbl-cap: "β(s,t) per synthetic cell: relative error of the REML and NCV estimates, relative half-width and detection rate of REML + CL2 and NCV + CL2 (medians over replicates; detection: mean). All arms and estimands: relative-error-cells.csv."
+s7_full <- REL |> select(cell, block, family, signal, error, G, truth, basis, estimand, arm, coverage, rel_rmse_median, rel_rmse_q90, share_rel_gt_1, rel_halfwidth_median, detect, wrong_sign)
+save_tab(s7_full, "relative-error-cells")
+s7 <- REL |>
+  filter(estimand == "beta", arm %in% c("reml_cl2", "ncv_cl2")) |>
+  mutate(fit = if_else(arm == "reml_cl2", "R", "N")) |>
+  select(cell, block, family, signal, error, G, fit, rel = rel_rmse_median, hw = rel_halfwidth_median, det = detect) |>
+  pivot_wider(names_from = fit, values_from = c(rel, hw, det), names_sep = "_") |>
+  arrange(cell)
+show(s7, digits = 2)
+```
+
+## S6 Files
+
+```{r files}
+#| cache: false
+tibble::tibble(file = list.files(TAB_DIR, pattern = "\\.csv$")) |> show()
+```

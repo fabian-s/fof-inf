@@ -1,0 +1,152 @@
+# Set-ups of the two studies {#sec-app-setup}
+
+## Simulation design
+
+The data follow model @eq-model with $i = 1, \dots, G$ curves. Responses are generated on a
+grid of 241 points in $t \in [0, 1]$ and subsampled to $D = 61$ (default) or 241 points; the
+functional covariate is observed on 51 points in $s \in [0, 1]$:
+$X_i(s) = \xi_{i0} + \sum_{j=1}^{29} \xi_{ij}\sqrt 2 \cos(j\pi s)$ with independent
+$\xi_{ij} \sim N(0, (j+1)^{-2})$. Its centred spectrum (first principal component 62% of the
+variance, four components 88%, rank 24 at 99.5%) matches the corpus-callosum profiles of the
+baseline DTI data in refund (67%, 86%, 26). The low-rank variant uses variances $(j+1)^{-3}$ (rank 9).
+The scalar covariate is $z_i \sim N(0, 1)$. The smooth-effect model replaces the functional term by
+$f(x_i, t)$ with $x_i \sim U(0, 1)$.
+
+Truths are fixed functions projected by least squares onto the fitted bases, so they are exactly
+representable: $\beta(s,t) = \cos(\pi s)\sin(\pi t) + (s - 1/2)\cos(2\pi t)$,
+$f(x,t) = 2(x - 1/2)\cos(\pi t) + t\sin(\pi x)$, $\gamma(t) = \sin(2\pi t)$. The rough truth adds
+$0.6\sin(3\pi s)\sin(3\pi t)$ to $\beta$ and $f$ and $0.5\sin(5\pi t)$ to $\gamma$. Truths are scaled
+so that the non-intercept signal $S = \int \mathrm{Var}_{X,z}\{\eta(t) - \alpha(t)\}\,dt$ is 1 (80% from
+the main term, 20% from $\gamma$) and multiplied by $\sqrt S$ per family. The intercept is a Gaussian
+bump plus a constant that sets the average response level (mean count 3, prevalence 0.2).
+
+Fitted bases: cubic B-splines with first-order difference penalties [@Eilers1996; @Wood2017] (mgcv's `ps` basis with `m = c(2, 1)`), so constants along each direction are unpenalized; $k = 12$ along $t$ for the
+intercept and $\gamma$; an $8 \times 10$ tensor product for $\beta$; $8 \times 12$ for $f$. The larger
+bases halve and quarter the knot spacing (about 100, 260 and 790 coefficients). Within-curve errors
+are a zero-mean process with correlation kernel $R$, scaled for Gaussian responses and used as the
+latent layer of a Gaussian copula for the other families, $Y_{ij} = F^{-1}_{ij}\{\Phi(Z_{ij})\}$, so
+each marginal is exactly the fitted family and the working model is wrong only about the dependence.
+Kernels: independent; rough stationary $0.8\exp(-|s-t|/0.089) + 0.2\,\mathbb 1\{s=t\}$; smooth: the
+residual covariance of a REML fit to the DTI data (24 eigenfunctions plus 6% white noise, as a
+correlation kernel); exact AR(1) $\exp(-|s-t|/0.071)$; sign-changing
+$0.8\exp(-|s-t|/0.3)\cos(2\pi|s-t|/0.4) + 0.2\,\mathbb 1\{s=t\}$; heteroskedastic versions of the
+smooth kernel with the DTI variance profile along $t$, a subject scale $\exp(0.5 z_i - 0.25)$, or both.
+Misregistration: $Y_i(t_j) = \eta_i(h_i(t_j)) + \varepsilon_i(h_i(t_j))$ with
+$h_i(t) = t + a_i\sin(\pi t)/\pi$, $a_i \sim N(0, 0.314^2)$ truncated at $|a_i| \le 0.9$, independent
+errors. Gaussian misregistration settings score the warp-averaged coefficient functions, GLM settings
+only the exact observed-clock mean.
+
+Signal: $R^2 \in \{0.2, 0.5, 0.8\}$ for Gaussian responses; $\sqrt S \in \{0.5, 1\}$ on the link scale
+for Poisson and binary responses. Extended families at the default signal: scaled $t$ (4 df) as
+Gaussian at $R^2 = 0.5$; beta ($\phi = 20$, mean 0.3) and negative binomial (size 5, mean 3) at
+$\sqrt S = 0.5$. The 20-curve block uses the first 20 curves of each replicate of the main factorial,
+so it shares its draws with the 40- and 100-curve settings. The zero-surface block sets
+$\beta \equiv 0$ in the smooth-truth setting at the default signal, for Gaussian and binary responses
+with independent and smooth errors and 40 and 100 curves; $\gamma$, the intercept bump and the
+Gaussian error variance are those of the non-zero setting, and the intercept constant of binary
+responses is reset to keep the prevalence at 0.2. All random draws depend only on the replicate index, so contrasts between settings
+and intervals are paired. Each setting has `r unique(S$n_rep)` replicates; none failed. Concurvity of
+the fitted terms (mgcv's worst case) is at most `r f(max(CONC$concurvity), 2)`. The next table lists the
+blocks of settings: the main factorial (family × error process × $G$ × signal) and extensions that
+each change one factor.
+
+```{r s2-design}
+#| output: asis
+stab(blocks |> select(block, cells, families, errors, G, signal, truth, D, model, covariate, basis) |>
+  mutate(block = gsub("_", " ", recode(block, core = "main factorial", small_G = "main factorial, G = 20", null_beta = "zero surface", warp = "misregistration", ar1_home = "exact AR(1)", warp_ar1 = "misreg. (AR(1) fit)", families = "extended families", term_type = "smooth effect", oscillating = "sign-changing", lowrank_covariate = "low-rank covariate", basis_size = "larger bases")),
+    model = recode(model, `ff(X)` = "functional", `f(x,t)` = "smooth effect"), truth = recode(truth, null = "zero"), covariate = recode(covariate, lowrank = "low-rank")) |> rename(settings = cells),
+  "Blocks of the simulation design. Error processes: indep. independent, rough rough stationary, smooth from the DTI residuals, AR(1) exact AR(1), sign-chg. sign-changing, var(t)/var(z)/var(t,z) heteroskedastic versions of smooth, misreg. misregistration. Truth: smooth, rough or zero. Signal: low, default, high. Bases: default, 2× or 4× finer knots.", font = 7)
+```
+
+Fits per replicate: REML and curve-blocked NCV (mgcv `gam`); pointwise (non-blocked) NCV in the
+Gaussian settings at $G = 100$ with independent, smooth and sign-changing errors; and the AR(1) working
+model in the Gaussian settings at $G = 100$ with dependent errors. The AR(1) model is fitted with
+mgcv's `bam()` by fast REML with AR(1) errors that restart at the first grid point of each curve.
+Its correlation $\rho$ is profiled over the grid $\{0, 0.1, \dots, 0.9, 0.95, 0.99\}$ by the fast-REML
+criterion, which includes the log-determinant of the whitening transform; the best grid value is
+then refined by a one-dimensional search between its two neighbouring grid values. Its intervals are
+model-based from that fit. The plasmode study uses the same fit. NCV fits flagged as not converged:
+`r f(100 * (1 - conv_ncv$conv[conv_ncv$fit_family == "scat"]), 0)`% of scaled-$t$ fits,
+`r f(100 * (1 - conv_ncv$conv[conv_ncv$fit_family == "betar"]), 1)`% of beta fits, fewer than 0.1%
+otherwise. For the first `r n_distinct(SCAT$task)` flagged scaled-$t$ fits, refits from the REML
+smoothing parameters and from ten times them reach the same criterion within
+`r formatC(max(tapply(SCAT$criterion, SCAT$task, \(x) diff(range(x)))), format = "e", digits = 0)` and
+coefficients within `r formatC(max(SCAT$beta_max_diff), format = "e", digits = 0)`: for these fits the optimum is flat,
+the fit stable. The check covers these five fits only.
+
+
+
+## Plasmode datasets
+
+A plasmode simulation [@FranklinSchneeweissPolinskiRassen2014] keeps the real covariates and real
+error structure of a dataset and replaces only the true regression function by a known one.
+
+```{r s3-datasets}
+#| output: asis
+ds_text <- DS |> mutate(
+  source = if_else(app == "ecg_gls4b", "myocardial-strain study, first beat per subject", source),
+  source = if_else(app == "af", "atrial-fibrillation trial, patients randomised to digoxin or a beta-blocker", source),
+  access = if_else(startsWith(access, "local"), "non-public; aggregates only", access),
+  source = sub(" via tidyfundata::running", "", source, fixed = TRUE),
+  covariate = sub(" (presumed from the documented lead order)", "", covariate, fixed = TRUE),
+  prep = sub("; lead identities resolved from the R-wave progression", "", prep, fixed = TRUE),
+  grid_note = sub(" (as in the original 16 cells)", "", grid_note, fixed = TRUE)
+)
+for (i in seq_len(nrow(ds_text))) {
+  d <- ds_text[i, ]
+  cat(sprintf(
+    "**%s** (%s; %s; %s). %d curves; response: %s, native grid %s (fitted: %s); functional covariate: %s; scalar covariate: %s. Preprocessing: %s. REML fit: $R^2$ %s, surface EDF %s (NCV fit: %s); residual design effect %s, lag-one correlation %s, %s%% negative correlations, %d principal components for 90%% of the residual variance, covariate rank %d.\n\n",
+    d$dataset, if (d$role == "counted") "independent curves" else "dependent curves", d$source, d$access, d$G,
+    d$response, d$native, d$grid_note, d$covariate, d$z, d$prep,
+    f(d$R2, 2), f(d$edf_ff_REML, 1), f(d$edf_ff_NCV, 1), f(d$DE, 1), f(d$lag1, 2), f(100 * d$neg_share, 0),
+    as.integer(d$fpc90), as.integer(d$rank_X)
+  ))
+}
+```
+
+The ECG strain beats were recorded with 29 to 83 frames and interpolated to 61 grid points;
+interpolation adds smoothness within a curve, so part of the residual dependence of that dataset,
+and of its design effect, comes from the interpolation.
+
+Six datasets have independent source curves. The other three have source curves that are serially
+(ocean, electricity) or spatially (weather) dependent units. The residual *design effect* of a dataset
+is $\mathbf 1^\top\boldsymbol\Sigma\mathbf 1/\operatorname{tr}\boldsymbol\Sigma$ for the covariance
+$\boldsymbol\Sigma$ of its REML residual curves: the factor by which the variance of a grid mean
+exceeds its working-independence value.
+
+```{r t-s3-models-1}
+#| output: asis
+stab(model_tab |> select(-model), "Fitted models: bases (intercept, $\\gamma$; surface $8 \\times 10$), $R^2$ of the REML fit, surface and total EDF of the three fits used as truths (REML / NCV / midpoint), and whether the midpoint fit lies between the two for every term.", font = 6)
+```
+
+```{r t-s3-models-3}
+#| output: asis
+stab(dep_tab |> select(-role), "Residual dependence and covariate diagnostics (REML residual curves): design effect DE and DE$/D$, residual correlation at one grid step and at 10% and 25% of the domain, share of negative correlations and the most negative one, max/min SD along $t$, principal components for 90% of the residual variance, centred covariate rank, share of response variance removed by registration.", font = 6)
+```
+
+```{r t-s3-models-4}
+#| output: asis
+stab(block_tab, "Datasets with dependent source curves: block construction for the block flips and block-wise NCV; residual-score correlation within and between blocks.", font = 6)
+```
+
+## Construction of the plasmode data
+
+Each dataset's model, $Y_i(t) = \alpha(t) + \int X_i(s)\beta(s,t)\,ds + z_i\gamma(t) + \varepsilon_i(t)$
+(Gaussian), is fitted by REML and by curve-blocked NCV. The fitted means of three fits serve as
+truths: the REML fit (*REML-fitted truth*), the NCV fit (*NCV-fitted truth*) and a refit with every
+smoothing parameter at the geometric mean of the two fits' values (*midpoint truth*). Replicate data
+are these fitted means plus each subject's own residual curve from the REML or the NCV fit, multiplied by an
+independent random sign per curve. Sign flipping keeps each residual curve's within-curve covariance
+and makes the curves independent across subjects. For the ECG strain data, heartbeat difference
+curves $(Y_{i1} - Y_{i2})/\sqrt 2$ of two beats per subject are a further error source that no fit
+shaped, on their own scale or rescaled to the average variance of the REML residuals. Each
+combination of dataset, truth and residual source is run with all subjects and with 40 randomly
+chosen subjects (`r unique(P$n_rep)` replicates each). The three datasets with dependent source curves add block flips
+(one sign per block of neighbouring curves) and block-wise NCV and CL2. The mean is evaluated for a
+fixed set of 50 subjects' covariates of the dataset, at the native grid points.
+`r nrow(P |> distinct(app, truth, residual, flip, error, G))` combinations in all.
+
+```{r t-s3-cohort}
+#| output: asis
+stab(cohort, "Choice of the fixed set of 50 subjects for the mean: the rule used, and the balance check of the first 50 subjects against the remaining subjects (one-sided test at 5%, permutation p-value, standardized mean differences of the scalar covariate and the first three covariate scores). Where this check failed, a seeded random sample of 50 subjects was used; the balance of that sample was not recorded.", font = 6)
+```

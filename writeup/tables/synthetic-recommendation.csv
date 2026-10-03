@@ -1,0 +1,13 @@
+proposal,family,estimand,n_cells,ce_proposal,ce_fallback,score_ratio,decision
+ncv_cl2_bias,gaussian,mean,7,0,0.00677678093331323,0.8729562475742629,proposal
+ncv_cl2_bias,gaussian,beta,7,0,0.00681756852474915,0.6924556874688692,proposal
+ncv_cl2_bias,poisson,mean,4,0,0.00669141153758632,0.8766573409968068,proposal
+ncv_cl2_bias,poisson,beta,4,0,0.00659799910474293,0.6876967921532472,proposal
+ncv_cl2_bias,binomial,mean,4,0.00987337896210435,0.00785401459843371,0.9163728674830024,proposal
+ncv_cl2_bias,binomial,beta,4,0,0,0.7039487414105159,proposal
+ncv_cl2f_bias,gaussian,mean,7,0.00298445193937808,0.00677678093331323,0.874946927674633,proposal
+ncv_cl2f_bias,gaussian,beta,7,0,0.00681756852474915,0.6881813162022883,proposal
+ncv_cl2f_bias,poisson,mean,4,0,0.00669141153758632,0.8778779928373774,proposal
+ncv_cl2f_bias,poisson,beta,4,0,0.00659799910474293,0.6820692339726229,proposal
+ncv_cl2f_bias,binomial,mean,4,0.01883754912188291,0.00785401459843371,0.92620972182657,proposal
+ncv_cl2f_bias,binomial,beta,4,0,0,0.6981563834090196,proposal

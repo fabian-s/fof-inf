@@ -1,0 +1,122 @@
+# The main recipes on every metric {#sec-metrics}
+
+One view of the four main interval constructions on every reported metric: grid-average coverage, the 5%
+quantile of pointwise coverage (q05), width and interval score relative to REML + CL2 (geometric means of
+per-cell ratios; the interval score is a proper scoring rule, < 1 is better), the median relative error of the
+centre, the median relative half-width and the median detection rate (definitions in the reading guide and
+@sec-relerr). Synthetic: the core cells (three families, all signal levels), by dependence and G. Plasmode: the
+attached curve-flip cells with all subjects, all truth × residual sources. REML + CL2 and the model-based interval
+share the REML centre, NCV + CL2 and the bias-aware interval the NCV centre, so their relative errors coincide.
+AR(1) results on the same metrics are in @tbl-ar1 and @tbl-plasmode-ar1, the comparators in @tbl-comp-coverage
+and @tbl-comp-cl2, the NCV-centred corrections in @tbl-ncvi-scores.
+
+```{r metrics-data}
+MET_ARMS <- c("reml_model", "reml_cl2", "ncv_cl2", "ncv_cl2_bias")
+met_sum <- \(d, ...) d |>
+  group_by(...) |>
+  summarise(cells = n(), cov_min = min(coverage_mean), coverage = mean(coverage_mean), q05 = mean(pointwise_q05),
+            score_rel_max = max(score_rel), width_rel = exp(mean(log(width_rel))), score_rel = exp(mean(log(score_rel))),
+            rel_error = median(rel_rmse_median), halfwidth = median(rel_halfwidth_median), detect = median(detect),
+            .groups = "drop")
+rel_syn_m <- read_summary("final", "relative-error") |> select(cell, estimand, arm, rel_rmse_median, rel_halfwidth_median, detect)
+met_syn <- S |>
+  filter(block == "core", estimand %in% c("mean", "beta", "alpha", "gamma"), arm %in% MET_ARMS) |>
+  select(cell, family, error, G, signal, estimand, arm, coverage_mean, pointwise_q05, width_mean, score_mean) |>
+  left_join(rel_syn_m, by = c("cell", "estimand", "arm")) |>
+  group_by(cell, estimand) |>
+  mutate(width_rel = width_mean / width_mean[arm == "reml_cl2"], score_rel = score_mean / score_mean[arm == "reml_cl2"]) |>
+  ungroup() |>
+  mutate(setting = paste0(if_else(error == "iid", "independent", "dependent"), ", G = ", G))
+stopifnot(!anyNA(met_syn$score_rel), !anyNA(met_syn$rel_rmse_median))
+met_syn_tab <- met_sum(met_syn, setting, estimand, arm) |>
+  mutate(arm = factor(ARM_LABELS[arm], ARM_LABELS), estimand = label_estimand(estimand)) |>
+  select(setting, estimand, arm, cells, coverage, cov_min, q05, width_rel, score_rel, score_rel_max, rel_error, halfwidth, detect) |>
+  arrange(setting, estimand, arm)
+save_tab(met_syn_tab, "metrics-synthetic")
+rel_pm_m <- read_summary("plasmode", "relative-error") |>
+  filter(flip == "curve", error == "attached") |>
+  select(app, truth, residual, G, estimand, arm, rel_rmse_median, rel_halfwidth_median, detect)
+met_pm <- P_POOL |>
+  filter(arm %in% MET_ARMS, estimand %in% c("mean", "beta", "alpha", "gamma")) |>
+  select(app, role, truth, residual, G, estimand, arm, coverage_mean, pointwise_q05, width_mean, score_mean) |>
+  left_join(rel_pm_m, by = c("app", "truth", "residual", "G", "estimand", "arm")) |>
+  group_by(app, truth, residual, estimand) |>
+  mutate(width_rel = width_mean / width_mean[arm == "reml_cl2"], score_rel = score_mean / score_mean[arm == "reml_cl2"]) |>
+  ungroup()
+stopifnot(!anyNA(met_pm$score_rel), !anyNA(met_pm$rel_rmse_median))
+met_pm_tab <- met_sum(met_pm, role, estimand, arm) |>
+  mutate(arm = factor(ARM_LABELS[arm], ARM_LABELS), estimand = label_estimand(estimand)) |>
+  select(role, estimand, arm, cells, coverage, cov_min, q05, width_rel, score_rel, score_rel_max, rel_error, halfwidth, detect) |>
+  arrange(role, estimand, arm)
+save_tab(met_pm_tab, "metrics-plasmode")
+met_pm_app <- met_sum(met_pm |> filter(estimand == "beta"), app, arm) |>
+  mutate(dataset = label_app(app), arm = factor(ARM_LABELS[arm], ARM_LABELS)) |>
+  select(dataset, arm, cells, coverage, q05, width_rel, score_rel, rel_error, halfwidth, detect) |>
+  arrange(dataset, arm)
+save_tab(met_pm_app, "metrics-plasmode-beta-per-dataset")
+mtv <- \(set, a, col, e = "beta") met_syn_tab[[col]][met_syn_tab$setting == set & met_syn_tab$arm == ARM_LABELS[[a]] & met_syn_tab$estimand == ESTIMAND_LABELS[[e]]]
+mpv <- \(a, col, r = "counted", e = "beta") met_pm_tab[[col]][met_pm_tab$role == r & met_pm_tab$arm == ARM_LABELS[[a]] & met_pm_tab$estimand == ESTIMAND_LABELS[[e]]]
+mpa <- \(a, col) met_pm_app[[col]][met_pm_app$arm == ARM_LABELS[[a]]]
+```
+
+```{r fig-metrics}
+#| fig-cap: "Interval score relative to REML + CL2 (log scale, < 1 better) against grid-average coverage, per cell, for β(s,t) and the test-cohort mean: synthetic core cells by dependence (both G) and plasmode cells (attached residuals, curve flips, all subjects; all truth × residual sources). Dotted: nominal coverage; dashed: equal interval score."
+#| fig-height: 5.2
+d <- bind_rows(
+  met_syn |> transmute(panel = paste("synthetic,", if_else(error == "iid", "independent", "dependent")), estimand, arm, coverage_mean, score_rel),
+  met_pm |> transmute(panel = paste("plasmode,", role), estimand, arm, coverage_mean, score_rel)
+) |>
+  filter(estimand %in% c("mean", "beta"), arm != "reml_cl2") |>
+  mutate(arm = label_arm(arm), estimand = label_estimand(estimand),
+         panel = factor(panel, c("synthetic, dependent", "synthetic, independent", "plasmode, counted", "plasmode, stress test")))
+fig <- ggplot(d, aes(coverage_mean, score_rel, colour = arm)) +
+  geom_hline(yintercept = 1, linetype = 2, colour = "grey40") +
+  geom_vline(xintercept = LEVEL, linetype = 3, colour = "grey40") +
+  geom_point(size = 0.9, alpha = 0.7) +
+  facet_grid(estimand ~ panel) +
+  scale_y_log10() +
+  scale_colour_manual(values = ARM_COLOURS, name = NULL, drop = TRUE) +
+  labs(x = "coverage (grid average)", y = "interval score / REML + CL2 (log scale)") +
+  theme_doc
+save_fig(fig, "metrics-score-coverage", 7.5, 5.2)
+fig
+```
+
+In the dependent synthetic cells at G = 100 the four constructions cover β at
+`r f(mtv("dependent, G = 100", "reml_model", "coverage"))` (model-based), `r f(mtv("dependent, G = 100", "reml_cl2", "coverage"))`
+(REML + CL2), `r f(mtv("dependent, G = 100", "ncv_cl2", "coverage"))` (NCV + CL2) and
+`r f(mtv("dependent, G = 100", "ncv_cl2_bias", "coverage"))` (bias-aware), with interval scores
+`r f(mtv("dependent, G = 100", "reml_model", "score_rel"), 2)`, 1, `r f(mtv("dependent, G = 100", "ncv_cl2", "score_rel"), 2)` and
+`r f(mtv("dependent, G = 100", "ncv_cl2_bias", "score_rel"), 2)` times REML + CL2's; the NCV centre's median relative error is
+`r f(mtv("dependent, G = 100", "ncv_cl2", "rel_error"), 2)` against `r f(mtv("dependent, G = 100", "reml_cl2", "rel_error"), 2)` for
+REML, and the detection rates are `r f(mtv("dependent, G = 100", "reml_cl2", "detect"), 2)` (REML + CL2),
+`r f(mtv("dependent, G = 100", "ncv_cl2", "detect"), 2)` (NCV + CL2) and `r f(mtv("dependent, G = 100", "ncv_cl2_bias", "detect"), 2)`
+(bias-aware) (@tbl-metrics-syn). In the dependent settings the model-based interval's score is
+`r rng(met_syn_tab$score_rel[met_syn_tab$arm == ARM_LABELS[["reml_model"]] & startsWith(met_syn_tab$setting, "dependent")], 2)` times
+REML + CL2's: the score's penalty term prices its undercoverage. On the counted plasmode datasets the
+pooled β coverage is `r f(mpv("reml_model", "coverage"))`, `r f(mpv("reml_cl2", "coverage"))`, `r f(mpv("ncv_cl2", "coverage"))` and
+`r f(mpv("ncv_cl2_bias", "coverage"))` and the interval scores `r f(mpv("reml_model", "score_rel"), 2)`, 1,
+`r f(mpv("ncv_cl2", "score_rel"), 2)` and `r f(mpv("ncv_cl2_bias", "score_rel"), 2)` times REML + CL2's (@tbl-metrics-pm); per dataset the
+bias-aware interval's score ratio is `r rng(mpa("ncv_cl2_bias", "score_rel"), 2)` and NCV + CL2's `r rng(mpa("ncv_cl2", "score_rel"), 2)`
+(@tbl-metrics-pm-app). The interval score rewards the NCV centre's smaller error even where the interval undercovers (NCV + CL2 in
+the dependent synthetic cells: coverage `r f(mtv("dependent, G = 100", "ncv_cl2", "coverage"))`, score
+`r f(mtv("dependent, G = 100", "ncv_cl2", "score_rel"), 2)` times REML + CL2's), so a better score is not evidence of
+calibration (@fig-metrics).
+
+```{r}
+#| label: tbl-metrics-syn
+#| tbl-cap: "Synthetic core cells, the main interval constructions on every metric, for the mean and β: cells, coverage (mean, minimum), q05, width and interval score relative to REML + CL2 (geometric mean; maximum per-cell score ratio), median relative error, median relative half-width and median detection rate. α(t) and γ(t) in metrics-synthetic.csv."
+show(met_syn_tab |> filter(estimand %in% ESTIMAND_LABELS[c("mean", "beta")]) |> mutate(G = as.integer(sub(".*G = ", "", setting)), setting = if_else(startsWith(setting, "dependent"), "dep.", "iid"), .after = setting) |> rename(errors = setting, `IS rel` = score_rel, `IS rel max` = score_rel_max, `width rel` = width_rel, `rel err` = rel_error, `half-w` = halfwidth), digits = 3)
+```
+
+```{r}
+#| label: tbl-metrics-pm
+#| tbl-cap: "Plasmode (attached residuals, curve flips, all subjects; all truth × residual sources), the main interval constructions on every metric by dataset role and estimand; columns as in the synthetic table."
+show(met_pm_tab |> rename(`IS rel` = score_rel, `IS rel max` = score_rel_max, `width rel` = width_rel, `rel err` = rel_error, `half-w` = halfwidth), digits = 3)
+```
+
+```{r}
+#| label: tbl-metrics-pm-app
+#| tbl-cap: "Plasmode, β(s,t), per dataset: coverage, q05, width and interval score relative to REML + CL2, median relative error, relative half-width and detection rate, over the dataset's truth × residual cells (all subjects, curve flips)."
+show(met_pm_app |> rename(`IS rel` = score_rel, `width rel` = width_rel, `rel err` = rel_error, `half-w` = halfwidth), digits = 3)
+```

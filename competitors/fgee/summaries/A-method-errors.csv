@@ -1,0 +1,2 @@
+"cell","rep","method","error"
+16,99,"fgee_ar1_exchangeable","Lapack routine dgesv: system is exactly singular: U[48,48] = 0"

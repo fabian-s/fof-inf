@@ -1,0 +1,154 @@
+---
+title: "A cluster-robust smoothing-parameter correction for CL2"
+format:
+  pdf:
+    documentclass: article
+    geometry: margin=2.5cm
+    fontsize: 10pt
+---
+
+## Setting
+
+Curves $g = 1, \dots, G$ with $n_g$ grid points each; rows $i$ of the model matrix $X$
+(rows $x_i^\top$), coefficients $\theta$, penalty $S_\lambda = \sum_k \lambda_k S_k$,
+$\rho_k = \log\lambda_k$. Canonical link (Gaussian identity, Poisson log, binomial
+logit), working weights $W_i = W(\eta_i)$ with $\eta$-derivatives $W_i', W_i''$; scale
+$\phi$ ($\phi = 1$ for Poisson and binomial; for the Gaussian family $\tau = \log\phi$ is
+a further outer parameter). Outer parameters $\omega = (\rho, \tau)$.
+
+Give curve $g$ a weight $w_g$ on its log-likelihood contribution, including its
+normalising constant, so that $w_g = 0$ deletes the curve. With
+$D(\theta; w) = \sum_g w_g \sum_{i \in g} d_i(\theta)$ the deviance,
+$\hat\theta(\rho, w)$ minimises $D + \theta^\top S_\lambda \theta$ and mgcv's REML
+criterion (Laplace approximation; Wood 2011) is
+$$
+\mathcal V(\omega; w) = \frac{D(\hat\theta; w) + \hat\theta^\top S_\lambda \hat\theta}{2\phi}
++ \frac{n_w - M_p}{2} \log(2\pi\phi)\,[\text{Gaussian}]
++ \tfrac12 \log|A| - \tfrac12 \log|S_\lambda|_+ ,
+\qquad A = X^\top \operatorname{diag}(w_i W_i) X + S_\lambda,
+$$
+with $n_w = \sum_g w_g n_g$. These weights coincide with mgcv's prior weights only at
+$w_g \in \{0, 1\}$: mgcv's Gaussian REML counts the rows with positive prior weight, so a
+zero weight is an exact deletion, but a weight $1 \pm \varepsilon$ leaves its $n$ unchanged
+(the finite-difference check therefore omits the $n_g/2$ term; with equal $n_g$ the term is
+constant over curves and centring removes it anyway). By the envelope theorem
+$$
+\frac{\partial \mathcal V}{\partial \rho_k} = \frac{\lambda_k \hat\theta^\top S_k \hat\theta}{2\phi}
++ \tfrac12 \operatorname{tr}(A^{-1} A_k) - \tfrac12 \lambda_k \operatorname{tr}(S_\lambda^+ S_k),
+\qquad
+\frac{\partial \mathcal V}{\partial \tau} = -\frac{D + \hat\theta^\top S_\lambda \hat\theta}{2\phi} + \frac{n_w - M_p}{2},
+$$
+where $A_k = \lambda_k S_k + X^\top \operatorname{diag}(w_i W_i' x_i^\top \theta_k) X$ and
+$\theta_k = \partial\hat\theta/\partial\rho_k = -A^{-1}\lambda_k S_k \hat\theta$ (column
+$k$ of $J$, mgcv's `db.drho`). $\hat\omega$ solves $\nabla_\omega \mathcal V(\hat\omega; 1) = 0$;
+$H = \nabla^2_\omega \mathcal V$ is mgcv's `outer.info$hess`.
+
+## Influence of a curve on $\hat\omega$ and $\hat\theta$
+
+**Does the gradient decompose over curves?** Not exactly: the log-determinant
+$\log|A|$ is not a sum of curve terms, and $\hat\theta$ enters quadratically. But
+$\nabla_\omega\mathcal V(\omega; w)$ is a smooth function of $w$, and the implicit-function
+theorem gives the exact derivative
+$$
+\frac{d\hat\omega}{dw_g}\Big|_{w = 1} = -H^{-1} s_g, \qquad
+s_g = \frac{\partial \nabla_\omega \mathcal V(\hat\omega; w)}{\partial w_g}\Big|_{w = 1},
+$$
+the total derivative including $\hat\theta(w)$ and $A(w)$. The decomposition into curve
+contributions therefore holds to first order (it is the influence-function expansion of
+$\hat\omega$ in the curves), not exactly. With
+$\delta_g = d\hat\theta/dw_g = A^{-1}X_g^\top(y_g - \mu_g)$ (fixed $\rho$),
+$b_i = \mathbb 1[i \in g] W_i + W_i' x_i^\top\delta_g$ (so $\partial A/\partial w_g = X^\top\operatorname{diag}(b)X$),
+$h_i = x_i^\top A^{-1} x_i$, $q_{ki} = x_i^\top A^{-1} A_k A^{-1} x_i$ and
+$\tilde a = A^{-1} X^\top (W' \circ h)$:
+$$
+s_{g,\rho_k} = \frac{\lambda_k \hat\theta^\top S_k \delta_g}{\phi}
++ \tfrac12\Big[-\textstyle\sum_i b_i q_{ki} + \sum_{i\in g} W_i' (x_i^\top\theta_k) h_i
++ \sum_i W_i''(x_i^\top\delta_g)(x_i^\top\theta_k)h_i
+- \sum_i b_i (x_i^\top\tilde a)(x_i^\top\theta_k) - \lambda_k \tilde a^\top S_k \delta_g\Big],
+$$
+$$
+s_{g,\tau} = -\frac{\lVert y_g - \mu_g\rVert^2}{2\phi} + \frac{n_g}{2} \quad [\text{Gaussian}; W = 1, W' = W'' = 0].
+$$
+The first term is the $\hat\theta$-route (the data enter the $\rho$-score through
+$\hat\theta^\top S_k\hat\theta$); the bracket is the log-determinant route, non-zero
+because the curves' designs $X_g$ are random (functional covariates) and, for GLMs,
+because $W$ depends on $\hat\theta$. Cost $O(Gnp + Knp^2)$. The scale enters through
+the curve's share of the residual sum of squares and of $n$.
+
+Because the penalty and $M_p$ do not scale with $w$, $\sum_g s_g \neq 0$; centring
+the $s_g$ over curves gives the derivative with respect to the weights of the empirical
+distribution (the jackknife convention). The total influence of curve $g$ on
+$\hat\theta(\hat\rho)$ is
+$$
+\psi_g = \underbrace{A^{-1}X_g^\top(y_g - \mu_g)}_{\text{fixed-}\lambda\ \text{part}} + J\, d_{g,\rho},
+\qquad d_g = -H^{-1}(s_g - \bar s).
+$$
+
+**Corrected covariance.** CL2 replaces the fixed-$\lambda$ part by its leverage-adjusted
+version $k_g$ (the columns of refund's `pffr_influence()$K`, $V_{CL2} = \tfrac{G}{G-1}\sum_g k_g k_g^\top + (V_p - V_e)$). Then
+$$
+V_{CL2,\rho} = \tfrac{G}{G-1}\sum_g (k_g + J d_{g,\rho})(k_g + J d_{g,\rho})^\top + (V_p - V_e)
+= V_{CL2} + J \hat V_{\rho,\mathrm{rob}} J^\top + \tfrac{G}{G-1}\sum_g\big(k_g d_{g,\rho}^\top J^\top + J d_{g,\rho} k_g^\top\big),
+$$
+$\hat V_{\rho,\mathrm{rob}} = \tfrac{G}{G-1}\sum_g d_{g,\rho}d_{g,\rho}^\top = [H^{-1} \hat M H^{-1}]_{\rho\rho}$,
+$\hat M = \tfrac{G}{G-1}\sum_g (s_g - \bar s)(s_g - \bar s)^\top$. For leave-out based
+influences (one-step, jackknife) the $\rho$-part uses the jackknife factor
+$f = \tfrac{G-1}{G}$; in the form with the cross term the leave-out changes are rescaled by
+$\sqrt{f(G-1)/G}$ so that the $\rho\rho$ part is the same as without it. The
+$k_g$ are leverage-adjusted (CL2), the $\rho$-parts are not. The **cross term** is first
+order: $\hat\rho$ depends on the data through $\hat\theta^\top S_k\hat\theta$, whose
+linearisation $2\bar\theta^\top S_k(\hat\theta - \bar\theta)$ is correlated with
+$\hat\theta$. mgcv's $V_c$ omits it (in the Bayesian derivation $\theta \mid \rho$ is the
+posterior); a frequentist sandwich has it. **Second-order terms** (mgcv's `Vb.corr`,
+the dependence of the covariance itself on $\rho$, and the curvature of
+$\hat\theta(\rho)$) are $O(G^{-1})$ relative to the first-order term under regular
+$\sqrt G$-asymptotics for $\hat\rho$, and are not included. That regularity fails for the
+ff-penalty in the dependent-error cells (the sampling distribution of $\log\hat\lambda$ is
+flat or bimodal at $G = 40$ and its SD barely shrinks from $G = 40$ to $G = 100$;
+`REPORT.md`), so the first-order correction is an approximation of unknown
+quality there; see the non-linear and regularised variants below.
+
+**mgcv's term.** $J[H^{-1}]_{\rho\rho}J^\top$ takes $\operatorname{Var}(\hat\rho)$ from the
+REML Hessian, i.e. from the information of the working random-effects model with
+independent rows. Its target is the posterior (random-effects) variability of $\hat\rho$,
+not the sampling variability over repeated samples of curves with fixed coefficient
+functions. In the simulations it is miscalibrated for the latter in both directions under
+independent errors and, under within-curve dependence, understates it for the surface's
+penalty, because it ignores the correlation of the curve scores (`REPORT.md`).
+
+## Estimators of $\operatorname{Var}(\hat\omega)$
+
+(a) **IJ**: $d_g$ as above (analytic; `ij_scores()`).
+(b) **Exact curve jackknife**: refit REML with zero prior weights on curve $g$ (same model
+matrix and constraints, warm start), $\Delta_g = \hat\omega_{(-g)} - \hat\omega$,
+$\hat V = \tfrac{G-1}{G}\sum_g(\Delta_g - \bar\Delta)(\Delta_g - \bar\Delta)^\top$. $G$ refits.
+(c) **One-step leave-curve-out** (analogue of NCV): $\hat\theta_{(-g)}(\hat\rho) = \hat\theta -
+(A - X_g^\top W_g X_g)^{-1}X_g^\top(y_g - \mu_g)$ (exact for the Gaussian family; for GLMs
+this Newton step starts penalised IRLS at fixed $\hat\rho$, and the leave-out gradient is
+evaluated at its converged solution), then $\Delta_g = -H^{-1}\nabla_\omega\mathcal V_{(-g)}(\hat\omega)$ with the
+leave-out gradient evaluated exactly (re-evaluated $W$, $A$, $n$). (a) and (c) agree to
+first order; (c) carries the leave-out inflation of the jackknife (as CR3 vs CR0), which
+matters at $G = 40$.
+
+**Non-linear variants.** Under dependence $\operatorname{Var}(\hat\rho)$ of the ff-penalty is
+large and far from normal (`REPORT.md`), so
+$J\Delta_{g,\rho}$ can be a poor approximation to the change of $\hat\theta$. The
+non-linear variants replace $J\Delta_{g,\rho}$ by
+$r_g = \hat\theta_{(-g)}(\hat\rho + \Delta_{g,\rho}) - \hat\theta_{(-g)}(\hat\rho)$ (penalised
+IRLS at fixed smoothing parameters), for the one-step and the exact jackknife $\Delta_g$.
+
+**Regularised variants.** When a smoothing parameter drifts toward a boundary, $H$ has a
+small positive eigenvalue along that direction and $H^{-1}s_g$ explodes while $J$ is nearly
+zero there; the product is numerically uncontrolled and produced heavy upper tails of the
+per-replicate $\hat V_\rho$. The regularised arms replace $H^{-1}$ by $(H_+ + I/10)^{-1}$
+($H_+$: non-positive eigenvalues set to 0), the prior precision mgcv uses for its
+second-order term (`Vb.corr`).
+
+## Assumptions
+
+Independent curves (clusters); correctly specified mean and canonical-link working family
+(Gaussian identity, Poisson log, binary binomial logit); unit prior weights; no offsets,
+linked or fixed smoothing parameters, `paraPen` terms or extra family parameters (checked in
+`lc_pieces()`); a converged REML fit at an interior optimum with a non-singular penalised
+Hessian $A$; and, for the first-order correction to be accurate, $\sqrt G$-regular
+behaviour of $\hat\rho$ (see above). mgcv's edge correction of the REML Hessian is not used.
