@@ -150,3 +150,9 @@ order (first column varies fastest): `mean` → (curve, t); `beta` → (s, t); `
 
 Scheipl, F. (2026). Estimation and inference in penalized function-on-function regression with
 dependent residual curves. Manuscript. <!-- TODO: journal / arXiv reference -->
+
+## License
+
+Code: GNU General Public License v3 (`LICENSE`). Paper, supplement, write-up and result tables: Creative Commons
+Attribution 4.0 International (`LICENSE-CC-BY-4.0.txt`). The mgcv source tarballs in `software/` are mgcv's own
+(GPL ≥ 2), included for reproduction.
