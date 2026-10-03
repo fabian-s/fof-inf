@@ -873,7 +873,7 @@ for REML + CL2.
    `r f(ffv(FFPC_LR, "p095", col = "coverage"), 3)`
    (`r f(ffv(FFPC_LR, "k5", col = "coverage"), 3)` with five components; Supplement S1.9). For
    covariates with a richer spectrum keep `ff()`: few components truncate the surface and the
-   intervals undercover, and a high variance-explained threshold, such as refund's default 0.99,
+   intervals undercover, and a high variance-explained threshold, such as 0.99 (the default of current refund releases),
    gives unstable, very noisy estimates.
 :::
 

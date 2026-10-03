@@ -545,8 +545,8 @@ RMSE of `ff()` with NCV, but it truncates the surface, and its intervals underco
 `r f(ffv(ff_rough, "k3", col = "coverage"), 2)` for the rough truth. With $K = 5$ they cover
 `r rng(ff_rich("k5", col = "coverage"))` at `r rng(ff_rich("k5", col = "hw_vs_reml"), 2)` times the
 half-width of `ff()` REML + CL2, with relative RMSE between those of `ff()` with NCV and with REML
-in every setting. In a pilot with `r unique(ffp99$n_rep)` replicates of three of the settings, refund's
-default threshold of 0.99 (at most 15 components) chose median $K$ of
+in every setting. In a pilot with `r unique(ffp99$n_rep)` replicates of three of the settings, the
+threshold of 0.99 (the default of current refund releases; at most 15 components) chose median $K$ of
 `r kr(ffp99_v("ffpc_cl2", "K_median"))` and gave relative RMSE
 `r rng(ffp99_v("ffpc_cl2"), 2)` (`ff()` with REML: `r rng(ffp99_v("ff_reml_cl2"), 2)`), also with
 the low-rank covariate. The model-based intervals of the `ffpc()` fits cover
