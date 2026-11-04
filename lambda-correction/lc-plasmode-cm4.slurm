@@ -27,11 +27,11 @@ export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
 export PLASMODE_CARDIO=deid
 
 N="${1:-56}"
-OUT="${2:-../lc-plasmode-results}"
+OUT="${2:-raw/lc-plasmode-results}"
 logs="../logs/lc-plasmode-cm4-$SLURM_JOB_ID"
 mkdir -p "$logs" "$OUT"
 for w in $(seq 1 "$N"); do
-  Rscript lambda-correction/run-lc-plasmode.R "$OUT" ../plasmode-results Inf all \
+  Rscript lambda-correction/run-lc-plasmode.R "$OUT" raw/plasmode-results Inf all \
     > "$logs/worker$w.log" 2>&1 &
 done
 wait

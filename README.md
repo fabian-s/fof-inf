@@ -1,7 +1,8 @@
 # Estimation and inference in penalized function-on-function regression with dependent residual curves
 
 Code and aggregate results for the paper by Fabian Scheipl (LMU Munich, MCML).
-Paper, supplement and the detailed write-up of all results: <https://fabian-s.github.io/fof-inf/>.
+Paper: [arXiv:2610.04677](https://arxiv.org/abs/2610.04677). Paper, supplement and the detailed write-up of all
+results: <https://fabian-s.github.io/fof-inf/>. Raw task records: Zenodo, <https://doi.org/10.5281/zenodo.23916388>.
 
 The study evaluates point estimates and pointwise confidence intervals of `pffr()` (R package refund)
 when residual curves are dependent within curves: a simulation study (152 settings, 200 replicates each)
@@ -27,8 +28,9 @@ degrees of freedom, competing methods and intervals centred at the NCV fit.
 | follow-up experiments | `ablation/` (covariance components), `satterthwaite/` (degrees of freedom), `small-g-null/` (20 curves, zero surface), `misspec/` (truths outside the spline space), `comparators/` (pcre, GLS, curve bootstrap), `competitors/fgee/` (functional GEE), `ncv-rbc/` (intervals centred at the NCV fit), `lambda-correction/` (smoothing-parameter uncertainty), `ncv-jack-recheck/` (mgcv's NCV covariance), `ffpc-pilot/` (principal component term); each with its own README |
 
 `DESIGN.md` maps the study design to the code. Every entry script is run from the repository root.
-Raw per-task records are not included (they are large and, for the cardiology datasets, derived from
-patient data); the summary files are. The four largest summary tables are stored gzipped (`*.csv.gz`;
+Raw per-task records are not in this repository, because they are large; the summary files are. The
+records behind the paper and the supplement are in a Zenodo deposit (see [Raw task records](#raw-task-records)),
+without those of the cardiology datasets, which derive from patient data. The four largest summary tables are stored gzipped (`*.csv.gz`;
 the analysis scripts write them as `.csv`). Per-replicate reproduction checks against the study's
 records (`*-crn.csv`) are included only where a document reads them; the other experiments report
 their maxima in their `SUMMARY*.md` files.
@@ -62,11 +64,45 @@ the commit above. `slurm/install-restart-lib.R` builds the same library into `~/
 on the cluster (set `RESTART_SRC` to a directory with the mgcv tarball and a refund source tarball
 of the commit); entry scripts put the library in `RESTART_LIB` first on the library path.
 
+## Raw task records
+
+The documents need only the summary files. To recompute those summaries, download the records into `raw/`
+(gitignored), where the scripts look for them. From the repository root:
+
+```
+bash scripts/get-raw.sh list                          # the available parts
+bash scripts/get-raw.sh results r4-results study.rds  # the named parts
+```
+
+The script downloads each archive, extracts it to `raw/<name>/`, checks every record against the archive's
+`<name>.sha256` and removes the archive (`KEEP_ARCHIVES=1` keeps it). Archives are about 35 GB in
+total and about 86 GB once extracted, so fetch only what you need. By hand:
+`tar -xJf <name>.tar.xz -C raw`, then `cd raw/<name> && sha256sum -c ../<name>.sha256`.
+
+| part | analysis |
+|---|---|
+| `results`, `study.rds` | main synthetic study, cells 1-123 (`analysis/`, `writeup/`) |
+| `r4-results` | 20 curves and zero surface, cells 124-152 (`small-g-null/`) |
+| `plasmode-results` | plasmode study, seven public datasets (`plasmode/`) |
+| `ablation-results` | covariance components (`ablation/`) |
+| `satt-results`, `satt-r4-syn`, `satt-r4-pm` | degrees of freedom (`satterthwaite/`) |
+| `misspec-results` | truths outside the spline space (`misspec/`) |
+| `comparators-results`, `cl2arms-results` | pcre, GLS, curve bootstrap, CL2 arms (`comparators/`) |
+| `fgee-results` | functional GEE (`competitors/fgee/`) |
+| `ffpc-results` | principal component term (`ffpc-pilot/`) |
+| `lc-results`, `lc-plasmode-results`, `lc-ncv-results`, `lc-ncvg2-results`, `lc-ncvp-results` | smoothing-parameter uncertainty (`lambda-correction/`) |
+| `jackfix-results`, `jackfix-pm-results` | mgcv's NCV covariance (`ncv-jack-recheck/`) |
+| `rbc-fresh-results`, `rbc-pm2-results`, `fixlam-pm-results`, `combo-*`, `combo2-*` | intervals centred at the NCV fit (`ncv-rbc/`) |
+
+Records keep their original content; only each `.rds` file's own gzip layer is removed, which `readRDS()` handles
+without change. Records of the two cardiology datasets are not included, so analyses that pool all nine plasmode
+datasets cannot be recomputed in full; the repository has only their aggregate results.
+
 ## Reproducing the results
 
 The runs used the LRZ Linux cluster (SLURM, serial partition, one core and 2.5 GB per task). Jobs run
-from a copy of the repository inside a project directory; raw per-task records go to directories beside
-that copy (`../results`, `../<experiment>-results`) and are not part of this repository. The job files
+from a copy of the repository inside a project directory; raw per-task records go to `raw/results` and
+`raw/<experiment>-results` inside that copy (gitignored). The job files
 in `slurm/` and the experiment folders load R 4.6.1 from a conda environment (`$HOME/envs/r461`) and
 the study library from `$HOME/R/restart-lib`; adapt these lines to another cluster.
 

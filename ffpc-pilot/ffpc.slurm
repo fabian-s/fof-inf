@@ -2,7 +2,7 @@
 # ffpc() workers (2026-10-03): each array task is one worker that claims tasks dynamically
 # (lock dirs). Submit from the frozen code copy (of the repository). Arguments:
 # <out_dir> <cells (R expression)> <rules> <methods> <rep_from> <rep_to>
-#   sbatch --array=1-40 ffpc-pilot/ffpc.slurm ../ffpc-results "5,11,12,35,107,126,129" p095,p090,k3 REML,NCV 1 200
+#   sbatch --array=1-40 ffpc-pilot/ffpc.slurm raw/ffpc-results "5,11,12,35,107,126,129" p095,p090,k3 REML,NCV 1 200
 #SBATCH -J ffpc
 #SBATCH -o ../logs/%x.%A_%a.out
 #SBATCH -e ../logs/%x.%A_%a.err
@@ -23,6 +23,6 @@ export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
 # stored study records (ff REML/NCV) of the same cells and replicates (and subdirectories)
-export FFPC_REF_DIRS="$PROJECT_DIR/results:$PROJECT_DIR/r4-results"
+export FFPC_REF_DIRS="raw/results:raw/r4-results"
 
 Rscript ffpc-pilot/run-ffpc.R "$1" "$2" "$3" "$4" "$5" "$6"

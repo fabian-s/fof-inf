@@ -250,11 +250,16 @@ rel_core <- REL |>
 rr <- \(dep) rel_core$ratio[(rel_core$error != "iid") == dep]
 # REML / NCV ratio of the relative error per estimand under dependence: main factorial for the
 # mean, alpha and gamma, term-type block for the smooth effect f(x, t)
-rr_est <- function(est, blk = if (est == "f") "term_type" else "core") {
+rr_est <- function(
+  est,
+  blk = if (est == "f") "term_type" else "core",
+  fam = unique(REL$family)
+) {
   REL |>
     filter(
       block == blk,
       estimand == est,
+      family %in% fam,
       error != "iid",
       arm %in% c("reml_cl2", "ncv_cl2")
     ) |>
@@ -591,10 +596,7 @@ CMP <- readr::read_csv(
       TRUE ~ "dependent"
     )
   )
-CMPF <- readr::read_csv(
-  "comparators/summaries/comparators-fits.csv",
-  show_col_types = FALSE
-)
+CMPF <- read_comparator_fits()
 cmp_cov <- \(a, set, e = "beta")
   CMP$coverage[CMP$arm == a & CMP$setting == set & CMP$estimand == e]
 cmp_w <- CMP |>
@@ -657,6 +659,121 @@ fg_vs_ncv <- FG_BP$est[
     FG_BP$estimand == "beta" &
     FG_BP$error != "iid"
 ]
+# its calibrated critical value on the surface, all three working correlations
+FG_CAL <- paste0("fgee_", c("independent", "ar1", "fpca"), "_wildL")
+fg_rel <- \(x) {
+  ref <- x[x$method == "reml_cl2", c("cell", "estimand", "width")]
+  names(ref) <- c("cell", "estimand", "w_cl2")
+  x <- dplyr::left_join(x, ref, by = c("cell", "estimand"))
+  x$wr <- x$width / x$w_cl2
+  x
+}
+FG_B <- fg_rel(FG_B)
+FG_P <- fg_rel(dplyr::bind_rows(
+  readr::read_csv(
+    "competitors/fgee/summaries/P-summary.csv",
+    show_col_types = FALSE
+  ),
+  readr::read_csv(
+    "competitors/fgee/summaries/cardio/P-summary.csv",
+    show_col_types = FALSE
+  )
+))
+fgb_cal <- \(dependent) {
+  FG_B[
+    FG_B$method %in%
+      FG_CAL &
+      FG_B$estimand == "beta" &
+      (FG_B$error != "iid") == dependent,
+  ]
+}
+fgp_cal <- \(g40) {
+  FG_P[
+    FG_P$method %in% FG_CAL & FG_P$estimand == "beta" & (FG_P$G == 40) == g40,
+  ]
+}
+# independence working correlation, against REML + CL2: score ratio to the normal critical value,
+# width ratio to the Satterthwaite critical value
+fg_ind <- \(method, estimand, dependent) {
+  ref <- FG_B[
+    FG_B$method == "reml_cl2",
+    c("cell", "estimand", "interval_score")
+  ]
+  names(ref) <- c("cell", "estimand", "score_cl2")
+  x <- FG_B[
+    FG_B$method == method &
+      FG_B$estimand == estimand &
+      (FG_B$error != "iid") == dependent,
+  ]
+  x <- dplyr::left_join(x, ref, by = c("cell", "estimand"))
+  x$sr <- x$interval_score / x$score_cl2
+  x
+}
+fg_beta_dep <- dplyr::left_join(
+  fg_ind("fgee_independent_wildL", "beta", TRUE),
+  SAT[
+    SAT$crit == "satt" & SAT$estimand == "beta",
+    c("cell", "coverage", "pointwise_q05", "width")
+  ] |>
+    dplyr::rename(
+      cov_satt = coverage,
+      q05_satt = pointwise_q05,
+      w_satt = width
+    ),
+  by = "cell"
+)
+fg_beta_dep$wr_satt <- fg_beta_dep$width / fg_beta_dep$w_satt
+fg_mean_not <- \(dependent) {
+  fg_ind("fgee_independent_wildL_noT", "mean", dependent)
+}
+# fitted means without the t adjustment against Satterthwaite; the two sources scale non-Gaussian mean
+# widths differently, so the Satterthwaite factor is taken within satt-cells.csv
+sat_mean <- \(crit) {
+  x <- SAT[
+    SAT$crit == crit & SAT$estimand == "mean",
+    c("cell", "coverage", "width")
+  ]
+  names(x)[2:3] <- paste0(c("cov_", "w_"), crit)
+  x
+}
+fg_mean_vs_satt <- \(x) {
+  x <- x |>
+    dplyr::left_join(sat_mean("satt"), by = "cell") |>
+    dplyr::left_join(sat_mean("z"), by = "cell")
+  x$wr_satt <- x$wr * x$w_z / x$w_satt
+  x
+}
+fg_mean_dep <- fg_mean_vs_satt(fg_mean_not(TRUE))
+fg_mean_dep_t <- fg_mean_vs_satt(fg_ind("fgee_independent_wildL", "mean", TRUE))
+# plasmode, independence working correlation, against Satterthwaite on the same dataset and G
+# (cell numbers differ between the sources)
+FGP_SATT <- readr::read_csv(
+  "satterthwaite/summaries/satt-plasmode-cells.csv",
+  show_col_types = FALSE
+) |>
+  dplyr::filter(crit == "satt", truth == "MID", residual == "REML") |>
+  dplyr::transmute(
+    app,
+    G,
+    estimand,
+    cov_satt = coverage,
+    q05_satt = pointwise_q05,
+    w_satt = width
+  )
+fgp_satt <- \(method, estimand) {
+  x <- FG_P[FG_P$method == method & FG_P$estimand == estimand, ] |>
+    dplyr::left_join(FGP_SATT, by = c("app", "G", "estimand"))
+  stopifnot(nrow(x) == 12, !anyNA(x$cov_satt))
+  x$wr_satt <- x$width / x$w_satt
+  x
+}
+fgp_beta <- fgp_satt("fgee_independent_wildL", "beta")
+fgp_all <- fgp_beta[fgp_beta$G != 40, ]
+fgp_all_lowq <- fgp_all[fgp_all$pointwise_q05 < fgp_all$q05_satt, ]
+fgp_40 <- fgp_beta[fgp_beta$G == 40, ]
+fgp_40_not <- fgp_satt("fgee_independent_wildL_noT", "beta")
+fgp_40_not <- fgp_40_not[fgp_40_not$G == 40, ]
+fgp_mean_not <- fgp_satt("fgee_independent_wildL_noT", "mean")
 # misspecified truths (misspec/)
 MS <- readr::read_csv(
   "misspec/summaries/misspec-cells.csv",
@@ -708,9 +825,35 @@ g40a <- \(e, r = "counted")
 # estimation by pcre and GLS with FPCA residual covariance relative to NCV (geometric mean of
 # per-setting MSE ratios; plasmode: midpoint truth, REML residuals)
 cmg <- \(a, set) geo(cmr(a, set))
-pcre_time <- CMPF |>
-  filter(arm == "PCRE") |>
-  summarise(med = median(time), q90 = quantile(time, 0.9), max = max(time))
+# median time of a pcre or GLS fit (REML pilot included) relative to an NCV fit, per setting with
+# dependent errors. NCV was not timed in the comparator runs, so its times come from the main and
+# plasmode runs of the same settings.
+time_vs_ncv <- CMPF |>
+  filter(arm %in% c("PCRE", "GLSfpc")) |>
+  group_by(arm, key) |>
+  summarise(med = median(time), .groups = "drop") |>
+  left_join(distinct(CMP, key, source, cell, app, G, error), by = "key") |>
+  filter(error != "iid") |>
+  left_join(
+    FITS |> filter(fit == "NCV") |> transmute(cell, ncv_syn = median_time),
+    by = "cell"
+  ) |>
+  left_join(
+    PFIT |>
+      filter(
+        truth == "MID",
+        residual == "REML",
+        flip == "curve",
+        error == "attached",
+        fit == "NCV"
+      ) |>
+      transmute(app, G, ncv_pl = median_time),
+    by = c("app", "G")
+  ) |>
+  mutate(ratio = med / if_else(source == "synthetic", ncv_syn, ncv_pl))
+stopifnot(nrow(time_vs_ncv) == 32, !anyNA(time_vs_ncv$ratio))
+time_ratio <- \(a, src)
+  time_vs_ncv$ratio[time_vs_ncv$arm == a & time_vs_ncv$source == src]
 boot_time <- median(CMPF$time[CMPF$arm == "BOOT"])
 # pcre / GLS intervals in the four synthetic Gaussian settings with dependent errors
 cmp_rel <- CMP |>

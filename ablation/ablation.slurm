@@ -21,4 +21,4 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
-Rscript ablation/run-ablation.R ../ablation-results ../results/373f6fd65cac
+Rscript ablation/run-ablation.R raw/ablation-results raw/results/373f6fd65cac

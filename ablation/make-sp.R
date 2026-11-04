@@ -10,7 +10,7 @@ core_cells <- function(cells = design_table()) {
   cells[cells$block == "core" & cells$signal == "mid", ]
 }
 
-study <- readRDS("summaries/final/study.rds")
+study <- readRDS(Sys.getenv("STUDY_RDS", "raw/study.rds"))
 core <- core_cells()
 sp <- study$terms |>
   dplyr::filter(fit == "REML", cell %in% core$cell) |>

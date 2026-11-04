@@ -21,6 +21,6 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
-OUT="${1:-../lc-ncv-results}"
+OUT="${1:-raw/lc-ncv-results}"
 REPS="${2:-1:200}"
-Rscript lambda-correction/run-lc-ncv.R "$OUT" ../results/373f6fd65cac Inf "$REPS"
+Rscript lambda-correction/run-lc-ncv.R "$OUT" raw/results/373f6fd65cac Inf "$REPS"

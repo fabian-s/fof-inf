@@ -8,7 +8,7 @@ Two blocks of `design_table()` (`R/design.R`), run with the study's code:
   at the default signal (γ, the functional intercept and the Gaussian error SD unchanged; the binary
   intercept is set again for the 0.2 response level); Gaussian and binary, errors iid and fpc, G = 40 and 100.
 
-Runs (R = 200): `sbatch --array=... slurm/array.slurm <chunk> <run> 124:152 ../r4-results` for the study's
+Runs (R = 200): `sbatch --array=... slurm/array.slurm <chunk> <run> 124:152 raw/r4-results` for the study's
 tasks, and `satterthwaite/satt-ext.slurm` for their Satterthwaite degrees of freedom.
 
 Analysis: `Rscript small-g-null/analyse.R <results_dir> <satt_results_dir> small-g-null/summaries`

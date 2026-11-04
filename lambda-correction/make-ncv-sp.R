@@ -3,7 +3,7 @@
 # replicates. Run from the repository root: Rscript lambda-correction/make-ncv-sp.R
 source("scripts/setup.R")
 source("ablation/ablation-lib.R")
-study <- readRDS("summaries/final/study.rds")
+study <- readRDS(Sys.getenv("STUDY_RDS", "raw/study.rds"))
 core <- ablation_cells()
 sp <- study$terms |>
   dplyr::filter(fit == "NCV", cell %in% core$cell) |>

@@ -25,7 +25,7 @@ if (mode == "synthetic") {
   dirs <- if (nzchar(Sys.getenv("RELERR_DIRS"))) {
     strsplit(Sys.getenv("RELERR_DIRS"), ":")[[1]]
   } else {
-    list.dirs("results", recursive = FALSE)
+    list.dirs("raw/results", recursive = FALSE)
   }
 } else {
   source("plasmode/sources.R")
@@ -33,7 +33,7 @@ if (mode == "synthetic") {
   cells <- plasmode_cells()
   results <- Sys.getenv(
     "PLASMODE_RESULTS",
-    file.path(PLASMODE_CACHE, "results")
+    "raw/plasmode-results"
   )
   dirs <- file.path(results, args[-(1:2)])
 }

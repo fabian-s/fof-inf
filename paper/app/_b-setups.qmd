@@ -1,15 +1,15 @@
-# Set-ups of the two studies {#sec-app-setup}
+# Setups of the two studies {#sec-app-setup}
 
 ## Simulation design
 
-The data follow model @eq-model with $i = 1, \dots, G$ curves. Responses are generated on a
+The data follow the model in @eq-model with $i = 1, \dots, G$ curves. Responses are generated on a
 grid of 241 points in $t \in [0, 1]$ and subsampled to $D = 61$ (default) or 241 points; the
 functional covariate is observed on 51 points in $s \in [0, 1]$:
-$X_i(s) = \xi_{i0} + \sum_{j=1}^{29} \xi_{ij}\sqrt 2 \cos(j\pi s)$ with independent
-$\xi_{ij} \sim N(0, (j+1)^{-2})$. Its centred spectrum (first principal component 62% of the
+$X_i(s) = \xi_{i0} + \sum_{k=1}^{29} \xi_{ik}\sqrt 2 \cos(k\pi s)$ with independent
+$\xi_{ik} \sim N(0, (k+1)^{-2})$. Its centered spectrum (first principal component 62% of the
 variance, four components 88%, rank 24 at 99.5%) matches the corpus-callosum profiles of the
-baseline DTI data in refund (67%, 86%, 26). The low-rank variant uses variances $(j+1)^{-3}$ (rank 9).
-The scalar covariate is $z_i \sim N(0, 1)$. The smooth-effect model replaces the functional term by
+baseline DTI data in refund (67%, 86%, 26). The low-rank variant uses variances $(k+1)^{-3}$ (rank 9).
+The scalar covariate is $v_i \sim N(0, 1)$. The smooth-effect model replaces the functional term by
 $f(x_i, t)$ with $x_i \sim U(0, 1)$.
 
 Truths are fixed functions projected by least squares onto the fitted bases, so they are exactly
@@ -20,31 +20,45 @@ so that the non-intercept signal $S = \int \mathrm{Var}_{X,z}\{\eta(t) - \alpha(
 the main term, 20% from $\gamma$) and multiplied by $\sqrt S$ per family. The intercept is a Gaussian
 bump plus a constant that sets the average response level (mean count 3, prevalence 0.2).
 
-Fitted bases: cubic B-splines with first-order difference penalties [@Eilers1996; @Wood2017] (mgcv's `ps` basis with `m = c(2, 1)`), so constants along each direction are unpenalized; $k = 12$ along $t$ for the
+The fitted bases are cubic B-splines with first-order difference penalties [@Eilers1996; @Wood2017] (mgcv's `ps` basis with `m = c(2, 1)`), so constants along each direction are unpenalized; $k = 12$ along $t$ for the
 intercept and $\gamma$; an $8 \times 10$ tensor product for $\beta$; $8 \times 12$ for $f$. The larger
-bases halve and quarter the knot spacing (about 100, 260 and 790 coefficients). Within-curve errors
+bases halve and quarter the knot spacing (about 100, 260 and 790 coefficients).
+
+Within-curve errors
 are a zero-mean process with correlation kernel $R$, scaled for Gaussian responses and used as the
 latent layer of a Gaussian copula for the other families, $Y_{ij} = F^{-1}_{ij}\{\Phi(Z_{ij})\}$, so
 each marginal is exactly the fitted family and the working model is wrong only about the dependence.
-Kernels: independent; rough stationary $0.8\exp(-|s-t|/0.089) + 0.2\,\mathbb 1\{s=t\}$; smooth: the
+The kernels are: independent; rough stationary $0.8\exp(-|t-t'|/0.089) + 0.2\,\mathbb 1\{t=t'\}$; smooth: the
 residual covariance of a REML fit to the DTI data (24 eigenfunctions plus 6% white noise, as a
-correlation kernel); exact AR(1) $\exp(-|s-t|/0.071)$; sign-changing
-$0.8\exp(-|s-t|/0.3)\cos(2\pi|s-t|/0.4) + 0.2\,\mathbb 1\{s=t\}$; heteroskedastic versions of the
-smooth kernel with the DTI variance profile along $t$, a subject scale $\exp(0.5 z_i - 0.25)$, or both.
-Misregistration: $Y_i(t_j) = \eta_i(h_i(t_j)) + \varepsilon_i(h_i(t_j))$ with
-$h_i(t) = t + a_i\sin(\pi t)/\pi$, $a_i \sim N(0, 0.314^2)$ truncated at $|a_i| \le 0.9$, independent
-errors. Gaussian misregistration settings score the warp-averaged coefficient functions, GLM settings
+correlation kernel); exact AR(1) $\exp(-|t-t'|/0.071)$; sign-changing
+$0.8\exp(-|t-t'|/0.3)\cos(2\pi|t-t'|/0.4) + 0.2\,\mathbb 1\{t=t'\}$; heteroskedastic versions of the
+smooth kernel with the DTI variance profile along $t$, a subject scale $\exp(0.5 v_i - 0.25)$, or both. @fig-kernels shows the homoskedastic kernels.
+
+```{r}
+#| label: fig-kernels
+#| fig-cap: "Error processes of the simulation: correlation kernels $R(t,t')$ (top) and two sample curves of the latent Gaussian process (bottom, same draws of standard normals across processes), on the default grid of $D = 61$ points. The main factorial uses the first three."
+#| fig-height: 3
+fig_kernels()
+```
+
+Under misregistration, $Y_i(t_j) = \eta_i(h_i(t_j)) + \varepsilon_i(h_i(t_j))$ with
+$h_i(t) = t + a_i\sin(\pi t)/\pi$, $a_i \sim N(0, 0.314^2)$ truncated at $|a_i| \le 0.9$, and
+errors are independent. Gaussian misregistration settings score the warp-averaged coefficient functions, GLM settings
 only the exact observed-clock mean.
 
-Signal: $R^2 \in \{0.2, 0.5, 0.8\}$ for Gaussian responses; $\sqrt S \in \{0.5, 1\}$ on the link scale
-for Poisson and binary responses. Extended families at the default signal: scaled $t$ (4 df) as
+The signal is $R^2 \in \{0.2, 0.5, 0.8\}$ for Gaussian responses and $\sqrt S \in \{0.5, 1\}$ on the link scale
+for Poisson and binary responses. The extended families are run at the default signal: scaled $t$ (4 df) as
 Gaussian at $R^2 = 0.5$; beta ($\phi = 20$, mean 0.3) and negative binomial (size 5, mean 3) at
-$\sqrt S = 0.5$. The 20-curve block uses the first 20 curves of each replicate of the main factorial,
+$\sqrt S = 0.5$.
+
+The 20-curve block uses the first 20 curves of each replicate of the main factorial,
 so it shares its draws with the 40- and 100-curve settings. The zero-surface block sets
 $\beta \equiv 0$ in the smooth-truth setting at the default signal, for Gaussian and binary responses
 with independent and smooth errors and 40 and 100 curves; $\gamma$, the intercept bump and the
 Gaussian error variance are those of the non-zero setting, and the intercept constant of binary
-responses is reset to keep the prevalence at 0.2. All random draws depend only on the replicate index, so contrasts between settings
+responses is reset to keep the prevalence at 0.2.
+
+All random draws depend only on the replicate index, so contrasts between settings
 and intervals are paired. Each setting has `r unique(S$n_rep)` replicates; none failed. Concurvity of
 the fitted terms (mgcv's worst case) is at most `r f(max(CONC$concurvity), 2)`. The next table lists the
 blocks of settings: the main factorial (family × error process × $G$ × signal) and extensions that
@@ -55,26 +69,61 @@ each change one factor.
 stab(blocks |> select(block, cells, families, errors, G, signal, truth, D, model, covariate, basis) |>
   mutate(block = gsub("_", " ", recode(block, core = "main factorial", small_G = "main factorial, G = 20", null_beta = "zero surface", warp = "misregistration", ar1_home = "exact AR(1)", warp_ar1 = "misreg. (AR(1) fit)", families = "extended families", term_type = "smooth effect", oscillating = "sign-changing", lowrank_covariate = "low-rank covariate", basis_size = "larger bases")),
     model = recode(model, `ff(X)` = "functional", `f(x,t)` = "smooth effect"), truth = recode(truth, null = "zero"), covariate = recode(covariate, lowrank = "low-rank")) |> rename(settings = cells),
-  "Blocks of the simulation design. Error processes: indep. independent, rough rough stationary, smooth from the DTI residuals, AR(1) exact AR(1), sign-chg. sign-changing, var(t)/var(z)/var(t,z) heteroskedastic versions of smooth, misreg. misregistration. Truth: smooth, rough or zero. Signal: low, default, high. Bases: default, 2× or 4× finer knots.", font = 7)
+  "Blocks of the simulation design. Error processes: indep. independent, rough rough stationary, smooth from the DTI residuals, AR(1) exact AR(1), sign-chg. sign-changing, var(t)/var(z)/var(t,z) heteroskedastic versions of smooth, misreg. misregistration. Truth: smooth, rough or zero. Signal: low, default, high. Bases: default, 2× or 4× finer knots.", font = 7, landscape = TRUE)
 ```
 
-Fits per replicate: REML and curve-blocked NCV (mgcv `gam`); pointwise (non-blocked) NCV in the
-Gaussian settings at $G = 100$ with independent, smooth and sign-changing errors; and the AR(1) working
+Each replicate is fitted by REML and curve-blocked NCV (mgcv `gam`); by pointwise (non-blocked) NCV in the
+Gaussian settings at $G = 100$ with independent, smooth and sign-changing errors; and by the AR(1) working
 model in the Gaussian settings at $G = 100$ with dependent errors. The AR(1) model is fitted with
 mgcv's `bam()` by fast REML with AR(1) errors that restart at the first grid point of each curve.
 Its correlation $\rho$ is profiled over the grid $\{0, 0.1, \dots, 0.9, 0.95, 0.99\}$ by the fast-REML
 criterion, which includes the log-determinant of the whitening transform; the best grid value is
-then refined by a one-dimensional search between its two neighbouring grid values. Its intervals are
-model-based from that fit. The plasmode study uses the same fit. NCV fits flagged as not converged:
-`r f(100 * (1 - conv_ncv$conv[conv_ncv$fit_family == "scat"]), 0)`% of scaled-$t$ fits,
-`r f(100 * (1 - conv_ncv$conv[conv_ncv$fit_family == "betar"]), 1)`% of beta fits, fewer than 0.1%
-otherwise. For the first `r n_distinct(SCAT$task)` flagged scaled-$t$ fits, refits from the REML
-smoothing parameters and from ten times them reach the same criterion within
-`r formatC(max(tapply(SCAT$criterion, SCAT$task, \(x) diff(range(x)))), format = "e", digits = 0)` and
-coefficients within `r formatC(max(SCAT$beta_max_diff), format = "e", digits = 0)`: for these fits the optimum is flat,
-the fit stable. The check covers these five fits only.
+then refined by a one-dimensional search between its two neighboring grid values. Its intervals are
+model-based from that fit. The plasmode study uses the same fit.
 
+Some NCV fits were flagged as not converged, meaning that mgcv's search over the smoothing parameters ended without
+meeting its convergence test:
+`r f(100 * cflag_rate("fpc"), 0)`% of scaled-$t$ fits under smooth errors and `r f(100 * cflag_rate("iid"), 0)`%
+under independent errors, `r f(100 * (1 - conv_ncv$conv[conv_ncv$fit_family == "betar"]), 1)`% of beta fits, and
+fewer than 0.1% otherwise (settings with at least 40 curves and a non-zero surface; at most
+`r f(100 * pm_flag_max, 1)`% per combination in the plasmode study). No REML fit in these settings was flagged, so
+the study says nothing about intervals from non-converged REML fits.
 
+We refitted flagged scaled-$t$ fits from the REML smoothing parameters and from ten times those values. For the first five flagged fits, all with independent errors, the refits reach the same criterion within
+`r sci_tex(max(tapply(SCAT$criterion, SCAT$task, \(x) diff(range(x)))))` and the same surface within
+`r sci_tex(max(SCAT$beta_max_diff))`. Of `r nrow(scat_spread)` randomly chosen flagged fits with smooth errors,
+`r nrow(scat_same)` reach the same criterion within `r f(max(scat_same$crit), 3)`, the same surface within
+`r f(max(scat_same$surf), 3)` and the same CL2 standard errors within `r f(100 * max(scat_same$se), 1)`%, consistent with
+a flat optimum; in an 18th the study fit's criterion is `r f(scat_near$study_above, 1)` above the refits', with the surface
+within `r f(scat_near$surf, 2)`. In the other two a refit returns a materially different fit, its surface moved by about
+twice the root-mean-square size of the true surface (`r f(scat_truth_rms, 1)`). In one, the study fit has the worse
+criterion, by `r f(scat_study_worse$study_above, 0)`, and the standard errors differ by up to
+`r f(100 * scat_study_worse$se, 0)`%; in the other, a refit is worse by `r f(scat_refit_worse$worst_refit_above, 0)`, with standard errors
+up to `r f(100 * scat_refit_worse$se, 0)`% larger. `r scat_refit_flagged$f` of the `r scat_refit_flagged$n` refits were flagged too. A
+flag thus does not separate these fits from the stable ones.
+
+Under smooth errors, in the `r cflag("ncv_cl2", TRUE, col = "n_rep")` replicates with a flagged NCV fit, the NCV estimate of $\beta$ has median
+relative error `r f(cflag("ncv_cl2", TRUE, col = "rel"), 2)` and NCV + CL2 covers `r f(cflag("ncv_cl2", TRUE), 3)`
+(Monte Carlo SE `r f(cflag("ncv_cl2", TRUE, col = "coverage_se"), 3)`), against
+`r f(cflag("ncv_cl2", FALSE, col = "rel"), 2)` and `r f(cflag("ncv_cl2", FALSE), 3)` (`r f(cflag("ncv_cl2", FALSE, col = "coverage_se"), 3)`)
+in the `r cflag("ncv_cl2", FALSE, col = "n_rep")` other replicates; this difference of `r pp(max(abs(cflag_gap$gap)))` is the largest coverage
+gap of NCV + CL2 over estimands and error processes. The model-based NCV intervals cover
+`r f(cflag("ncv_model", TRUE), 3)` and `r f(cflag("ncv_model", FALSE), 3)`, REML + CL2 `r f(cflag("reml_cl2", TRUE), 3)`
+and `r f(cflag("reml_cl2", FALSE), 3)` in the same two groups, so part of the gap may reflect harder data. The flag is not randomly
+assigned and the comparison is descriptive.
+
+Low-smoothing NCV fits (@sec-res-estimation) were examined in the main factorial and in the settings with denser
+grids, other families, rough truths, AR(1) errors and misregistration (`r lowsm("n_cells", "independent") + lowsm("n_cells") + sum(LOWSM_WARP$n_cells)` settings with 40 or 100 curves), with the tail defined on the first surface penalty.
+Under dependence, apart from misregistration, cutoffs of $e^4$ and $e^2$ give `r f(100 * lowsm("share_low", thr = 4), 0)`% and `r f(100 * lowsm("share_low", thr = 2), 0)`% of NCV fits, and applying the $e^3$ cutoff to either penalty
+gives `r f(100 * lowsm("share_low_either"), 1)`%. Under misregistration NCV's smoothing parameters are the more variable
+ones, with up to `r f(100 * max(LOWSM_WARP$share_low), 0)`% of fits below the $e^3$ cutoff (Poisson).
+Under dependence, apart from misregistration, the share of low-smoothing fits is `r rng(100 * LOWSM_DEP$share_low, 1)`% across families and
+error processes, and these fits have `r f(lowsm("within_edf_low"), 1)` times their setting's median surface EDF, still fewer than REML's on all of them.
+REML also does worse on these replicates: its error is `r f(lowsm("within_reml_low"), 1)` times its median and its CL2 intervals cover
+`r f(lowsm("cov_reml_low"), 3)` (NCV + CL2: `r f(lowsm("cov_ncv_low"), 3)`). On the remaining replicates, REML's mean squared error is
+`r f(lowsm("mse_ratio_other"), 1)` rather than `r f(lowsm("mse_ratio_all"), 1)` times NCV's (geometric means over settings). The converse does not hold: on the
+`r f(100 * lowsm("share_low_reml"), 0)`% of replicates in REML's own lower tail, NCV's error stays near its median (`r f(lowsm("within_ncv_remltail"), 2)` times) and its coverage is
+`r pp(-lowsm("cov_diff_ncv_remltail"))` lower than on the other replicates.
 
 ## Plasmode datasets
 
@@ -85,13 +134,16 @@ error structure of a dataset and replaces only the true regression function by a
 #| output: asis
 ds_text <- DS |> mutate(
   source = if_else(app == "ecg_gls4b", "myocardial-strain study, first beat per subject", source),
-  source = if_else(app == "af", "atrial-fibrillation trial, patients randomised to digoxin or a beta-blocker", source),
+  source = if_else(app == "af", "atrial-fibrillation trial, patients randomized to digoxin or a beta-blocker", source),
   access = if_else(startsWith(access, "local"), "non-public; aggregates only", access),
   source = sub(" via tidyfundata::running", "", source, fixed = TRUE),
   covariate = sub(" (presumed from the documented lead order)", "", covariate, fixed = TRUE),
   prep = sub("; lead identities resolved from the R-wave progression", "", prep, fixed = TRUE),
   grid_note = sub(" (as in the original 16 cells)", "", grid_note, fixed = TRUE)
-)
+) |> mutate(across(where(is.character), \(x) {
+  x <- gsub("isation", "ization", x, fixed = TRUE)
+  gsub("(normal|digit|standard|random)ised", "\\1ized", x)
+}))
 for (i in seq_len(nrow(ds_text))) {
   d <- ds_text[i, ]
   cat(sprintf(
@@ -108,8 +160,10 @@ The ECG strain beats were recorded with 29 to 83 frames and interpolated to 61 g
 interpolation adds smoothness within a curve, so part of the residual dependence of that dataset,
 and of its design effect, comes from the interpolation.
 
-Six datasets have independent source curves. The other three have source curves that are serially
-(ocean, electricity) or spatially (weather) dependent units. The residual *design effect* of a dataset
+Six datasets have independent source curves. The other three have serially
+(ocean, electricity) or spatially (weather) dependent source curves.
+
+The residual *design effect* of a dataset
 is $\mathbf 1^\top\boldsymbol\Sigma\mathbf 1/\operatorname{tr}\boldsymbol\Sigma$ for the covariance
 $\boldsymbol\Sigma$ of its REML residual curves: the factor by which the variance of a grid mean
 exceeds its working-independence value.
@@ -121,7 +175,7 @@ stab(model_tab |> select(-model), "Fitted models: bases (intercept, $\\gamma$; s
 
 ```{r t-s3-models-3}
 #| output: asis
-stab(dep_tab |> select(-role), "Residual dependence and covariate diagnostics (REML residual curves): design effect DE and DE$/D$, residual correlation at one grid step and at 10% and 25% of the domain, share of negative correlations and the most negative one, max/min SD along $t$, principal components for 90% of the residual variance, centred covariate rank, share of response variance removed by registration.", font = 6)
+stab(dep_tab |> select(-role), "Residual dependence and covariate diagnostics (REML residual curves): design effect DE and DE$/D$, residual correlation at one grid step and at 10% and 25% of the domain, share of negative correlations and the most negative one, max/min SD along $t$, principal components for 90% of the residual variance, centered covariate rank, share of response variance removed by registration.", font = 6, landscape = TRUE)
 ```
 
 ```{r t-s3-models-4}
@@ -131,19 +185,21 @@ stab(block_tab, "Datasets with dependent source curves: block construction for t
 
 ## Construction of the plasmode data
 
-Each dataset's model, $Y_i(t) = \alpha(t) + \int X_i(s)\beta(s,t)\,ds + z_i\gamma(t) + \varepsilon_i(t)$
+Each dataset's model, $Y_i(t) = \alpha(t) + \int X_i(s)\beta(s,t)\,ds + v_i\gamma(t) + \varepsilon_i(t)$
 (Gaussian), is fitted by REML and by curve-blocked NCV. The fitted means of three fits serve as
 truths: the REML fit (*REML-fitted truth*), the NCV fit (*NCV-fitted truth*) and a refit with every
 smoothing parameter at the geometric mean of the two fits' values (*midpoint truth*). Replicate data
 are these fitted means plus each subject's own residual curve from the REML or the NCV fit, multiplied by an
 independent random sign per curve. Sign flipping keeps each residual curve's within-curve covariance
 and makes the curves independent across subjects. For the ECG strain data, heartbeat difference
-curves $(Y_{i1} - Y_{i2})/\sqrt 2$ of two beats per subject are a further error source that no fit
-shaped, on their own scale or rescaled to the average variance of the REML residuals. Each
+curves $(Y_{i1} - Y_{i2})/\sqrt 2$ of two beats per subject are a further error source, not shaped by any fit, used on their own scale or rescaled to the
+average variance of the REML residuals.
+
+Each
 combination of dataset, truth and residual source is run with all subjects and with 40 randomly
 chosen subjects (`r unique(P$n_rep)` replicates each). The three datasets with dependent source curves add block flips
-(one sign per block of neighbouring curves) and block-wise NCV and CL2. The mean is evaluated for a
-fixed set of 50 subjects' covariates of the dataset, at the native grid points.
+(one sign per block of neighboring curves) and block-wise NCV and CL2. The mean is evaluated at the
+covariates of a fixed set of 50 subjects of the dataset, at the native grid points. There are
 `r nrow(P |> distinct(app, truth, residual, flip, error, G))` combinations in all.
 
 ```{r t-s3-cohort}

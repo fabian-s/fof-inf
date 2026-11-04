@@ -17,8 +17,8 @@ WEAK_T <- \(t) sin(pi * t) # smooth function of t multiplying the weak component
 MS_TRUTHS <- c(T0 = "smooth", T1 = "bump", T2 = "weak")
 MS_FIT_GRID <- 101 # grid for relative L2 projection errors
 N_CHECK_REUSED <- 4 # reps recomputed in cells whose records are reused from the study
-STUDY_RESULTS <- "../results" # task-cCCC-rRRR.rds of cells 96-123 (LRZ, from code copy)
-STUDY_CORE_RESULTS <- "../results/373f6fd65cac" # task-<id>.rds of the 95-cell run
+STUDY_RESULTS <- "raw/results" # task-cCCC-rRRR.rds of cells 96-123 (LRZ, from code copy)
+STUDY_CORE_RESULTS <- "raw/results/373f6fd65cac" # task-<id>.rds of the 95-cell run
 STUDY_N_CELLS <- 95
 
 # Feature surfaces (raw, unscaled): functions (s, t) -> length(s) x length(t) matrix.

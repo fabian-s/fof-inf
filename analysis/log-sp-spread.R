@@ -4,7 +4,7 @@
 suppressPackageStartupMessages(library(dplyr))
 args <- commandArgs(trailingOnly = TRUE)
 study <- readRDS(
-  if (length(args) >= 1) args[1] else "summaries/final/study.rds"
+  if (length(args) >= 1) args[1] else Sys.getenv("STUDY_RDS", "raw/study.rds")
 )
 out <- if (length(args) >= 2) args[2] else "summaries/final/log-sp-spread.csv"
 spread <- study$terms |>

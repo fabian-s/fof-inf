@@ -22,4 +22,4 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
-Rscript satterthwaite/run-satt.R "${1:-../satt-results}" ../results/373f6fd65cac ${2:-}
+Rscript satterthwaite/run-satt.R "${1:-raw/satt-results}" raw/results/373f6fd65cac ${2:-}

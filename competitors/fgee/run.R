@@ -121,6 +121,43 @@ record <- function(
   )
 }
 
+# fastFGEE's own studentized wild cluster bootstrap (the routine fgee() uses for its term
+# intervals, wild_studentized_boot_crit_compact in 0.2.2, unexported), called with our
+# evaluation matrix L as the linear map and every other input exactly as fgee() sets it
+# (checked: with fgee's own term maps this reproduces its stored critical values to 0).
+# Returns the pointwise critical value with and without fgee's t(N - edf) adjustment.
+their_wild_crit <- function(obj, L, beta0) {
+  ns <- asNamespace("fastFGEE")
+  A_list <- list(est = L)
+  edf <- ns$fgee_effective_df_from_Wbar(
+    Wbar = obj$working$W_bar,
+    penalty_mat = obj$pen.mat,
+    A_list = A_list,
+    A_col_tol = 0
+  )
+  crit <- suppressMessages(ns$wild_studentized_boot_crit_compact(
+    beta_hat = as.numeric(beta0),
+    Sigma_hat = obj$model$Vp,
+    D = ns$.fgee_working_dmat(obj$working0, required = TRUE),
+    Wbar = obj$working0$W_bar,
+    penalty_diag = obj$pen.mat,
+    A_list = A_list,
+    B = 5000,
+    seed = 123,
+    alpha = 0.05,
+    return_T = FALSE,
+    beta_center = as.numeric(obj$beta),
+    t_adjust = if (isTRUE(obj$exact)) "none" else "both",
+    edf_r = edf$edf_by_term,
+    studentize = "fixed",
+    progress_every = 0,
+    df_floor = 1,
+    se_floor_rel = 1e-6,
+    A_col_tol = 0
+  ))
+  c(adj = crit$pointwise_crit_adj[[1]], raw = crit$pointwise_crit[[1]])
+}
+
 # fastFGEE's shipped pointwise intervals for the terms its CI object covers: its own
 # centre and bounds (wild-bootstrap critical value x t_{N - edf} adjustment).
 their_pointwise <- function(obj, term) {
@@ -398,6 +435,32 @@ run_B <- function(cell, rep, simulate_fun = simulate) {
           crit,
           truth
         )
+      }
+      # fgee's wild-bootstrap critical value for our map (beta, mean); the initial
+      # estimate of the one-step is the pffr.mod fit's coefficient vector
+      if (estimand %in% c("beta", "mean")) {
+        wc <- tryCatch(
+          their_wild_crit(obj, L, fit$coefficients),
+          error = \(e) NULL
+        )
+        if (!is.null(wc)) {
+          recs[[length(recs) + 1]] <- record(
+            paste0(m, "_wildL"),
+            estimand,
+            est,
+            se,
+            wc[["adj"]],
+            truth
+          )
+          recs[[length(recs) + 1]] <- record(
+            paste0(m, "_wildL_noT"),
+            estimand,
+            est,
+            se,
+            wc[["raw"]],
+            truth
+          )
+        }
       }
     }
   }

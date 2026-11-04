@@ -59,6 +59,27 @@ for (cf in c("independent", "ar1", "fpca")) {
     signif(res$lambda, 3),
     "\n"
   )
+  # their_wild_crit() (run.R) with fastFGEE's own term maps must give its stored values
+  run_lines <- readLines("competitors/fgee/run.R")
+  start <- grep("^their_wild_crit <- function", run_lines)
+  end <- start + which(run_lines[-seq_len(start)] == "}")[1]
+  eval(parse(text = run_lines[start:end]))
+  own_maps <- asNamespace("fastFGEE")$build_A_functional_by(
+    res$model,
+    newdata = res$model$ci_newdata,
+    fn_domain = "yindex.vec"
+  )
+  stored <- unlist(res$crit$pointwise_crit_adj)
+  ported <- vapply(
+    own_maps,
+    \(A) their_wild_crit(res, A, fit$coefficients)[["adj"]],
+    1
+  )
+  cat(
+    "  largest difference to stored critical values:",
+    signif(max(abs(ported - stored)), 3),
+    "\n"
+  )
   for (est in model_estimands(cell$model)) {
     L <- evaluation_matrix(fit, sim, est)
     e_reml <- drop(L %*% fit$coefficients)

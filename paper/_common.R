@@ -23,6 +23,40 @@ read_summary <- function(dir, name) {
   readr::read_csv(path, show_col_types = FALSE, guess_max = 100000)
 }
 
+# Comparator fit records. pcre and GLS need a REML pilot fit, so their times include it, and the
+# FPCA of its residual curves where the method uses it. The runs record only the method's own step:
+# pcre's time already contains the FPCA, GLSfpc's does not (it is in pcre's `info` of that replicate).
+read_comparator_fits <- function() {
+  fits <- readr::read_csv(
+    "comparators/summaries/comparators-fits.csv",
+    show_col_types = FALSE
+  )
+  pilot <- fits |>
+    dplyr::filter(arm == "REML") |>
+    dplyr::transmute(key, rep, reml = time)
+  fpca <- fits |>
+    dplyr::filter(arm == "PCRE") |>
+    dplyr::transmute(
+      key,
+      rep,
+      fpca = as.numeric(sub(".*fpca_time=([0-9.]+).*", "\\1", info))
+    )
+  stopifnot(!anyNA(fpca$fpca))
+  out <- fits |>
+    dplyr::left_join(pilot, by = c("key", "rep")) |>
+    dplyr::left_join(fpca, by = c("key", "rep")) |>
+    dplyr::mutate(
+      time = dplyr::case_when(
+        arm %in% c("PCRE", "GLSraw") ~ time + reml,
+        arm == "GLSfpc" ~ time + reml + fpca,
+        .default = time
+      )
+    ) |>
+    dplyr::select(-reml, -fpca)
+  stopifnot(!anyNA(out$time))
+  out
+}
+
 # Labels ---------------------------------------------------------------------------------
 
 ARM_LABELS <- c(

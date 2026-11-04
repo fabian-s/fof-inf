@@ -41,15 +41,39 @@ intervals are close to nominal, except for binary intercepts and scalar effects 
 misregistered counts. We state which defaults of refund the evidence supports.</p>
 
 <ul class="links">
-  <li><a href="paper.pdf">Paper</a> (PDF)</li>
-  <li><a href="supplement.pdf">Supplement</a> (PDF)</li>
+  <li>Paper: <a href="https://arxiv.org/abs/2610.04677">arXiv:2610.04677</a>
+    (<a href="https://arxiv.org/pdf/2610.04677">PDF</a>); <a href="paper.pdf">version on this page</a></li>
+  <li>Supplement: <a href="https://arxiv.org/src/2610.04677/anc/supplement.pdf">on arXiv</a>;
+    <a href="supplement.pdf">version on this page</a></li>
   <li><a href="results.html">Detailed results</a> (all tables and figures of both studies, HTML)</li>
   <li><a href="https://github.com/fabian-s/fof-inf">Code and aggregate results</a> (GitHub)</li>
+  <li>Raw task records: <a href="https://doi.org/10.5281/zenodo.23916388">10.5281/zenodo.23916388</a> (Zenodo)</li>
 </ul>
+
+<h2>Reproducing the results</h2>
+<p>The paper, the supplement and the detailed results render from the aggregate files in the code
+repository, without the raw records. To recompute those aggregates, download the task records you
+need from the Zenodo deposit into the folder <code>raw/</code> of your clone, where the scripts look
+for them:</p>
+<pre>git clone https://github.com/fabian-s/fof-inf.git
+cd fof-inf
+bash scripts/get-raw.sh list                          # the available parts
+bash scripts/get-raw.sh results r4-results study.rds  # for example, the main study</pre>
+<p>The script downloads each archive, extracts it to <code>raw/&lt;name&gt;/</code>, checks every
+record against its checksum and removes the archive. All parts together take about
+86&nbsp;GB once extracted, so fetch only the ones you need; the
+<a href="https://github.com/fabian-s/fof-inf#raw-task-records">README</a> says which part belongs to
+which analysis. Without the script:</p>
+<pre>mkdir -p raw
+curl -L -o raw/results.tar.xz "https://zenodo.org/records/23916388/files/results.tar.xz?download=1"
+tar -xJf raw/results.tar.xz -C raw</pre>
+<p>Records of the two cardiology datasets are patient and volunteer data and are not in the deposit;
+the repository holds only aggregate results for them, so those results cannot be recomputed.</p>
 
 <h2>Citation</h2>
 <pre>Scheipl, F. (2026). Estimation and inference in penalized function-on-function regression
-with dependent residual curves. Manuscript.</pre>
-<p>Code: GPL-3. Paper, supplement and results: CC BY 4.0.</p>
+with dependent residual curves. arXiv:2610.04677.
+Raw task records: https://doi.org/10.5281/zenodo.23916388.</pre>
+<p>Code: GPL-3. Paper, supplement, results and raw task records: CC BY 4.0.</p>
 </body>
 </html>

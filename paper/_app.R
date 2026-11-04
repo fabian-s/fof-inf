@@ -384,3 +384,172 @@ jf_app_mean <- JF_P |>
   summarise(c = mean(coverage), .groups = "drop")
 jf_bin <- \(e, a = "jk_nei")
   JF_S$coverage[JF_S$family == "binomial" & JF_S$estimand == e & JF_S$arm == a]
+# scaled-t replicates whose NCV fit is flagged as not converged against the others, per interval
+# (analysis/convergence-flag.R)
+CONV_FLAG <- read_summary("final", "convergence-flag")
+cflag <- \(arm, flagged, err = "fpc", e = "beta", col = "coverage") {
+  CONV_FLAG[[col]][
+    CONV_FLAG$arm == arm &
+      CONV_FLAG$flagged == flagged &
+      CONV_FLAG$error == err &
+      CONV_FLAG$estimand == e
+  ]
+}
+cflag_gap <- CONV_FLAG |>
+  dplyr::filter(arm == "ncv_cl2") |>
+  select(error, estimand, flagged, coverage) |>
+  tidyr::pivot_wider(
+    names_from = flagged,
+    values_from = coverage,
+    names_prefix = "f"
+  ) |>
+  mutate(gap = fFALSE - fTRUE)
+cflag_arm_gap <- \(arm, err = "fpc", e = "beta") {
+  cflag(arm, FALSE, err, e) - cflag(arm, TRUE, err, e)
+}
+cflag_rate <- \(err) {
+  x <- CONV_FLAG[
+    CONV_FLAG$arm == "ncv_cl2" &
+      CONV_FLAG$estimand == "beta" &
+      CONV_FLAG$error == err,
+  ]
+  sum(x$n_rep[x$flagged]) / sum(x$n_rep)
+}
+# CL2 against CR1 with the same allowance: coverage gain and width ratio per setting, dependent
+# main-factorial settings at the default signal, normal critical value
+CR1_CONTR <- readr::read_csv(
+  "ablation/summaries/ablation-contrasts.csv",
+  show_col_types = FALSE
+) |>
+  dplyr::filter(
+    contrast == "CL2 - CR1",
+    error != "iid",
+    estimand %in% c("mean", "beta")
+  )
+CR1_WIDTH <- readr::read_csv(
+  "ablation/summaries/ablation-cells.csv",
+  show_col_types = FALSE
+) |>
+  dplyr::filter(
+    crit == "z",
+    error != "iid",
+    arm %in% c("cr1_b", "cl2e_b"),
+    estimand %in% c("mean", "beta")
+  ) |>
+  select(cell, G, estimand, arm, width) |>
+  tidyr::pivot_wider(names_from = arm, values_from = width) |>
+  mutate(ratio = cl2e_b / cr1_b)
+cr1_gain <- \(g) CR1_CONTR$diff[CR1_CONTR$G == g]
+cr1_wr <- \(g) CR1_WIDTH$ratio[CR1_WIDTH$G == g]
+# REML / NCV ratio of the relative error of beta under dependence, per block of settings
+rr_block <- function(blk) {
+  REL |>
+    dplyr::filter(
+      block == blk,
+      estimand == "beta",
+      error != "iid",
+      arm %in% c("reml_cl2", "ncv_cl2")
+    ) |>
+    select(cell, arm, rel_rmse_median) |>
+    tidyr::pivot_wider(names_from = arm, values_from = rel_rmse_median) |>
+    mutate(ratio = reml_cl2 / ncv_cl2) |>
+    pull(ratio)
+}
+
+# restarts of flagged scaled-t NCV fits: first flagged fits (independent errors) and a random
+# sample under smooth errors (analysis/scat-convergence.R)
+SCAT_SMOOTH <- read_summary("final", "scat-convergence-smooth")
+scat_spread <- SCAT_SMOOTH |>
+  group_by(task) |>
+  summarise(
+    crit = diff(range(criterion)),
+    # study fit above the best refit (> 0) or best-agreeing: which fit is the better one
+    study_above = criterion[start == "production"] - min(criterion),
+    worst_refit_above = max(criterion) - criterion[start == "production"],
+    surf = max(beta_max_diff),
+    se = max(se_cl2_rel_diff),
+    .groups = "drop"
+  ) |>
+  mutate(other_fit = se > 0.5)
+stopifnot(sum(scat_spread$other_fit) == 2, nrow(scat_spread) == 20)
+scat_same <- dplyr::filter(scat_spread, !other_fit, crit < 0.01)
+scat_near <- dplyr::filter(scat_spread, !other_fit, crit >= 0.01)
+stopifnot(nrow(scat_same) == 17, nrow(scat_near) == 1)
+scat_study_worse <- dplyr::filter(scat_spread, other_fit, study_above > 1)
+scat_refit_worse <- dplyr::filter(scat_spread, other_fit, study_above <= 1)
+stopifnot(nrow(scat_study_worse) == 1, nrow(scat_refit_worse) == 1)
+scat_refit_flagged <- SCAT_SMOOTH |>
+  dplyr::filter(start != "production") |>
+  summarise(n = n(), f = sum(conv != "full convergence"))
+scat_truth_rms <- sqrt(REL$denom[REL$cell == 88 & REL$estimand == "beta"][1])
+# no REML fit flagged, in any family (settings with fit records)
+stopifnot(all(FITS$converged[FITS$fit == "REML"] == 1))
+pm_flag_max <- 1 -
+  min(
+    read_summary("plasmode", "fits") |>
+      dplyr::filter(fit == "NCV") |>
+      pull(converged)
+  )
+sci_tex <- function(x) {
+  e <- floor(log10(x))
+  sprintf("$%d \\times 10^{%d}$", round(x / 10^e), e)
+}
+
+# Low-smoothing NCV fits and the REML fit of the same replicates (analysis/ncv-low-smoothing.R)
+LOWSM <- read_summary("final", "ncv-low-smoothing")
+lowsm <- function(
+  col,
+  dep = "dependent",
+  fam = "no warp",
+  err = "all",
+  thr = 3
+) {
+  x <- LOWSM[[col]][
+    LOWSM$dependence == dep &
+      LOWSM$family == fam &
+      LOWSM$error == err &
+      LOWSM$threshold == thr &
+      is.na(LOWSM$G)
+  ]
+  stopifnot(length(x) == 1)
+  x
+}
+LOWSM_WARP <- dplyr::filter(
+  LOWSM,
+  threshold == 3,
+  dependence == "dependent",
+  error == "warp"
+)
+LOWSM_DEP <- dplyr::filter(
+  LOWSM,
+  threshold == 3,
+  dependence == "dependent",
+  error %in% c("fpc", "ou", "ou0")
+)
+lowsm_flag <- LOWSM_DEP |>
+  dplyr::filter(family != "scat") |>
+  summarise(
+    n = sum(round(share_low * n_rep)),
+    f = sum(round(share_low * n_rep * flagged_low))
+  )
+stopifnot(
+  lowsm("n_cells") +
+    lowsm("n_cells", "independent") +
+    sum(LOWSM_WARP$n_cells) ==
+    86,
+  sum(LOWSM_DEP$n_cells) == lowsm("n_cells"),
+  lowsm("share_low_reml", "independent") == 0,
+  lowsm("ncv_beats_reml_low", "independent") < 0.05,
+  lowsm("smoother_than_reml_low") == 1,
+  lowsm("ncv_beats_reml_low") > 0.95,
+  # neither fit is uniformly more stable under dependence; REML is under independence, and under misregistration
+  lowsm("sd_ncv") < lowsm("sd_reml"),
+  lowsm("sd2_ncv") > lowsm("sd2_reml"),
+  lowsm("sd_ncv", "independent") > lowsm("sd_reml", "independent"),
+  lowsm("sd2_ncv", "independent") > lowsm("sd2_reml", "independent"),
+  all(LOWSM_WARP$sd_ncv > LOWSM_WARP$sd_reml),
+  lowsm("within_ncv_remltail") < 1.1,
+  -lowsm("cov_diff_ncv_remltail") < 0.01,
+  lowsm_flag$n == 542,
+  lowsm_flag$f == 1
+)

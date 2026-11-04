@@ -25,8 +25,8 @@ export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
 export PLASMODE_CARDIO=deid
 
-OUT="${1:-../lc-ncvp-results}"
+OUT="${1:-raw/lc-ncvp-results}"
 REPS="${2:-1:100}"
 APPS="${3:-}"
 MAX="${4:-Inf}"
-Rscript lambda-correction/run-lc-ncv-plasmode.R "$OUT" ../plasmode-results "$MAX" "$REPS" $APPS
+Rscript lambda-correction/run-lc-ncv-plasmode.R "$OUT" raw/plasmode-results "$MAX" "$REPS" $APPS

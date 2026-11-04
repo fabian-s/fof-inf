@@ -22,7 +22,8 @@ timed <- \(label, expr) {
   value
 }
 # The per-cell summary is the slow step; reuse it if it was made from this directory.
-study_file <- file.path(out_dir, "study.rds")
+study_file <- Sys.getenv("STUDY_RDS", "raw/study.rds")
+dir.create(dirname(study_file), recursive = TRUE, showWarnings = FALSE)
 # The cache is valid only for the same set of result files (names and sizes).
 dirs <- strsplit(args[1], ",")[[1]]
 files <- unlist(lapply(

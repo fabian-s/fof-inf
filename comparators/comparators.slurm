@@ -3,7 +3,7 @@
 # (lock dirs) until none are left, so the array size is just the number of workers (<= 64).
 # Submit from $PROJECT_DIR/code-comparators (frozen copy of the repository):
 #   sbatch --array=1-4  comparators/comparators.slurm ../comparators-pilot s012,p081 2
-#   sbatch --array=1-64 comparators/comparators.slurm ../comparators-results all 200 <boot_syn> <boot_plas>
+#   sbatch --array=1-64 comparators/comparators.slurm raw/comparators-results all 200 <boot_syn> <boot_plas>
 # Arguments: <out_dir> <keys|all> <max_rep> [boot reps synthetic] [boot reps plasmode].
 # Cardiology apps run from the de-identified input only (PLASMODE_CARDIO=deid); task files
 # stay on LRZ.
@@ -34,5 +34,5 @@ export COMP_MAX_REP="${3:-200}"
 [ -n "$4" ] && export COMP_BOOT_REPS_SYN="$4"
 [ -n "$5" ] && export COMP_BOOT_REPS_PLAS="$5"
 
-Rscript comparators/run-comparators.R "$out_dir" ../results/373f6fd65cac \
-  ../plasmode-results
+Rscript comparators/run-comparators.R "$out_dir" raw/results/373f6fd65cac \
+  raw/plasmode-results

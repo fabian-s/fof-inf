@@ -24,3 +24,9 @@ writeup/figures/
 .RData
 .Rproj.user/
 competitors/fgee/upstream-sim_functional_data.R
+
+# Local review artifacts
+/attic/
+
+# Raw records from the Zenodo deposit (see README)
+/raw/

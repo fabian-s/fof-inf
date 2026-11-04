@@ -18,4 +18,4 @@ export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
-Rscript ncv-jack-recheck/run-jackfix.R ../jackfix-results syn 12,24,36 1 100
+Rscript ncv-jack-recheck/run-jackfix.R raw/jackfix-results syn 12,24,36 1 100

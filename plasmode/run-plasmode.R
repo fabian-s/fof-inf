@@ -3,7 +3,7 @@
 #   Rscript plasmode/run-plasmode.R <app> <worker> <n_workers> [max_rep]
 # With worker "prepare", the app's truth (and beat) caches are built and nothing else:
 # run it once before starting parallel workers, which otherwise all build them.
-# Results go to PLASMODE_RESULTS/<app> (default PLASMODE_CACHE/results; outside the
+# Results go to PLASMODE_RESULTS/<app> (default raw/plasmode-results; outside the
 # repository: task files hold per-subject curves).
 source("scripts/setup.R")
 source("plasmode/sources.R")
@@ -60,7 +60,7 @@ if (prepare) {
 tasks <- task_table(cells, reps = seq_len(max_rep))
 mine <- tasks[tasks$cell %in% cells$cell[cells$app == app], ]
 mine <- mine[seq_len(nrow(mine)) %% n_workers == worker, ]
-results <- Sys.getenv("PLASMODE_RESULTS", file.path(PLASMODE_CACHE, "results"))
+results <- Sys.getenv("PLASMODE_RESULTS", "raw/plasmode-results")
 out_dir <- file.path(results, app)
 for (id in mine$task) {
   start <- proc.time()[["elapsed"]]

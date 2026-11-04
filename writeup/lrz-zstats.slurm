@@ -32,7 +32,7 @@ export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 export MGCV_EXPECT=1.9.5
 
 # synthetic: both runs of 100 replicates
-Rscript writeup/lrz-zstats.R synthetic "$PROJECT_DIR/results" zstats-synthetic.csv
+Rscript writeup/lrz-zstats.R synthetic "raw/results" zstats-synthetic.csv
 # plasmode: the nine applications
-Rscript writeup/lrz-zstats.R plasmode "$PROJECT_DIR/plasmode-results" zstats-plasmode.csv \
+Rscript writeup/lrz-zstats.R plasmode "raw/plasmode-results" zstats-plasmode.csv \
   dti gait_vc ecg_roahd ocean aemet adelaide running ecg_gls4b af

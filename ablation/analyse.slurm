@@ -18,4 +18,4 @@ export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 
-Rscript ablation/analyse-ablation.R ../ablation-results ../ablation-summaries
+Rscript ablation/analyse-ablation.R raw/ablation-results ../ablation-summaries

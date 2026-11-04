@@ -3,7 +3,7 @@
 # and af from their de-identified input only (PLASMODE_CARDIO=deid; the files under
 # $PLASMODE_CACHE/deid/<app>/). The original ECG app ecg_gls4 is refused.
 # Code: $PROJECT_DIR/code-plasmode (a copy of the repository). Caches and results:
-# $PROJECT_DIR/plasmode-cache and $PROJECT_DIR/plasmode-results/<app>.
+# $PROJECT_DIR/plasmode-cache and raw/plasmode-results/<app>.
 # Arguments: <app> <n_workers> [max_rep] [tag]. A tag (e.g. smoke) puts caches and results
 # under $PROJECT_DIR/plasmode-<tag>/ instead. Without --array the job builds the app's
 # truth caches ("prepare"); with --array=0-<n_workers - 1> each task runs one worker's share.
@@ -36,7 +36,7 @@ if [ -n "$tag" ]; then
   export PLASMODE_RESULTS="$PROJECT_DIR/plasmode-$tag/results"
 else
   export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
-  export PLASMODE_RESULTS="$PROJECT_DIR/plasmode-results"
+  export PLASMODE_RESULTS="raw/plasmode-results"
 fi
 case "$app" in
   ecg_gls4)

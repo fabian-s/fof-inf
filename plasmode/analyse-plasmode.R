@@ -1,7 +1,7 @@
 # Aggregate plasmode results into coverage, MSE and rule tables (aggregates only: no
 # per-subject curves leave the cache). Run from the repository root:
 #   Rscript plasmode/analyse-plasmode.R <app> [<app> ...]
-# Results are read from PLASMODE_RESULTS/<app> (default PLASMODE_CACHE/results). Output
+# Results are read from PLASMODE_RESULTS/<app> (default raw/plasmode-results). Output
 # goes to PLASMODE_SUMMARIES (default summaries/plasmode, which must be written from all
 # applications at once; any other directory accepts a subset, e.g. for smoke runs).
 source("scripts/setup.R")
@@ -21,7 +21,7 @@ if (out_dir == "summaries/plasmode") {
     "analyse all plasmode applications together" = setequal(apps, cells$app)
   )
 }
-results <- Sys.getenv("PLASMODE_RESULTS", file.path(PLASMODE_CACHE, "results"))
+results <- Sys.getenv("PLASMODE_RESULTS", "raw/plasmode-results")
 study <- summarise_study(file.path(results, apps), cells)
 dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
 design <- cells[c("cell", "app", "truth", "residual", "flip", "error", "G")]

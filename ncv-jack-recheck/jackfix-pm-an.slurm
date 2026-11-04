@@ -20,4 +20,4 @@ export RESTART_LIB="$HOME/R/restart-lib"
 export R_LIBS="$HOME/R/restart-lib"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
 export PLASMODE_CARDIO=deid
-Rscript ncv-jack-recheck/analyse-jackfix.R ../jackfix-pm-results ../jackfix-summaries/jackfix-pm plasmode
+Rscript ncv-jack-recheck/analyse-jackfix.R raw/jackfix-pm-results ../jackfix-summaries/jackfix-pm plasmode

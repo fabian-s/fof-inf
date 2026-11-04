@@ -22,4 +22,4 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
-Rscript misspec/run-misspec.R ../misspec-results "$1" "$2" "$3"
+Rscript misspec/run-misspec.R raw/misspec-results "$1" "$2" "$3"

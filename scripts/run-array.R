@@ -8,7 +8,7 @@ run <- as.numeric(
   if (length(args) >= 2) args[2] else Sys.getenv("RESTART_RUN", "1")
 )
 out_dir <- if (length(args) >= 3) args[3] else
-  Sys.getenv("RESTART_OUT_DIR", "results")
+  Sys.getenv("RESTART_OUT_DIR", "raw/results")
 array_id <- as.numeric(Sys.getenv("SLURM_ARRAY_TASK_ID"))
 cells <- design_table()
 tasks <- task_table(cells)

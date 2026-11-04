@@ -1,18 +1,33 @@
 # Are the non-converged scat NCV fits real optimization failures? For a few non-converged
 # production tasks, refit NCV from different starting penalties and compare the NCV
-# criterion and the estimates. Run from the repository root:
-#   Rscript analysis/scat-convergence.R <out.csv> [n_tasks]
+# criterion, the estimates and the standard errors. Run from the repository root:
+#   Rscript analysis/scat-convergence.R <out.csv> [n_tasks] [cell] [part] [n_parts]
+# Without `cell`: the first flagged tasks. With `cell`: a seeded random sample of its flagged
+# tasks, split into `n_parts` for parallel workers. STUDY_RDS: the study's summarise_study() output.
 source("scripts/setup.R")
 suppressPackageStartupMessages(library(refund))
 args <- commandArgs(trailingOnly = TRUE)
 n_tasks <- if (length(args) >= 2) as.integer(args[2]) else 5L
+one_cell <- if (length(args) >= 3) as.integer(args[3]) else NA_integer_
+part <- if (length(args) >= 4) as.integer(args[4]) else 1L
+n_parts <- if (length(args) >= 5) as.integer(args[5]) else 1L
 
 cells <- design_table()
-study <- readRDS("summaries/final/study.rds")
+study <- readRDS(Sys.getenv("STUDY_RDS", "raw/study.rds"))
 scat_cells <- cells$cell[cells$family == "scat"]
-failed <- study$fits |>
-  dplyr::filter(cell %in% scat_cells, fit == "NCV", !converged) |>
-  dplyr::slice_head(n = n_tasks)
+flagged <- study$fits |>
+  dplyr::filter(cell %in% scat_cells, fit == "NCV", !converged)
+failed <- if (is.na(one_cell)) {
+  dplyr::slice_head(flagged, n = n_tasks)
+} else {
+  sampled <- dplyr::filter(flagged, cell == one_cell) |>
+    dplyr::arrange(rep)
+  sampled <- withr::with_seed(
+    SEED_BOOT,
+    dplyr::slice_sample(sampled, n = n_tasks)
+  )
+  sampled[seq_len(nrow(sampled)) %% n_parts == part %% n_parts, ]
+}
 
 refit <- function(sim, cell, start_sp = NULL) {
   fit <- fit_pffr(sim, cell, "NCV")
@@ -33,6 +48,16 @@ refit <- function(sim, cell, start_sp = NULL) {
     silent = TRUE
   )
   if (inherits(fit_start, "try-error")) NULL else fit_start
+}
+
+se_cl2 <- function(fit, L) {
+  V <- refund:::pffr_vcov(
+    fit,
+    sandwich = "cl2",
+    freq = FALSE,
+    cl2_adjustment = "exact"
+  )
+  sqrt(rowSums((L %*% V) * L))
 }
 
 rows <- lapply(seq_len(nrow(failed)), \(k) {
@@ -58,7 +83,8 @@ rows <- lapply(seq_len(nrow(failed)), \(k) {
       conv = f$outer.info$conv %||% NA_character_,
       criterion = as.numeric(f$gcv.ubre),
       max_grad = max(abs(f$outer.info$grad %||% NA)),
-      beta_max_diff = max(abs(L %*% (f$coefficients - base$coefficients)))
+      beta_max_diff = max(abs(L %*% (f$coefficients - base$coefficients))),
+      se_cl2_rel_diff = max(abs(se_cl2(f, L) / se_cl2(base, L) - 1))
     )
   }))
 })

@@ -18,4 +18,4 @@ export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
 export PLASMODE_CARDIO=deid
-Rscript ncv-rbc/worker-fixlambda-plasmode.R ../fixlam-pm-results ../plasmode-results ecg_gls4b,af,running,dti,gait_vc,ecg_roahd,ocean,aemet,adelaide 100
+Rscript ncv-rbc/worker-fixlambda-plasmode.R raw/fixlam-pm-results raw/plasmode-results ecg_gls4b,af,running,dti,gait_vc,ecg_roahd,ocean,aemet,adelaide 100

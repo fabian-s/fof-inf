@@ -7,9 +7,9 @@ selection (a refit at the setting's geometric-mean REML smoothing parameters). C
 `sandwich = "cluster"` without a small-sample factor.
 
 - `make-sp.R`: geometric-mean REML smoothing parameters per penalty from the study summary
-  (`summaries/final/study.rds`, written by `analysis/run-analysis.R`) → `sp-fixed.csv`.
+  (`raw/study.rds`, written by `analysis/run-analysis.R`) → `sp-fixed.csv`.
 - `ablation-lib.R`, `run-ablation.R`: worker; claims tasks through lock directories and checks every REML
   fit against the study's stored record of the same replicate.
-- `ablation.slurm`: `sbatch --array=1-60 ablation/ablation.slurm` (study task records in `../results/<run>`).
+- `ablation.slurm`: `sbatch --array=1-60 ablation/ablation.slurm` (study task records in `raw/results/<run>`).
 - `analyse-ablation.R`, `analyse.slurm` → `summaries/`: `ablation-cells.csv` (cell × estimand × arm),
   `ablation-contrasts.csv` (paired contrasts), `ablation-failures.csv`, `SUMMARY.md` (generated tables).

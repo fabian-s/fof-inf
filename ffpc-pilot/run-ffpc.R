@@ -12,7 +12,7 @@
 # evaluation grid, model-based (Vp) and exact Bayesian CL2 SEs, the true beta and its
 # projection onto the estimated FPC span, plus the study's stored ff REML/NCV estimates and
 # CL2 SEs for the same cell and replicate (searched in the colon-separated directories of
-# FFPC_REF_DIRS, default results/, and their subdirectories).
+# FFPC_REF_DIRS, default raw/results/, and their subdirectories).
 # ffpc-pilot.R is the single-cell pilot version of the same computation (identical records).
 source("scripts/setup.R")
 suppressMessages(library(refund))
@@ -24,12 +24,12 @@ parse_rule <- function(rule) {
     list(npc = as.integer(value), useSymm = TRUE)
 }
 
-# FFPC_REF_DIRS (default results/) and their immediate subdirectories, searched once.
+# FFPC_REF_DIRS (default raw/results/) and their immediate subdirectories, searched once.
 ref_dirs <- local({
   dirs <- NULL
   function() {
     if (is.null(dirs)) {
-      env <- Sys.getenv("FFPC_REF_DIRS", "results")
+      env <- Sys.getenv("FFPC_REF_DIRS", "raw/results")
       top <- strsplit(env, ":")[[1]]
       dirs <<- unique(c(top, unlist(lapply(top, list.dirs, recursive = FALSE))))
     }

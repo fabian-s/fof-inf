@@ -112,10 +112,16 @@ bp_report <- function(file, label, design_fun) {
     "reml_cl2",
     "fgee_independent",
     "fgee_independent_wild",
+    "fgee_independent_wildL",
+    "fgee_independent_wildL_noT",
     "fgee_ar1",
     "fgee_ar1_wild",
+    "fgee_ar1_wildL",
+    "fgee_ar1_wildL_noT",
     "fgee_fpca",
-    "fgee_fpca_wild"
+    "fgee_fpca_wild",
+    "fgee_fpca_wildL",
+    "fgee_fpca_wildL_noT"
   )
   x <- x[x$method %in% methods, ]
   x$method <- factor(x$method, methods)
@@ -130,20 +136,37 @@ bp_report <- function(file, label, design_fun) {
   }
   for (est in c("beta", "mean")) {
     y <- x[x$estimand == est, ]
-    ref <- y[y$method == "reml_cl2", c("design", "rmse", "width")]
+    ref <- y[
+      y$method == "reml_cl2",
+      c("design", "rmse", "width", "interval_score")
+    ]
     y <- merge(
       y,
-      setNames(ref, c("design", "rmse_reml", "width_cl2")),
+      setNames(ref, c("design", "rmse_reml", "width_cl2", "score_cl2")),
       by = "design"
     )
     y$rmse_ratio <- y$rmse / y$rmse_reml
     y$width_ratio <- y$width / y$width_cl2
-    y <- y[y$method %in% c("fgee_independent", "fgee_ar1", "fgee_fpca"), ]
+    y$score_ratio <- y$interval_score / y$score_cl2
     say(sprintf("### %s: RMSE ratio to REML\n", est))
-    out <<- c(out, md_table(y, "design", "method", "rmse_ratio", 2), "")
+    wald <- c("fgee_independent", "fgee_ar1", "fgee_fpca")
+    out <<- c(
+      out,
+      md_table(y[y$method %in% wald, ], "design", "method", "rmse_ratio", 2),
+      ""
+    )
     say(sprintf("### %s: interval width ratio to REML + CL2\n", est))
+    y <- y[grepl("^fgee_", y$method), ]
     out <<- c(out, md_table(y, "design", "method", "width_ratio", 2), "")
-    z <- x[x$estimand == est, ]
+    say(sprintf("### %s: interval score ratio to REML + CL2\n", est))
+    out <<- c(out, md_table(y, "design", "method", "score_ratio", 2), "")
+    say(sprintf("### %s: 5%% quantile of pointwise coverage\n", est))
+    out <<- c(
+      out,
+      md_table(x[x$estimand == est, ], "design", "method", "pointwise_q05", 2),
+      ""
+    )
+    z <- x[x$estimand == est & !grepl("_wildL", x$method), ]
     say(sprintf("### %s: mean(SE)/sd(estimate)\n", est))
     out <<- c(out, md_table(z, "design", "method", "se_sd_ratio", 2), "")
   }
@@ -154,12 +177,17 @@ bp_report <- function(file, label, design_fun) {
 }
 bp_report(
   file.path(dir, "B-summary.csv"),
-  "## B. Restart study data sets (M1: ff + z, one curve per subject, core cells at mid signal)",
+  "## B. The study's data sets (M1: ff + z, one curve per subject, core cells at mid signal)",
   \(x) sprintf("%s %s G=%d", x$family, x$error, x$G)
 )
 bp_report(
   file.path(dir, "P-summary.csv"),
   "## P. Plasmode (public datasets, MID truth, REML residual curves attached)",
+  \(x) sprintf("%s G=%d", x$app, x$G)
+)
+bp_report(
+  file.path(dir, "cardio", "P-summary.csv"),
+  "## P, cardiology datasets (aggregates only; MID truth, REML residual curves attached)",
   \(x) sprintf("%s G=%d", x$app, x$G)
 )
 writeLines(out, file.path(dir, "REPORT.md"))

@@ -24,4 +24,4 @@ export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache" # experiment P reads the cac
 export PLASMODE_CARDIO=deid FGEE_P_APPS=ecg_gls4b,af # de-identified input only; raw task files stay on LRZ
 
 Rscript competitors/fgee/run.R P "$SLURM_ARRAY_TASK_ID" "$SLURM_ARRAY_TASK_COUNT" \
-  "../fgee-results/Pc" "${1:-200}"
+  "raw/fgee-results/Pc" "${1:-200}"

@@ -18,4 +18,4 @@ export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 
-Rscript misspec/analyse-misspec.R ../misspec-results ../misspec-summaries "$1"
+Rscript misspec/analyse-misspec.R raw/misspec-results ../misspec-summaries "$1"

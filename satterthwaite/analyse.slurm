@@ -18,4 +18,4 @@ export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 
-Rscript satterthwaite/analyse-satt.R "${1:-../satt-results}" "${2:-../satt-summaries}"
+Rscript satterthwaite/analyse-satt.R "${1:-raw/satt-results}" "${2:-../satt-summaries}"

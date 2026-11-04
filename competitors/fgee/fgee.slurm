@@ -24,4 +24,4 @@ export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache" # experiment P reads the cached truths
 
 Rscript competitors/fgee/run.R "$1" "$SLURM_ARRAY_TASK_ID" "$SLURM_ARRAY_TASK_COUNT" \
-  "../fgee-results/$1" "${2:-200}"
+  "raw/fgee-results/$1" "${2:-200}"

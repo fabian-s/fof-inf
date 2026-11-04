@@ -20,4 +20,4 @@ export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
-Rscript lambda-correction/analyse-lc-plasmode.R ../lc-plasmode-results ../lc-plasmode-summaries
+Rscript lambda-correction/analyse-lc-plasmode.R raw/lc-plasmode-results ../lc-plasmode-summaries

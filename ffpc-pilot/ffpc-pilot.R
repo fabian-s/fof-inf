@@ -21,10 +21,13 @@ study_record <- function(cell, rep) {
   # the first study run (cells 1-95) names files by its 95-cell task table
   f <- c(
     if (cell$cell <= 95) {
-      sprintf("results/373f6fd65cac/task-%d.rds", (rep - 1) * 95 + cell$cell)
+      sprintf(
+        "raw/results/373f6fd65cac/task-%d.rds",
+        (rep - 1) * 95 + cell$cell
+      )
     },
     file.path(
-      list.dirs("results", recursive = FALSE),
+      list.dirs("raw/results", recursive = FALSE),
       sprintf("task-c%03d-r%03d.rds", cell$cell, rep)
     )
   )

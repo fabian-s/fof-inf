@@ -24,11 +24,11 @@ export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
 N="${1:-28}"
-OUT="${2:-../lc-ncvg2-results}"
+OUT="${2:-raw/lc-ncvg2-results}"
 logs="../logs/lc-ncvg-cm4-$SLURM_JOB_ID"
 mkdir -p "$logs" "$OUT"
 for w in $(seq 1 "$N"); do
-  Rscript lambda-correction/run-lc-ncvg.R "$OUT" ../results/373f6fd65cac Inf 1:200 \
+  Rscript lambda-correction/run-lc-ncvg.R "$OUT" raw/results/373f6fd65cac Inf 1:200 \
     > "$logs/worker$w.log" 2>&1 &
 done
 wait

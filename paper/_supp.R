@@ -425,7 +425,7 @@ lam_syn <- bind_rows(NCVL, NCVG) |>
     se_sd = mean(se_sd_ratio),
     .groups = "drop"
   )
-lsv <- \(fam, g, a, col = "cov", dep = "dependent")
+lam_sv <- \(fam, g, a, col = "cov", dep = "dependent")
   lam_syn[[col]][
     lam_syn$family == fam &
       lam_syn$G == g &
@@ -487,7 +487,7 @@ JF_DIR <- "ncv-jack-recheck/summaries/"
 JF_ARMS <- c(
   ncv_vp = "Bayesian Vp",
   ncv_cl2 = "NCV + CL2",
-  jk_nei = "corrected neighbourhood covariance",
+  jk_nei = "corrected neighborhood covariance",
   jk_nei_vc = "... with λ̂ correction",
   jk_cv = "its sampling part",
   jk_raw = "mgcv per-point jackknife = TRUE",
@@ -636,7 +636,7 @@ lc_w <- LC |>
     sr = mean(sr),
     .groups = "drop"
   )
-lcv <- \(a, col = "cov", e = "beta", g = c(40, 100), dep = "dependent")
+lc_v <- \(a, col = "cov", e = "beta", g = c(40, 100), dep = "dependent")
   lc_w[[col]][
     lc_w$arm == a & lc_w$estimand == e & lc_w$G %in% g & lc_w$dependence == dep
   ]
@@ -686,10 +686,7 @@ tim_tab <- TIM |>
     n = n(),
     .groups = "drop"
   )
-CMPF <- readr::read_csv(
-  "comparators/summaries/comparators-fits.csv",
-  show_col_types = FALSE
-)
+CMPF <- read_comparator_fits()
 cmp_time <- CMPF |>
   group_by(arm) |>
   summarise(

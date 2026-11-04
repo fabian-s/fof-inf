@@ -14,4 +14,4 @@ module load slurm_setup
 export PATH="$HOME/envs/r461/bin:$PATH"
 export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export R_LIBS="$HOME/R/restart-lib"
-Rscript ncv-rbc/analyse-rbc.R ../combo-pm-results ../relerr-summaries/combo-plasmode-cells.csv
+Rscript ncv-rbc/analyse-rbc.R raw/combo-pm-results ../relerr-summaries/combo-plasmode-cells.csv

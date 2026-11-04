@@ -3,7 +3,8 @@
 # Per replicate: grid-average coverage, mean width, squared error per (method, estimand);
 # then means over replicates with Monte Carlo SEs (replicates are independent data
 # sets; points within a replicate are not). Also the SE calibration ratio
-# mean(SE) / sd(estimate) per point, averaged over the grid.
+# mean(SE) / sd(estimate) per point, averaged over the grid, the 5% quantile over the grid
+# of pointwise coverage and the mean interval score.
 suppressPackageStartupMessages({
   library(dplyr)
   library(tidyr)
@@ -12,6 +13,7 @@ args <- commandArgs(TRUE)
 in_dir <- args[1]
 out_dir <- args[2]
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+SCORE_ALPHA <- 0.05 # interval score of nominal 95% intervals
 
 summarise_records <- function(records) {
   per_rep <- records |>
@@ -39,12 +41,21 @@ summarise_records <- function(records) {
       mean_se = mean(se),
       sd_est = sd(est),
       bias = mean(est - truth),
+      cover_point = mean(truth >= lower & truth <= upper),
+      score_point = mean(
+        upper -
+          lower +
+          (2 / SCORE_ALPHA) * pmax(lower - truth, 0) +
+          (2 / SCORE_ALPHA) * pmax(truth - upper, 0)
+      ),
       .groups = "drop"
     ) |>
     group_by(cell, method, estimand) |>
     summarise(
       se_sd_ratio = mean(mean_se / sd_est),
       rel_bias = sqrt(mean(bias^2)) / sqrt(mean(sd_est^2)),
+      pointwise_q05 = unname(quantile(cover_point, 0.05)),
+      interval_score = mean(score_point),
       .groups = "drop"
     )
   list(

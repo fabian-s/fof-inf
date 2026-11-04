@@ -19,4 +19,4 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export REFUND_SHA="$(cat "$RESTART_LIB/REFUND_SHA")"
 
-Rscript ncv-rbc/worker-rbc.R ../rbc-fresh-results 7,8,9,10,11,12,19,20,21,22,23,24,31,32,33,34,35,36,64,65,66,67,68,69,70,71,72,73,74,75,76,77 201 400 with_reml
+Rscript ncv-rbc/worker-rbc.R raw/rbc-fresh-results 7,8,9,10,11,12,19,20,21,22,23,24,31,32,33,34,35,36,64,65,66,67,68,69,70,71,72,73,74,75,76,77 201 400 with_reml

@@ -3,7 +3,7 @@
 # claims tasks dynamically (lock dirs) until none are left.
 # Submit from $PROJECT_DIR/code-cl2arms (frozen copy of the repository):
 #   sbatch --array=1-2  comparators/cl2-arms.slurm ../cl2arms-pilot s009,p082 1
-#   sbatch --array=1-30 comparators/cl2-arms.slurm ../cl2arms-results all 200 100
+#   sbatch --array=1-30 comparators/cl2-arms.slurm raw/cl2arms-results all 200 100
 # Arguments: <out_dir> <keys|all> <max_rep> [pcre reps].
 #SBATCH -J cl2arms
 #SBATCH -o ../logs/%x.%A_%a.out
@@ -31,5 +31,5 @@ out_dir="$1"
 export CL2_MAX_REP="${3:-200}"
 [ -n "$4" ] && export CL2_PCRE_REPS="$4"
 
-Rscript comparators/run-cl2-arms.R "$out_dir" ../results/373f6fd65cac \
-  ../plasmode-results ../comparators-results
+Rscript comparators/run-cl2-arms.R "$out_dir" raw/results/373f6fd65cac \
+  raw/plasmode-results raw/comparators-results

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Comparator summaries (one core, on LRZ: the cardiology task files never leave it).
 # Submit from $PROJECT_DIR/code-comparators:
-#   sbatch comparators/analyse.slurm ../comparators-results ../comparators-summaries [max_rep]
+#   sbatch comparators/analyse.slurm raw/comparators-results ../comparators-summaries [max_rep]
 #SBATCH -J comparators-analyse
 #SBATCH -o ../logs/%x.%j.out
 #SBATCH -e ../logs/%x.%j.err

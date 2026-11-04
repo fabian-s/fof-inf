@@ -16,7 +16,7 @@ z <- qnorm(1 - (1 - LEVEL) / 2)
 
 if (mode == "synthetic") {
   cells <- design_table()
-  dirs <- list.dirs("results", recursive = FALSE)
+  dirs <- list.dirs("raw/results", recursive = FALSE)
   if (nzchar(Sys.getenv("DIAG_DIRS")))
     dirs <- strsplit(Sys.getenv("DIAG_DIRS"), ",")[[1]]
   keep <- as.integer(args[-(1:2)])
@@ -26,7 +26,7 @@ if (mode == "synthetic") {
   cells <- plasmode_cells()
   results <- Sys.getenv(
     "PLASMODE_RESULTS",
-    file.path(PLASMODE_CACHE, "results")
+    "raw/plasmode-results"
   )
   dirs <- file.path(results, args[-(1:2)])
   keep <- integer(0)

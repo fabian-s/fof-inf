@@ -1,7 +1,7 @@
 #!/bin/bash
 # CL2-arms summaries (one core, on LRZ: the cardiology task files never leave it).
 # Submit from $PROJECT_DIR/code-cl2arms:
-#   sbatch comparators/cl2-arms-analyse.slurm ../cl2arms-results ../cl2arms-summaries
+#   sbatch comparators/cl2-arms-analyse.slurm raw/cl2arms-results ../cl2arms-summaries
 #SBATCH -J cl2arms-analyse
 #SBATCH -o ../logs/%x.%j.out
 #SBATCH -e ../logs/%x.%j.err
@@ -21,5 +21,5 @@ export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1
 export RESTART_LIB="$HOME/R/restart-lib"
 export PLASMODE_CACHE="$PROJECT_DIR/plasmode-cache"
 
-Rscript comparators/analyse-cl2-arms.R "$1" ../comparators-results \
-  ../results/373f6fd65cac ../plasmode-results "$2"
+Rscript comparators/analyse-cl2-arms.R "$1" raw/comparators-results \
+  raw/results/373f6fd65cac raw/plasmode-results "$2"

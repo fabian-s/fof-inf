@@ -29,10 +29,10 @@ set -e
 steps="${1:-syn plasmode sgn relerr}"
 for step in $steps; do
   case $step in
-    syn) Rscript satterthwaite/analyse-satt-ext.R ../satt-r4-syn syn satterthwaite/summaries ;;
-    plasmode) Rscript satterthwaite/analyse-satt-ext.R ../satt-r4-pm plasmode satterthwaite/summaries ;;
-    sgn) Rscript small-g-null/analyse.R ../r4-results ../satt-r4-syn small-g-null/summaries ;;
-    relerr) RELERR_DIRS=../r4-results Rscript analysis/relative-error.R synthetic small-g-null/summaries/relative-error.csv ;;
+    syn) Rscript satterthwaite/analyse-satt-ext.R raw/satt-r4-syn syn satterthwaite/summaries ;;
+    plasmode) Rscript satterthwaite/analyse-satt-ext.R raw/satt-r4-pm plasmode satterthwaite/summaries ;;
+    sgn) Rscript small-g-null/analyse.R raw/r4-results raw/satt-r4-syn small-g-null/summaries ;;
+    relerr) RELERR_DIRS=raw/r4-results Rscript analysis/relative-error.R synthetic small-g-null/summaries/relative-error.csv ;;
   esac
 done
 echo all done
