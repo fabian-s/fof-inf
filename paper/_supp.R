@@ -604,6 +604,12 @@ jf_p_all <- JF_P |>
     .groups = "drop"
   )
 jf_pa <- \(a, col = "cov") jf_p_all[[col]][jf_p_all$arm == a]
+# corrected neighborhood covariance, beta: mean coverage over combinations by truth source
+jf_p_by_truth <- JF_P |>
+  dplyr::filter(estimand == "beta", arm == "jk_nei") |>
+  group_by(truth) |>
+  summarise(cells = n(), cov = mean(coverage), .groups = "drop")
+jf_p_truth <- \(tr, col = "cov") jf_p_by_truth[[col]][jf_p_by_truth$truth == tr]
 jf_pb <- jf_p_app |>
   dplyr::filter(estimand == "beta") |>
   select(app, arm, cov) |>

@@ -12,7 +12,7 @@ $\tilde{\mathbf H}_{ih}$.
 
 ## Scores and the penalized bread
 
-For an exponential-family response the score of the log-likelihood contribution of $y_{ij}$ is
+For an exponential-family response, the score of the log-likelihood contribution of $y_{ij}$ is
 $$
 \mathbf s_{ij}(\boldsymbol\theta)
 = \frac{(y_{ij} - \mu_{ij})\,(d\mu/d\eta)_{ij}}{\phi V(\mu_{ij})}\,\mathbf x_{ij}
@@ -39,7 +39,7 @@ both on the scale of the summed log-likelihood; a construction that averages the
 $N$ observations must use the penalty $\sum_r\lambda_r\mathbf S_r/(N\phi)$, or the bread and the
 shrinkage are mis-scaled by the factor $N$ (and by $\phi$ if it is dropped).
 
-By @eq-s1-ee the curve scores at the estimate do not sum to zero: $\sum_i \tilde{\mathbf X}_i^\top\mathbf z_i = \mathbf S\hat{\boldsymbol\theta}$.
+By @eq-s1-ee, the curve scores at the estimate do not sum to zero: $\sum_i \tilde{\mathbf X}_i^\top\mathbf z_i = \mathbf S\hat{\boldsymbol\theta}$.
 Unlike the unpenalized cluster sandwich [@LiangZeger1986], whose curve scores at the estimate sum
 to zero, the meat $\sum_i\mathbf U_i\mathbf U_i^\top$ below is not centered; Proposition A.1(b)
 gives the consequence.
@@ -300,7 +300,7 @@ fig_s1_cov(s1_long(s1_cells, s1_arms, "mean"), "error")
 fig_s1_contrasts(s1_ct)
 ```
 
-Under dependence the leverage adjustment adds
+Under dependence, the leverage adjustment adds
 `r pp(s1_ct("CL2 - CR1", TRUE, 40)[["diff"]])` of coverage over CR1 at $G = 40$ and
 `r pp(s1_ct("CL2 - CR1", TRUE, 100)[["diff"]])` at $G = 100$; the full block adds at most
 `r pp(max(s1_contr$diff[s1_contr$contrast == "exact - shortcut" & s1_contr$estimand %in% c("mean", "beta")]))`
@@ -325,7 +325,7 @@ coverage of $\alpha(t)$ and $\gamma(t)$ under dependence (@fig-s1-alpha-gamma): 
 $G = 40$, CL2 coverage of $\alpha(t)$ rises from `r f(s1_cell("alpha", "cl2e_b", "binomial", "fpc", 40), 3)`
 to `r f(s1_cell("alpha", "fix_cl2e_b", "binomial", "fpc", 40), 3)` and that of $\gamma(t)$ from
 `r f(s1_cell("gamma", "cl2e_b", "binomial", "fpc", 40), 3)` to
-`r f(s1_cell("gamma", "fix_cl2e_b", "binomial", "fpc", 40), 3)`. Under independent errors the binary
+`r f(s1_cell("gamma", "fix_cl2e_b", "binomial", "fpc", 40), 3)`. Under independent errors, the binary
 $\alpha(t)$ at $G = 40$ stays below nominal with fixed smoothing parameters
 (`r f(s1_cell("alpha", "fix_cl2e_b", "binomial", "iid", 40), 3)`).
 
@@ -373,12 +373,12 @@ with the normal critical value (@fig-s1-satt).
 
 Satterthwaite intervals do not repair the binary intercept: they cover `r rng(satv("satt", c(40, 100), "alpha", fam = "binomial"))`
 under dependence and `r rng(satv("satt", c(40, 100), "alpha", "independent", fam = "binomial"))` under
-independent errors. For this term the Satterthwaite degrees of freedom are large (the intervals widen
+independent errors. For this term, the Satterthwaite degrees of freedom are large (the intervals widen
 by a factor of only `r rng(satv("satt", c(40, 100), "alpha", fam = "binomial", col = "wr"), 2)`), so the reference
 distribution cannot make up for a standard error that is too small under independent errors or for the
 additional shift of the studentized error under dependence (@sec-res-intervals, Supplement S1.4).
 
-Under independent errors Satterthwaite intervals overcover $\beta$ further
+Under independent errors, Satterthwaite intervals overcover $\beta$ further
 (`r rng(satv("satt", c(40, 100), "beta", "independent"))`). The variant whose degrees of freedom include
 $\mathbf V_p - \mathbf V_e$ lies between $t_{G-1}$ and the plain Satterthwaite reference.
 

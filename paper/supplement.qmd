@@ -85,7 +85,7 @@ squared error.
 
 REML + CL2 and NCV + CL2 denote the REML or curve-blocked NCV fit with the CL2
 covariance of Appendix A of the paper and normal critical values; model-based intervals use mgcv's
-$\mathbf V_c$ for REML fits and $\mathbf V_p$ for NCV fits, because in the mgcv build of the study
+$\mathbf V_c$ for REML fits and $\mathbf V_p$ for NCV fits, because, in the mgcv build of the study,
 $\mathbf V_c$ of an NCV fit holds only the smoothing-parameter correction and is not a valid
 covariance (S6).
 
@@ -126,7 +126,7 @@ ag_w <- relabel(ag_w[, c(setdiff(names(ag_w), ag_cols), ag_cols)])
 ag_id <- ncol(ag_w) - length(ag_cols)
 k <- knitr::kable(ag_w, format = "latex", booktabs = TRUE, longtable = TRUE, linesep = "",
   col.names = c(names(ag_w)[seq_len(ag_id)], rep(unname(ag_arms), 2)),
-  caption = "Coverage (MC SE) of $\\alpha(t)$ and $\\gamma(t)$ per setting; for the smooth-effect settings the first group of columns holds $f(x,t)$. Interval labels as in the previous table.")
+  caption = "Coverage (MC SE) of $\\alpha(t)$ and $\\gamma(t)$ per setting; for the smooth-effect settings, the first group of columns holds $f(x,t)$. Interval labels as in the previous table.")
 kableExtra::kable_styling(k, font_size = 6.5, latex_options = "repeat_header") |>
   kableExtra::add_header_above(c(setNames(ag_id, " "), "α(t) or f(x,t)" = length(ag_arms), "γ(t)" = length(ag_arms))) |>
   kableExtra::landscape()
@@ -141,12 +141,12 @@ stc <- \(a, tr, err = "fpc") st$coverage_mean[st$arm == a & st$truth == tr & st$
 
 In the dependent main-factorial settings, the worst setting's 5% quantile of pointwise coverage for
 the mean and $\beta$ is `r rng(tq_dep("reml_cl2", c("mean", "beta"), 100))` for REML + CL2 at
-$G = 100$ and `r rng(tq_dep("reml_cl2", c("mean", "beta"), 40))` at $G = 40$; for model-based intervals
-it is as low as `r rng(tq_dep("reml_model", c("mean", "beta"), 100))`. With 40 instead of 100 curves
+$G = 100$ and `r rng(tq_dep("reml_cl2", c("mean", "beta"), 40))` at $G = 40$; for model-based intervals,
+it is as low as `r rng(tq_dep("reml_model", c("mean", "beta"), 100))`. With 40 instead of 100 curves,
 REML + CL2 loses `r rng_pp(gl("reml_cl2"))` of coverage (means per family and estimand; coverage by
 $G$ in the figure under *Twenty curves*), and NCV + CL2 loses
 `r rng_pp(gl("ncv_cl2"))`. Signal strength changes little. Truth roughness matters for NCV + CL2:
-with the rough truth and smooth errors it covers $\beta$ at `r rng(stc("ncv_cl2", "wiggly"))`
+with the rough truth and smooth errors, it covers $\beta$ at `r rng(stc("ncv_cl2", "wiggly"))`
 (smooth truth `r rng(stc("ncv_cl2", "smooth"))`), and REML + CL2 covers it at `r rng(stc("reml_cl2", "wiggly"))`.
 
 ```{r f-s2-tail-1}
@@ -157,12 +157,12 @@ sfig_tail(tail_tab)
 
 *Twenty curves.* The main factorial was also run with $G = 20$, the first 20 curves of each
 replicate, so the three numbers of curves share their draws (figure below; means over each
-family's settings for coverage, medians for relative error and detection). Under dependent errors
+family's settings for coverage, medians for relative error and detection). Under dependent errors,
 REML + CL2 covers the mean, $\beta$ and $\gamma$ at `r rng(lcv("reml_cl2", 20))` with 20 curves,
 `r rng(lcv("reml_cl2", 40))` with 40 and `r rng(lcv("reml_cl2", 100))` with 100, and $\alpha(t)$ at
 `r rng(lcv("reml_cl2", 20, e = "alpha"))` with 20. NCV + CL2 falls to
 `r rng(lcv("ncv_cl2", 20, e = c("mean", "beta", "alpha", "gamma")))` with 20 curves, the model-based REML intervals to
-`r rng(lcv("reml_model", 20, e = c("mean", "beta", "alpha", "gamma")))`. Under independent errors every interval undercovers
+`r rng(lcv("reml_model", 20, e = c("mean", "beta", "alpha", "gamma")))`. Under independent errors, every interval undercovers
 binary $\alpha(t)$ and $\gamma(t)$ with 20 curves, the model-based one included
 (`r rng(lcv("reml_model", 20, "independent", c("alpha", "gamma"), "binomial"))`). REML's median relative
 error for $\beta$ under dependence is `r rng(lcv("reml_cl2", 20, e = "beta", col = "rel"), 2)` with 20
@@ -175,9 +175,9 @@ value (table below; default signal, as for 40 and 100 curves), REML + CL2 covers
 and $\gamma$ at `r rng(lsv("satt", 20))` under dependence with 20 curves, against `r rng(lsv("z", 20))`
 with the normal critical value and `r rng(lsv("t", 20))` with $t_{G-1}$, at `r rng(lsv("satt", 20, col = "wr"), 2)` times the
 width with the normal critical value. Binary $\alpha(t)$ stays at
-`r f(lsv("satt", 20, e = "alpha", fam = "binomial"), 3)` under dependence and
-`r f(lsv("satt", 20, "independent", e = "alpha", fam = "binomial"), 3)` under independent errors, and
-under independent Gaussian and Poisson errors the intervals overcover
+`r f(lsv("satt", 20, e = "alpha", fam = "binomial"), 2)` under dependence and
+`r f(lsv("satt", 20, "independent", e = "alpha", fam = "binomial"), 2)` under independent errors, and,
+under independent Gaussian and Poisson errors, the intervals overcover
 (`r rng(lsv("satt", 20, "independent", fam = c("gaussian", "poisson")))`).
 
 ```{r f-s2-ladder}
@@ -209,9 +209,9 @@ by `r rng_pp(-gd2("coverage_reml_model"))` under dependent errors, while REML + 
 `r rng_pp(gd2("coverage_reml_cl2"))`. A variance profile along $t$ changes no interval. Variance that
 depends on the scalar covariate breaks the model-based intervals for $\gamma(t)$
 (`r rng(hv("reml_model", "gamma", c("fpc_het", "fpc_raw_het")))`) but not REML + CL2
-(`r rng(hv("reml_cl2", "gamma", c("fpc_het", "fpc_raw_het")))`). Under misregistration REML + CL2
+(`r rng(hv("reml_cl2", "gamma", c("fpc_het", "fpc_raw_het")))`). Under misregistration, REML + CL2
 covers the Gaussian estimands at `r rng(wv("reml_cl2", "gaussian"))`; for misregistered Poisson
-responses every interval undercovers the mean (REML + CL2 `r rng(wv("reml_cl2", "poisson"))`).
+responses, every interval undercovers the mean (REML + CL2 `r rng(wv("reml_cl2", "poisson"))`).
 Under sign-changing correlation, model-based intervals cover `r rng(c(osc_tab$reml_model))` and REML + CL2
 `r rng(c(osc_tab$reml_cl2))`. In the extended families under smooth errors, model-based intervals cover
 `r rng(fv("reml_model"))` and REML + CL2 `r rng(fv("reml_cl2"))`.
@@ -258,29 +258,29 @@ abv <- \(err, e, a) abl_bin$coverage[abl_bin$error == err & abl_bin$estimand == 
 The studentized error $z = (\text{estimate} - \text{truth})/\mathrm{SE}$ of the REML fit, pooled over grid
 points and replicates, is descriptive: an SD above one with mean near zero indicates standard errors
 that are too small; a shifted mean indicates bias. Pooling cannot separate a global scale error from
-local biases of opposite sign. In the dependent main-factorial settings at $G = 100$ the SD of $z$ with
+local biases of opposite sign. In the dependent main-factorial settings at $G = 100$, the SD of $z$ with
 the CL2 standard error is `r rng(zcv("z_sd_cl2"))` for $\beta$ (model-based standard error:
 `r rng(zcv("z_sd_model"))`).
 
 The intercept $\alpha(t)$ of binary responses behaves differently.
-Under independent errors at $G = 40$ its studentized CL2 error has mean
-`r f(zba(FALSE, 40, "z_mean_cl2"), 3)` and SD `r f(zba(FALSE, 40, "z_sd_cl2"), 2)` (model-based standard
-error: mean `r f(zba(FALSE, 40, "z_mean_model"), 3)`, SD `r f(zba(FALSE, 40, "z_sd_model"), 2)`). These are
+Under independent errors at $G = 40$, its studentized CL2 error has mean
+`r f(zba(FALSE, 40, "z_mean_cl2"), 2)` and SD `r f(zba(FALSE, 40, "z_sd_cl2"), 2)` (model-based standard
+error: mean `r f(zba(FALSE, 40, "z_mean_model"), 2)`, SD `r f(zba(FALSE, 40, "z_sd_model"), 2)`). These values are
 averages over the two signal levels: the SD is `r f(zbs("mid"), 2)` at the default signal and
-`r f(zbs("high"), 2)` at the high signal. These values are compatible with a CL2 standard error that
-is too small for this term, but they do not exclude local bias. Under dependence the studentized error is in
-addition shifted (mean `r zbe_rng(40)` at $G = 40$ and `r zbe_rng(100)` at $G = 100$, per dependent error
+`r f(zbs("high"), 2)` at the high signal. These averages are compatible with a CL2 standard error that
+is too small for this term, but they do not exclude local bias. Under dependence, the studentized error is additionally
+shifted (mean `r zbe_rng(40)` at $G = 40$ and `r zbe_rng(100)` at $G = 100$, per dependent error
 process, averaged over the signal levels; SD `r f(zba(TRUE, 100, "z_sd_cl2"), 2)` at $G = 100$).
 
 The covariance-components runs (Appendix A.6 of the paper) add a diagnostic. Fixing the smoothing
 parameters at their typical value raises the coverage of binary $\gamma(t)$ under independent errors at $G = 40$ from
-`r f(abv("iid", "gamma", "cl2e_b"), 3)` to `r f(abv("iid", "gamma", "fix_cl2e_b"), 3)`, and binary
-$\alpha(t)$ under smooth errors from `r f(abv("fpc", "alpha", "cl2e_b"), 3)` to
-`r f(abv("fpc", "alpha", "fix_cl2e_b"), 3)`; binary $\alpha(t)$ under independent errors stays at
-`r f(abv("iid", "alpha", "fix_cl2e_b"), 3)` (`r f(abv("iid", "alpha", "cl2e_b"), 3)` with selected
+`r f(abv("iid", "gamma", "cl2e_b"), 2)` to `r f(abv("iid", "gamma", "fix_cl2e_b"), 2)`, and binary
+$\alpha(t)$ under smooth errors from `r f(abv("fpc", "alpha", "cl2e_b"), 2)` to
+`r f(abv("fpc", "alpha", "fix_cl2e_b"), 2)`; binary $\alpha(t)$ under independent errors stays at
+`r f(abv("iid", "alpha", "fix_cl2e_b"), 2)` (`r f(abv("iid", "alpha", "cl2e_b"), 2)` with selected
 smoothing parameters). For $\gamma(t)$, and for $\alpha(t)$ under dependence, a large part of the
 shortfall therefore looks like variability of the selected smoothing parameters, which CL2 ignores;
-for $\alpha(t)$ under independent errors it remains unexplained. Satterthwaite degrees of freedom
+for $\alpha(t)$ under independent errors, it remains unexplained. Satterthwaite degrees of freedom
 widen these intervals only slightly (Appendix A.7 of the paper), so they cannot compensate for a standard
 error that is too small by about a fifth.
 
@@ -310,20 +310,20 @@ cat("\\begingroup\\setlength{\\tabcolsep}{2.5pt}\n", k, "\n\\endgroup\n", sep = 
 bshare2 <- \(fit_sel, tr, e = "beta", err = c("ou", "fpc")) bv_tab$bias_share[bv_tab$fit == fit_sel & bv_tab$truth == tr & bv_tab$estimand == e & bv_tab$error %in% err & bv_tab$G == 100]
 ```
 
-Under dependent errors the NCV/REML ratio of mean squared errors for $\beta$ (geometric mean over the main-factorial
+Under dependent errors, the NCV/REML ratio of mean squared errors for $\beta$ (geometric mean over the main-factorial
 settings of each error process) is `r rng(pe("beta", c("ou", "fpc")))` (independent errors:
 `r rng(pe("beta", "iid"))`); for the mean `r rng(pe("mean", c("ou", "fpc")))` (same summary; per
-setting at $G = 100$ the mean's ratio is
+setting at $G = 100$, the mean's ratio is
 `r rng(MSE_RATIO$ratio[MSE_RATIO$block == "core" & MSE_RATIO$G == 100 & MSE_RATIO$error != "iid" & MSE_RATIO$estimand == "mean"])`). NCV's advantage for
-$\beta$ does not vanish under independent errors: for Gaussian responses the per-setting ratio is
+$\beta$ does not vanish under independent errors: for Gaussian responses, the per-setting ratio is
 `r rng(MSE_RATIO$ratio[MSE_RATIO$block == "core" & MSE_RATIO$error == "iid" & MSE_RATIO$family == "gaussian" & MSE_RATIO$estimand == "beta"])`
 there. Part of the gap therefore reflects the smooth truths, which favor more smoothing, and not
-only the dependence. With the rough truth the
+only the dependence. With the rough truth, the
 $\beta$ ratio is `r rng(rough$ratio[rough$estimand == "beta"])`.
 
 REML's excess error is variance: the
 squared-bias share of REML's $\beta$ error in the dependent settings at $G = 100$ is
-`r rng(bshare2("REML", "smooth"))`, of NCV's `r rng(bshare2("NCV", "smooth"))`; with the rough truth
+`r rng(bshare2("REML", "smooth"))`, of NCV's `r rng(bshare2("NCV", "smooth"))`; with the rough truth,
 NCV's share rises to `r rng(bshare2("NCV", "wiggly", err = "fpc"))`. REML's surface EDF exceeds NCV's
 by a factor `r rng(er("beta(s,t)", c("ou", "fpc")))` under dependence
 (`r rng(er("beta(s,t)", "iid"))` under independent errors).
@@ -385,7 +385,7 @@ mse_w <- relabel(mse_w[, c(setdiff(names(mse_w), mse_cols), mse_cols)])
 n_id <- ncol(mse_w) - length(mse_cols)
 k <- knitr::kable(mse_w, format = "latex", booktabs = TRUE, longtable = TRUE, digits = 4, linesep = "",
   col.names = c(names(mse_w)[seq_len(n_id)], rep(c("REML", "NCV", "ratio"), 4)),
-  caption = "Integrated MSE of the REML and NCV fits per setting and estimand, and their paired ratio NCV/REML (95\\% bootstrap interval); for the smooth-effect settings the $\\beta(s,t)$ columns hold $f(x,t)$.")
+  caption = "Integrated MSE of the REML and NCV fits per setting and estimand, and their paired ratio NCV/REML (95\\% bootstrap interval); for the smooth-effect settings, the $\\beta(s,t)$ columns hold $f(x,t)$.")
 kableExtra::kable_styling(k, font_size = 6.5, latex_options = "repeat_header") |>
   kableExtra::add_header_above(c(setNames(n_id, " "), setNames(rep(3, 4), mse_est))) |>
   kableExtra::landscape()
@@ -393,11 +393,11 @@ kableExtra::kable_styling(k, font_size = 6.5, latex_options = "repeat_header") |
 
 ## S1.6 Relative error, half-width and detection per setting
 
-Under dependent errors the median relative error of $\beta$ over settings is
+Under dependent errors, the median relative error of $\beta$ over settings is
 `r f(rs("beta", "dependent", "reml_cl2", "rel_error"), 2)` for REML and
-`r f(rs("beta", "dependent", "ncv_cl2", "rel_error"), 2)` for NCV; under independent errors
-`r f(rs("beta", "independent", "reml_cl2", "rel_error"), 2)` and
-`r f(rs("beta", "independent", "ncv_cl2", "rel_error"), 2)`. In the main factorial the REML/NCV ratio
+`r f(rs("beta", "dependent", "ncv_cl2", "rel_error"), 2)` for NCV; under independent errors,
+it is `r f(rs("beta", "independent", "reml_cl2", "rel_error"), 2)` and
+`r f(rs("beta", "independent", "ncv_cl2", "rel_error"), 2)`. In the main factorial, the REML/NCV ratio
 of relative errors is `r rng(rr("dep"), 1)` under dependent and `r rng(rr("iid"), 1)` under independent
 errors. Wrong-sign exclusions of the CL2 intervals stay rare (at most
 `r f(rs("beta", "dependent", "reml_cl2", "wrong_sign_max"), 3)` of the grid for REML + CL2 and
@@ -436,14 +436,14 @@ computed from the stored REML fits for every synthetic setting outside the main 
 (`r satx_n` settings, including those with 20 curves and the zero surface) and for the plasmode
 combinations with curve flips (S2.1). Paired with the normal critical value on the same replicates, the
 Satterthwaite interval never covered less: the smallest difference over all settings, plasmode
-combinations and estimands is `r pp(satt_min_gain, 2)`. Over the extension settings it adds
-`r pp(satx_cov(40))` of coverage with 40 curves and `r pp(satx_cov(100))` with 100 on average, at
+combinations and estimands is `r pp(satt_min_gain, 2)`. Over the extension settings, it adds on average
+`r pp(satx_cov(40))` of coverage with 40 curves and `r pp(satx_cov(100))` with 100, at
 `r f(satx_wr(40), 2)` and `r f(satx_wr(100), 2)` times the width (figure below; values in S7). Coverage stays below
 `r f(LEVEL - ADEQUATE, 2)` in `r nrow(satx_low_tab)` combinations of setting and estimand (first
 table below): misregistered count and binary responses, and the binary intercept or scalar effect in the
 `r paste(satx_lowb, collapse = ", ")` settings. The per-point degrees of freedom (second table below) are
 about a third of $G - 1$ for the mean, $\beta$ and $\gamma$ in every synthetic setting and larger for
-$\alpha(t)$; on the plasmode data they spread more.
+$\alpha(t)$; on the plasmode data, they spread more.
 
 ```{r f-s1-satt-ext}
 #| fig-cap: "REML + CL2 with the normal and the Satterthwaite critical value in the extension settings: grid-averaged coverage per block, number of curves and estimand (mean over the block's settings; $\\beta$ includes $f(x,t)$ of the smooth-effect settings; misregistered count and binary settings score the mean only). Dashed: nominal 0.95. Values and width ratios: S7."
@@ -470,32 +470,32 @@ nul_diff <- with(null_other, reml_cl2[!is.na(core)] - core[!is.na(core)])
 
 The zero-surface settings set $\beta \equiv 0$ in the smooth-truth setting at the default signal
 (Appendix B.1 of the paper). The share of grid points at which a pointwise 95% interval excludes zero
-estimates the pointwise false-positive rate, nominally 0.05 (first table). Under smooth errors
+estimates the pointwise false-positive rate, nominally 0.05 (first table). Under smooth errors,
 REML + CL2 has a rate of `r rng(nsv("reml_cl2"), 3)` with the normal critical value, `r rng(nsv("reml_cl2_t"), 3)` with $t_{G-1}$ and
 `r rng(nsv("reml_cl2_satt"), 3)` with the Satterthwaite critical value. The model-based intervals have
 `r rng(nsv("reml_model"), 2)` (REML) and `r rng(nsv("ncv_model"), 2)` (NCV), NCV + CL2
 `r rng(nsv("ncv_cl2"), 2)`. NCV + CL2 widened by the NCV--REML difference has the lowest rate under
 smooth errors (`r rng(nsv("ncv_cl2_bias"), 3)`), but not because it is calibrated: its variance adds the
-squared difference between the NCV and the REML estimate, and under a zero surface the REML estimate is
+squared difference between the NCV and the REML estimate, and, under a zero surface, the REML estimate is
 far from zero (second table), so its intervals are wide.
 
-Under independent errors the Gaussian setting
+Under independent errors, the Gaussian setting
 with 40 curves stands out: REML + CL2 has `r f(nsv("reml_cl2", "iid", "gaussian", 40), 3)`
 (MC SE `r f(nsv("reml_cl2", "iid", "gaussian", 40, "fpr_se"), 3)`), with the Satterthwaite critical
 value `r f(nsv("reml_cl2_satt", "iid", "gaussian", 40), 3)`, against
 `r f(nsv("reml_cl2", "iid", "gaussian", 100), 3)` with 100 curves. The excluded points of REML + CL2 concentrate in a
 minority of replicates (`r f(nsv("reml_cl2", "iid", "gaussian", 40, "share_gt_5pct"), 2)` have more than
 5% of the grid excluding zero; the 90% quantile of the per-replicate rate is
-`r f(nsv("reml_cl2", "iid", "gaussian", 40, "fpr_q90"), 2)`). In most replicates REML shrinks the
+`r f(nsv("reml_cl2", "iid", "gaussian", 40, "fpr_q90"), 2)`). In most replicates, REML shrinks the
 surface toward the null space of its penalty; intervals for terms shrunk this far are known to behave
 poorly [@MarraWood2012].
 
 The second table is descriptive. The share of replicates with at least one grid point, or with more than
 5% of the grid, excluding zero is not an error rate of pointwise intervals; whether $\beta$ is zero
 everywhere needs a simultaneous band or a global test, which the study does not evaluate. Under smooth
-errors REML's estimate of the zero surface has a root-mean-square size of
+errors, REML's estimate of the zero surface has a root-mean-square size of
 `r rng(nsv("reml_cl2", col = "rms_rel"), 2)` times that of the non-zero surface of the corresponding
-main-factorial setting, NCV's `r rng(nsv("ncv_cl2", col = "rms_rel"), 2)` times; under independent errors
+main-factorial setting, NCV's `r rng(nsv("ncv_cl2", col = "rms_rel"), 2)` times; under independent errors,
 both are small (`r rng(c(nsv("reml_cl2", "iid", col = "rms_rel"), nsv("ncv_cl2", "iid", col = "rms_rel")), 2)`).
 The zero surface hardly changes the other estimands (third table): REML + CL2 coverage of
 $\alpha(t)$ and $\gamma(t)$ differs from that in the matching non-zero setting by `r rng_pp(nul_diff)`.
@@ -559,11 +559,11 @@ REML and `r f(ffv(FFPC_LR, "k3", "ff_ncv_cl2"), 2)` with NCV. Their CL2 interval
 `r f(ffv(FFPC_LR, "p095", col = "coverage"), 3)` (MC SE
 `r f(ffv(FFPC_LR, "p095", col = "coverage_mcse"), 3)`) at
 `r f(ffv(FFPC_LR, "p095", col = "hw_vs_reml"), 2)` times the half-width of `ff()` REML + CL2; with
-five components they cover `r f(ffv(FFPC_LR, "k5", col = "coverage"), 3)` at relative RMSE
+five components, they cover `r f(ffv(FFPC_LR, "k5", col = "coverage"), 2)` at relative RMSE
 `r f(ffv(FFPC_LR, "k5"), 2)` and `r f(ffv(FFPC_LR, "k5", col = "hw_vs_reml"), 2)` times the
 half-width. Two components (90% of the variance) truncate the surface: they cover the true $\beta$ at
-`r f(ffv(FFPC_LR, "p090", col = "coverage"), 3)`, its projection onto the span of the estimated
-components at `r f(ffv(FFPC_LR, "p090", col = "coverage_proj"), 3)`.
+`r f(ffv(FFPC_LR, "p090", col = "coverage"), 2)`, its projection onto the span of the estimated
+components at `r f(ffv(FFPC_LR, "p090", col = "coverage_proj"), 2)`.
 
 With the default covariate, whose spectrum decays slowly, the variance-explained rules choose many
 components (median `r kr(ff_rich("p095", col = "K_median"))` for 95%,
@@ -572,7 +572,7 @@ components (median `r kr(ff_rich("p095", col = "K_median"))` for 95%,
 REML. A fixed $K = 3$ has `r rng(ff_rich("k3") / ff_rich("k3", "ff_ncv_cl2"), 2)` times the relative
 RMSE of `ff()` with NCV, but it truncates the surface, and its intervals undercover:
 `r rng(ffv(ff_smooth_rich, "k3", col = "coverage"))` for smooth truths and
-`r f(ffv(ff_rough, "k3", col = "coverage"), 2)` for the rough truth. With $K = 5$ they cover
+`r f(ffv(ff_rough, "k3", col = "coverage"), 2)` for the rough truth. With $K = 5$, they cover
 `r rng(ff_rich("k5", col = "coverage"))` at `r rng(ff_rich("k5", col = "hw_vs_reml"), 2)` times the
 half-width of `ff()` REML + CL2, with relative RMSE between those of `ff()` with NCV and with REML
 in every setting. In a pilot with `r unique(ffp99$n_rep)` replicates of three of the settings, the
@@ -605,13 +605,13 @@ ltab(
 The datasets, the fitted models and the construction of the plasmode data are described in
 Section 5.1 and Appendices B.2 and B.3 of the paper.
 
-In a replicate each subject's error is its fitted
+In a replicate, each subject's error is its fitted
 residual curve with a random sign, so it takes only two values: the construction is a Rademacher wild
 cluster bootstrap around the fitted residuals, which keeps each residual curve's shape and
 within-curve covariance but not the full error distribution of new real curves.
 
 With curve flips (the
-main design) the simulated errors are independent across curves for every dataset, including the three
+main design), the simulated errors are independent across curves for every dataset, including the three
 whose source data have temporal or spatial dependence between curves (ocean, weather, electricity;
 "datasets with dependent source curves" below); only the block flips of S2.3 share one sign within a
 block of neighboring curves. Coverage ranges are therefore also given over all nine datasets.
@@ -640,23 +640,23 @@ combinations, all subjects), model-based intervals cover $\beta$ at `r rng(pmv3(
 at `r rng(pmv3("reml_model", "mean"))`; REML + CL2 covers them at `r rng(pmv3("reml_cl2", "beta"))` and
 `r rng(pmv3("reml_cl2", "mean"))`; NCV + CL2 at `r rng(pmv3("ncv_cl2", "beta"))` and
 `r rng(pmv3("ncv_cl2", "mean"))`. On the datasets with dependent source curves (curve flips, so
-independent simulated errors) REML + CL2 covers $\beta$ at `r rng(pmv3("reml_cl2", "beta", "stress test"))`.
-Over all nine datasets it covers $\beta$ at `r rng(pm3$coverage[pm3$arm == "reml_cl2" & pm3$estimand == "beta"])`.
-The exception is the weather dataset: `r f(aem_g("all", "mn"))` on average (combinations `r rng(c(aem_g("all", "lo"), aem_g("all", "hi")))`)
-with all `r aem_G` stations and `r f(aem_g("40", "mn"))` (`r rng(c(aem_g("40", "lo"), aem_g("40", "hi")))`) with 40,
+independent simulated errors), REML + CL2 covers $\beta$ at `r rng(pmv3("reml_cl2", "beta", "stress test"))`.
+Over all nine datasets, it covers $\beta$ at `r rng(pm3$coverage[pm3$arm == "reml_cl2" & pm3$estimand == "beta"])`.
+The lowest is the weather dataset: `r f(aem_g("all", "mn"), 2)` on average (combinations `r rng(c(aem_g("all", "lo"), aem_g("all", "hi")))`)
+with all `r aem_G` stations and `r f(aem_g("40", "mn"), 2)` (`r rng(c(aem_g("40", "lo"), aem_g("40", "hi")))`) with 40,
 on a covariate of rank `r as.integer(DATASETS$rank_X[DATASETS$app == "aemet"])`.
 
-With 40 subjects
+With 40 subjects,
 REML + CL2 loses `r rng_pp(g40v3("reml_cl2"))` on the datasets with independent source curves. On these
-datasets the ratio of REML + CL2's root mean square standard error to
+datasets, the ratio of REML + CL2's root mean square standard error to
 the replicate SD of the estimate is `r rng(dpv("reml_cl2", "se_sd"))` (median over grid points;
-S4.1(a)). For a centered normal estimator a ratio $r$ gives coverage of about $2\Phi(1.96\,r) - 1$,
-for example `r f(2 * pnorm(1.96 * 0.9) - 1, 3)` at $r = 0.90$. The ratios are therefore consistent
+S4.1(a)). For a centered normal estimator, a ratio $r$ gives coverage of about $2\Phi(1.96\,r) - 1$,
+for example `r f(2 * pnorm(1.96 * 0.9) - 1, 2)` at $r = 0.90$. The ratios are therefore consistent
 with a standard error a little short and with residual bias; the shortfall was not decomposed further.
 
 The lower tail of REML + CL2 for $\beta$
-depends on the truth source: under the REML-fitted truth its 5% quantile on these datasets is
-`r rng(cl2_truth[["q05 REML truth"]][cl2_truth$role == "counted"])`, under the NCV-fitted truth
+depends on the truth source: under the REML-fitted truth, its 5% quantile on these datasets is
+`r rng(cl2_truth[["q05 REML truth"]][cl2_truth$role == "counted"])`; under the NCV-fitted truth, it is
 `r rng(cl2_truth[["q05 NCV truth"]][cl2_truth$role == "counted"])`.
 
 ```{r f-s3-cov}
@@ -683,9 +683,9 @@ sfig_g40(g40_tab)
 ```
 
 *Satterthwaite critical values.* With the per-point Satterthwaite critical value, REML + CL2 covers
-$\beta$ at `r f(mean(spa("satt", "all")), 3)` on average over the nine datasets with all subjects and
-`r f(mean(spa("satt", "40")), 3)` with 40 (normal critical value: `r f(mean(spa("z", "all")), 3)` and
-`r f(mean(spa("z", "40")), 3)`), at `r f(mean(spa("satt", "all", col = "wr")), 2)` and
+$\beta$ at `r f(mean(spa("satt", "all")), 2)` on average over the nine datasets with all subjects and
+`r f(mean(spa("satt", "40")), 2)` with 40 (normal critical value: `r f(mean(spa("z", "all")), 2)` and
+`r f(mean(spa("z", "40")), 2)`), at `r f(mean(spa("satt", "all", col = "wr")), 2)` and
 `r f(mean(spa("satt", "40", col = "wr")), 2)` times the width (next figure; means over each dataset's
 combinations of truth and residual source). Coverage stays below `r f(LEVEL - ADEQUATE, 2)` only for
 `r sp_low_txt`. The curve flips make the simulated errors independent across curves, so these
@@ -806,10 +806,10 @@ kableExtra::kable_styling(k, font_size = 7, latex_options = "HOLD_position") |> 
 
 ## S2.4 Studentized errors
 
-On the datasets with independent source curves the pooled SD of the studentized REML error for $\beta$ with
-the CL2 standard error is `r rng(zpv("z_sd_cl2"))` (mean `r rng(zpv("z_mean_cl2"))`), on the
-datasets with dependent source curves `r rng(zpv("z_sd_cl2", "stress test"))`; with the model-based standard error
-`r rng(zpv("z_sd_model"))`.
+On the datasets with independent source curves, the pooled SD of the studentized REML error for $\beta$ with
+the CL2 standard error is `r rng(zpv("z_sd_cl2"))` (mean `r rng(zpv("z_mean_cl2"))`). On the
+datasets with dependent source curves, it is `r rng(zpv("z_sd_cl2", "stress test"))`. With the model-based standard error,
+it is `r rng(zpv("z_sd_model"))` on the datasets with independent source curves.
 
 ```{r t-s3-z}
 #| output: asis
@@ -822,12 +822,12 @@ stab(zp_tab, "Pooled studentized errors of the REML fit (all subjects, fitted re
 
 The AR(1) working model fits the REML model with an AR(1) residual correlation along $t$, $\rho$
 profiled (mgcv `bam`), and uses its model-based intervals. On stationary homoskedastic synthetic
-errors it covers `r rng(av("ar1_model", c("ou", "fpc", "ou0", "osc")))` (Gaussian, $G = 100$; next
+errors, it covers `r rng(av("ar1_model", c("ou", "fpc", "ou0", "osc")))` (Gaussian, $G = 100$; next
 table). It fails under misregistration (mean
 `r rng(ar1_tab$ar1_model[ar1_tab$error == "warp" & ar1_tab$estimand == "mean"])`, $\beta$
 `r rng(ar1_tab$ar1_model[ar1_tab$error == "warp" & ar1_tab$estimand == "beta"])`), for $\gamma(t)$
 under covariate-dependent variance, and in the plasmode study: with the midpoint truth and REML
-residuals it covers the mean at `r rng(ar1_v("mean"))` and $\beta$ at `r rng(ar1_v("beta"))` across the
+residuals, it covers the mean at `r rng(ar1_v("mean"))` and $\beta$ at `r rng(ar1_v("beta"))` across the
 nine datasets. The median fit time is `r f(median(TIMING$fit_time[TIMING$method == "AR1"]), 0)` s against
 `r f(median(TIMING$fit_time[TIMING$method == "REML"]), 1)` s for REML (Appendix C of the paper).
 
@@ -869,24 +869,24 @@ with model-based intervals.
 *Generalized least squares (GLS).* Estimate the within-curve residual covariance from the REML
 residual curves, either as their raw covariance or as an FPCA estimate plus white noise; prewhiten
 every curve with the inverse square root of that covariance; refit by REML; use model-based
-intervals. This is the algorithm of refund's former `pffr_gls()`, rebuilt from refund's internal
+intervals. This procedure is the algorithm of refund's former `pffr_gls()`, rebuilt from refund's internal
 functions; a singular estimated covariance (fewer curves than grid points) is repaired by the nearest
 positive-definite matrix.
 
 *Curve bootstrap*: resample whole curves, refit by REML (199 resamples), and form percentile intervals
 or Wald intervals with the bootstrap standard error around the REML estimate.
 
-*Results.* In the four synthetic dependent Gaussian settings the random curve effect and GLS with
-the FPCA covariance cover $\beta$ at `r rng(cd(c("pcre", "gls_fpc")))` at
+*Results.* In the four synthetic dependent Gaussian settings, the random curve effect and GLS with
+the FPCA covariance cover $\beta$ at `r rng(cd(c("pcre", "gls_fpc")))`, at
 `r rng(cd(c("pcre", "gls_fpc"), col = "wr"), 2)` times REML + CL2's width and
 `r rng(cd(c("pcre", "gls_fpc"), col = "sr"), 2)` times its interval score. The random curve effect
 undercovers the mean and $\alpha(t)$ there: it covers the mean at `r rng(cd("pcre", "mean"))` and
-$\alpha(t)$ at `r rng(cd("pcre", "alpha"))`. On the plasmode data both fall to
+$\alpha(t)$ at `r rng(cd("pcre", "alpha"))`. On the plasmode data, both methods fall to
 `r rng(c(cmp_cv("pcre", "beta", "plasmode"), cmp_cv("gls_fpc", "beta", "plasmode")))` for $\beta$, while
 REML + CL2 covers `r rng(cmp_cv("reml_cl2", "beta", "plasmode"))`. A common working covariance that
 fits the synthetic error processes is only an approximation to the subject-specific two-point error
 law of the plasmode generator (S2), and the model-based intervals of these fits do not hold their
-level there; this is a finding about that generator, not a general statement about real data.
+level there; this finding concerns that generator and is not a general statement about real data.
 
 GLS with the raw covariance undercovers everywhere
 (`r rng(cmp_cv("gls_raw", "beta", "synthetic, independent"))` even under independent errors), because
@@ -895,14 +895,14 @@ bootstrap covers $\beta$ at `r rng(cmp_cv("boot_pct", "beta", "plasmode"))` on t
 intervals `r f(geo(comp_cov$width_rel[comp_cov$arm == CMP_ARMS[["boot_pct"]] & comp_cov$estimand == ESTIMAND_LABELS[["beta"]] & comp_cov$setting == "plasmode"]), 2)`
 times as wide as REML + CL2's, at the cost of 199 refits (Appendix C of the paper).
 
-*As estimators* the random curve effect and GLS (FPCA) remove most of REML's excess error. Their mean squared error
+*As estimators*, the random curve effect and GLS (FPCA) remove most of REML's excess error. Their mean squared error
 for $\beta$ relative to the NCV fit's (geometric mean over settings) is
 `r f(gm_est("pcre", "synthetic, dependent"), 2)` and `r f(gm_est("GLS (FPCA cov.)", "synthetic, dependent"), 2)`
 in the four synthetic dependent Gaussian settings (REML `r f(gm_est("REML", "synthetic, dependent"), 1)`),
 and `r f(gm_est("pcre", "plasmode"), 2)` and `r f(gm_est("GLS (FPCA cov.)", "plasmode"), 2)` on the
 plasmode datasets (REML `r f(gm_est("REML", "plasmode"), 2)`; per setting `r rng(cmp_er("pcre", "beta", "plasmode"))`
-and `r rng(cmp_er("GLS (FPCA cov.)", "beta", "plasmode"))`). Both thus improve much on REML, but in the
-synthetic settings they are worse than NCV. Their plasmode advantage over NCV rests on the midpoint
+and `r rng(cmp_er("GLS (FPCA cov.)", "beta", "plasmode"))`). Both thus improve much on REML, but, in the
+synthetic settings, they are worse than NCV. Their plasmode advantage over NCV rests on the midpoint
 truth with REML residuals only, and the GLS covariance is estimated from the same REML residual curves
 that generate the plasmode errors. The random curve effect is expensive:
 median `r f(median(pcre_t), 0)` s per fit including the REML pilot fit, up to `r f(max(pcre_t), 0)` s, against
@@ -937,17 +937,17 @@ transform acts within curves, so curves stay independent clusters, and CL2 (Baye
 clusters) applies to the whitened fit; it does not need $\hat{\boldsymbol\Sigma}$ to be correct.
 pcre + CL2 is CL2 on the pcre fit. The comparison uses replicates 1--100, where all constructions
 exist; one pcre + CL2 replicate failed in a singular value decomposition and is left out for that
-construction only. Under dependent synthetic errors GLS-FPCA + CL2 covers $\beta$ at
-`r f(cav("gls_fpc_cl2", "synthetic, dependent"), 3)` at `r f(cav("gls_fpc_cl2", "synthetic, dependent", "width_rel"), 2)`
+construction only. Under dependent synthetic errors, GLS-FPCA + CL2 covers $\beta$ at
+`r f(cav("gls_fpc_cl2", "synthetic, dependent"), 2)`, at `r f(cav("gls_fpc_cl2", "synthetic, dependent", "width_rel"), 2)`
 times REML + CL2's width (interval score `r f(cav("gls_fpc_cl2", "synthetic, dependent", "score_rel"), 2)`
-times). On the plasmode data it covers $\beta$ at `r f(cav("gls_fpc_cl2", "plasmode"), 3)` (by dataset
-`r rng(ca_pm_app$v)`; GLS-FPCA without CL2 `r f(cav("gls_fpc", "plasmode"), 3)`, REML + CL2
-`r f(cav("reml_cl2", "plasmode"), 3)`), at `r f(cav("gls_fpc_cl2", "plasmode", "width_rel"), 2)` times
+times). On the plasmode data, it covers $\beta$ at `r f(cav("gls_fpc_cl2", "plasmode"), 2)` (by dataset
+`r rng(ca_pm_app$v)`; GLS-FPCA without CL2 `r f(cav("gls_fpc", "plasmode"), 2)`, REML + CL2
+`r f(cav("reml_cl2", "plasmode"), 2)`), at `r f(cav("gls_fpc_cl2", "plasmode", "width_rel"), 2)` times
 the width. The standard error of GLS-FPCA + CL2 is close to the spread of the GLS estimate there (geometric mean
-SE/SD `r f(geo(CA_se$se_sd_ratio), 2)`). This is consistent with residual smoothing bias of the GLS
+SE/SD `r f(geo(CA_se$se_sd_ratio), 2)`). This agreement is consistent with residual smoothing bias of the GLS
 estimate under the plasmode generator, but an aggregate ratio near one does not exclude local or
 tail errors of the standard error, and no single cause is established. pcre + CL2 behaves alike ($\beta$
-`r f(cav("pcre_cl2", "plasmode"), 3)`) and repairs pcre's intervals for $\alpha(t)$ on synthetic data
+`r f(cav("pcre_cl2", "plasmode"), 2)`) and repairs pcre's intervals for $\alpha(t)$ on synthetic data
 (`r f(cav("pcre", "synthetic, dependent", "coverage", "alpha"), 2)` to
 `r f(cav("pcre_cl2", "synthetic, dependent", "coverage", "alpha"), 2)`). GLS with the raw residual
 covariance fails with CL2 as well (`r f(cav("gls_raw_cl2", "synthetic, dependent"), 2)` under dependent
@@ -971,7 +971,7 @@ $\mathbf S = \sum_k(\lambda_k/\phi)\mathbf S_k$, $\mathbf V_p = (\mathbf X^\top\
 and $\mathbf V_e = \mathbf V_p\mathbf X^\top\mathbf W\mathbf X\mathbf V_p$. In addition,
 $\mathbf F = \mathbf X^\top\mathbf W\mathbf X + \mathbf S = \mathbf V_p^{-1}$ is the penalized Hessian,
 $\boldsymbol\rho = \log\boldsymbol\lambda$ and $\dot{\mathbf S}_k = \partial\mathbf S/\partial\rho_k = (\lambda_k/\phi)\mathbf S_k$.
-For a canonical link the working weights are $w_{ij} = (d\mu/d\eta)_{ij}/\phi$, and the score of curve
+For a canonical link, the working weights are $w_{ij} = (d\mu/d\eta)_{ij}/\phi$, and the score of curve
 $i$ is $\mathbf u_i = \mathbf X_i^\top(\mathbf y_i - \boldsymbol\mu_i)/\phi$. The CL2 influence of
 curve $i$ is $\mathbf k_i = \mathbf V_p\mathbf U_i$ with $\mathbf U_i$ as in Appendix A, so that
 $\hat{\mathbf V}_{\mathrm{CL2}} = \mathbf V_f + (\mathbf V_p - \mathbf V_e)$ with the frequentist form
@@ -990,8 +990,8 @@ lcc_naive <- with(dplyr::filter(lcc, source == "naive"), median_est_sd / mc_sd)
 
 ## S4.1 Intervals centered at the NCV fit
 
-Under dependent errors curve-blocked NCV estimates $\beta$ with a fraction of REML's error (S1.6),
-but NCV + CL2 undercovers. This section explains why and evaluates six constructions that try to repair it. None of the
+Under dependent errors, curve-blocked NCV estimates $\beta$ with a fraction of REML's error (S1.6),
+but NCV + CL2 undercovers. This section explains why it undercovers and evaluates six constructions that try to repair it. None of the
 constructions as implemented here gives intervals around the NCV estimate that hold their level
 across the plasmode datasets; the conclusions refer to these constructions, not to every possible
 correction.
@@ -1006,15 +1006,15 @@ amount of smoothing, so it changes the bias as well as the variability; it uses 
 themselves and is a diagnostic, not a decomposition of the shortfall and not a method.
 
 *Result.* In the dependent synthetic settings at $G = 100$, NCV + CL2 covers $\beta$ at
-`r f(dsv("smooth truth", "ncv_cl2", "cov"))` (smooth truth) and `r f(dsv("rough truth", "ncv_cl2", "cov"))`
-(rough truth); without bias it would cover `r f(dsv("smooth truth", "ncv_cl2", "be"))` and
-`r f(dsv("rough truth", "ncv_cl2", "be"))`. On the plasmode datasets with independent source curves the
+`r f(dsv("smooth truth", "ncv_cl2", "cov"), 2)` (smooth truth) and `r f(dsv("rough truth", "ncv_cl2", "cov"), 2)`
+(rough truth); without bias, it would cover `r f(dsv("smooth truth", "ncv_cl2", "be"), 2)` and
+`r f(dsv("rough truth", "ncv_cl2", "be"), 2)`. On the plasmode datasets with independent source curves, the
 ratio of the root mean square standard error to the replicate SD of the estimate (SE/SD, median over
-grid points) is `r rng(dpv("ncv_cl2", "se_sd"))` for NCV + CL2; with fixed smoothing parameters it is
+grid points) is `r rng(dpv("ncv_cl2", "se_sd"))` for NCV + CL2; with fixed smoothing parameters, it is
 `r rng(dpv("ncvfix_cl2", "se_sd"))`, but coverage stays at `r rng(dpv("ncvfix_cl2", "cov"))`.
 
-*Reason.* On synthetic data the shortfall is smoothing bias at the amount of smoothing NCV
-selects. On the plasmode data the diagnostics suggest two contributions: the standard error is short,
+*Reason.* On synthetic data, the shortfall is smoothing bias at the amount of smoothing NCV
+selects. On the plasmode data, the diagnostics suggest two contributions: the standard error is short,
 consistent with the variability of the selected smoothing parameters that it ignores, and coverage
 stays short at a fixed typical amount of smoothing, consistent with smoothing bias. Fixing the
 smoothing parameters changes both the center and its sampling distribution, so the two cannot be
@@ -1042,8 +1042,8 @@ stopifnot(
 )
 ```
 
-with $r = b/\sigma$ its coverage is $c(r) = \Phi\{z(1 + r^2)^{1/2} - r\} - \Phi\{-z(1 + r^2)^{1/2} - r\}$,
-and $c(r) - c(0) = z(z^2 - 3)\varphi(z)r^4/6 + O(r^6)$. Numerically $c(r) \ge c(0)$ for every $r$
+with $r = b/\sigma$, its coverage is $c(r) = \Phi\{z(1 + r^2)^{1/2} - r\} - \Phi\{-z(1 + r^2)^{1/2} - r\}$,
+and $c(r) - c(0) = z(z^2 - 3)\varphi(z)r^4/6 + O(r^6)$. Numerically, $c(r) \ge c(0)$ for every $r$
 exactly when $z \ge \sqrt 3$, that is for nominal levels of at least
 `r f(2 * pnorm(sqrt(3)) - 1, 3)`.
 
@@ -1057,24 +1057,24 @@ $\varphi'''(z) = (3z - z^3)\varphi(z)$, expanding $u$ around $z$ gives
 $2\Phi(u) = 2\Phi(z) + z\varphi(z)r^2 - (z + z^3)\varphi(z)r^4/4 + O(r^6)$ and
 $\varphi'(u)r^2 = -z\varphi(z)r^2 + z(z^2 - 1)\varphi(z)r^4/2 + O(r^6)$. The terms in $r^2$ cancel, and
 the terms in $r^4$ add up to
-$\varphi(z)\{-(z + z^3)/4 + z(z^2 - 1)/2 + (3z - z^3)/12\} = z(z^2 - 3)\varphi(z)/6$. For small biases
+$\varphi(z)\{-(z + z^3)/4 + z(z^2 - 1)/2 + (3z - z^3)/12\} = z(z^2 - 3)\varphi(z)/6$. For small biases,
 the widened interval therefore overcovers if $z > \sqrt 3$ and undercovers if $z < \sqrt 3$; the global
 statement for all $r$ is the numerical check above.
 
-The plug-in replaces $b$ by the estimated difference. For a contrast $\mathbf a$ let
+The plug-in replaces $b$ by the estimated difference. For a contrast $\mathbf a$, let
 $\hat\delta = \mathbf a^\top(\hat{\boldsymbol\theta}_N - \hat{\boldsymbol\theta}_R)$, with biases $b_N$,
 $b_R$ and variances $\sigma_N^2$, $\sigma_R^2$, covariance $\sigma_{NR}$ of the two contrasts. Then
 $$
 \mathrm E\hat\delta^2 = (b_N - b_R)^2 + \sigma_N^2 + \sigma_R^2 - 2\sigma_{NR},
 $$
 so $\mathrm{se}^2_{\mathrm{CL2},N} + \hat\delta^2$ estimates $\sigma_N^2 + b_N^2$ only if $b_R \approx 0$
-and $\sigma_R^2 \approx 2\sigma_{NR}$. Under within-curve dependence $\sigma_R^2$ is large (REML
+and $\sigma_R^2 \approx 2\sigma_{NR}$. Under within-curve dependence, $\sigma_R^2$ is large (REML
 undersmooths), which inflates the allowance, while a bias shared by both fits cancels in
 $b_N - b_R$.
 
-*Result.* In the dependent synthetic settings with a smooth truth the widened interval overcovers
-$\beta$ (`r f(hv5("dependent, smooth truth", "ncv_cl2_bias", "cov"))`); under the REML-fitted plasmode
-truth it covers `r f(hv5("plasmode, REML-fitted truth", "ncv_cl2_bias", "cov"))` with a lower tail of
+*Result.* In the dependent synthetic settings with a smooth truth, the widened interval overcovers
+$\beta$ (`r f(hv5("dependent, smooth truth", "ncv_cl2_bias", "cov"), 2)`); under the REML-fitted plasmode
+truth, it covers `r f(hv5("plasmode, REML-fitted truth", "ncv_cl2_bias", "cov"), 2)` with a lower tail of
 `r f(hv5("plasmode, REML-fitted truth", "ncv_cl2_bias", "q05"), 2)` (next table and figure).
 
 *Reason.* The estimated difference is not the bias. It carries REML's sampling variance, which is
@@ -1086,10 +1086,10 @@ both fits share, which concentrates where the truth is most curved.
 *Method.* Center REML + CL2's pointwise half-width at the NCV estimate.
 
 *Result.* The detection rate of this interval for $\beta$ is lower than REML + CL2's on `r det_lower_n` of 9 plasmode
-datasets (`r rng(det_p$hybrid)` against `r rng(det_p$reml_cl2)`). Under the REML-fitted plasmode truth
-it covers `r f(hv5("plasmode, REML-fitted truth", "hybrid", "cov"))` with a lower tail of
+datasets (`r rng(det_p$hybrid)` against `r rng(det_p$reml_cl2)`). Under the REML-fitted plasmode truth,
+it covers `r f(hv5("plasmode, REML-fitted truth", "hybrid", "cov"), 2)` with a lower tail of
 `r f(hv5("plasmode, REML-fitted truth", "hybrid", "q05"), 2)` (REML + CL2:
-`r f(hv5("plasmode, REML-fitted truth", "reml_cl2", "cov"))`,
+`r f(hv5("plasmode, REML-fitted truth", "reml_cl2", "cov"), 2)`,
 `r f(hv5("plasmode, REML-fitted truth", "reml_cl2", "q05"), 2)`).
 
 *Reason.* Its width equals REML + CL2's by construction, so a lower interval score only says that the
@@ -1148,19 +1148,19 @@ $\mathbf M_m = \sum_{\ell=0}^{m}(\mathbf I - \mathbf A)^\ell$ and
 $\mathrm E\,\mathbf M_m\hat{\boldsymbol\theta} = \{\mathbf I - (\mathbf I - \mathbf A)^{m+1}\}\boldsymbol\theta$; two
 steps give $\mathbf M_2 = 3\mathbf I - 3\mathbf A + \mathbf A^2$ with bias $-(\mathbf I - \mathbf A)^3\boldsymbol\theta$.
 If $\mathbf X^\top\mathbf W\mathbf X$ is invertible, $\mathbf M_m \to \mathbf A^{-1}$ as $m \to \infty$, and
-$\mathbf A^{-1}\hat{\boldsymbol\theta}$ is the unpenalized estimate. For GLMs the same algebra holds
+$\mathbf A^{-1}\hat{\boldsymbol\theta}$ is the unpenalized estimate. For GLMs, the same algebra holds
 for the working linear model at the converged weights, to first order; $\mathbf A$ is computed as
 $\mathbf V_e\mathbf V_p^{-1}$ from the fit.
 
 *Derivation: covariance.* At fixed $\boldsymbol\lambda$, $\mathbf M$ is fixed, so
 $\mathrm{Var}(\tilde{\boldsymbol\theta}) = \mathbf M\,\mathrm{Var}(\hat{\boldsymbol\theta})\mathbf M^\top$, estimated by
 $\mathbf M\mathbf V_f\mathbf M^\top$ with the frequentist CL2. The smoothing-bias allowance follows from the
-Bayesian reading of Appendix A.3: under $\boldsymbol\theta \sim N(\mathbf 0, \mathbf S^-)$ the bias
+Bayesian reading of Appendix A.3: under $\boldsymbol\theta \sim N(\mathbf 0, \mathbf S^-)$, the bias
 $-(\mathbf I - \mathbf A)\boldsymbol\theta$ of $\hat{\boldsymbol\theta}$ has covariance
 $\mathbf V_p\mathbf S\mathbf S^-\mathbf S\mathbf V_p = \mathbf V_p\mathbf S\mathbf V_p = \mathbf V_p - \mathbf V_e$,
 which is CL2's allowance. The bias of $\tilde{\boldsymbol\theta}$ is
 $-(\mathbf I - \mathbf A)\{(\mathbf I - \mathbf A)\boldsymbol\theta\}$, with prior covariance
-$(\mathbf I - \mathbf A)(\mathbf V_p - \mathbf V_e)(\mathbf I - \mathbf A)^\top$; after two steps it is
+$(\mathbf I - \mathbf A)(\mathbf V_p - \mathbf V_e)(\mathbf I - \mathbf A)^\top$; after two steps, it is
 $(\mathbf I - \mathbf A)^2(\mathbf V_p - \mathbf V_e)\{(\mathbf I - \mathbf A)^2\}^\top$. The interval uses
 $$
 \mathbf M\mathbf V_f\mathbf M^\top + (\mathbf I - \mathbf A)(\mathbf V_p - \mathbf V_e)(\mathbf I - \mathbf A)^\top ,
@@ -1180,7 +1180,7 @@ $$
 \mathbf M(\mathbf V_p - \mathbf V_e)\mathbf M^\top = \mathbf B(2\mathbf I - \boldsymbol\Lambda)^2(\mathbf I - \boldsymbol\Lambda)\mathbf B^\top .
 $$
 In the coordinates $\boldsymbol\vartheta = \mathbf B^{-1}\boldsymbol\theta$, component $k$ of the estimate
-has mean $a_k\vartheta_k$, working-model variance $a_k$ and bias $-(1 - a_k)\vartheta_k$; after twicing
+has mean $a_k\vartheta_k$, working-model variance $a_k$ and bias $-(1 - a_k)\vartheta_k$; after twicing,
 the mean is $(2 - a_k)a_k\vartheta_k$, the variance $(2 - a_k)^2a_k$ and the bias $-(1 - a_k)^2\vartheta_k$.
 The correctly propagated allowance is $(1 - a_k)^3$, smaller than the original $1 - a_k$; propagating the
 Bayesian CL2 through $\mathbf M$ gives $(2 - a_k)^2(1 - a_k)$, up to four times the original. In
@@ -1191,12 +1191,12 @@ needs $p(a_k) = \kappa/a_k$ and a variance $\kappa^2/a_k$ that diverges as $a_k 
 $\mathbf M_m$, $p(a) = \{1 - (1 - a)^{m+1}\}/a \le m + 1$, and the bias $-(1 - a_k)^{m+1}\vartheta_k$
 stays close to $-\vartheta_k$.
 
-*Result.* On 200 fresh synthetic replicates the corrected interval covers $\beta$ at
-`r f(rsv("smooth truth, Gaussian/Poisson", "rbc_p", "cov"))` (smooth truth, Gaussian and Poisson) and
-`r f(rsv("rough truth, Gaussian/Poisson", "rbc_p", "cov"))` (rough truth; NCV + CL2
-`r f(rsv("rough truth, Gaussian/Poisson", "ncv_cl2", "cov"))`, REML + CL2
-`r f(rsv("rough truth, Gaussian/Poisson", "reml_cl2", "cov"))`), and binary $\beta$ at
-`r f(rsv("binary", "rbc_p", "cov"))`. On the plasmode datasets it adds
+*Result.* On 200 fresh synthetic replicates, the corrected interval covers $\beta$ at
+`r f(rsv("smooth truth, Gaussian/Poisson", "rbc_p", "cov"), 2)` (smooth truth, Gaussian and Poisson) and
+`r f(rsv("rough truth, Gaussian/Poisson", "rbc_p", "cov"), 2)` (rough truth; NCV + CL2
+`r f(rsv("rough truth, Gaussian/Poisson", "ncv_cl2", "cov"), 2)`, REML + CL2
+`r f(rsv("rough truth, Gaussian/Poisson", "reml_cl2", "cov"), 2)`), and binary $\beta$ at
+`r f(rsv("binary", "rbc_p", "cov"), 2)`. On the plasmode datasets, it adds
 `r rng_pp(combo_p$cov[combo_p$arm == "rbc_p"] - combo_p$cov[combo_p$arm == "ncv_cl2"])` to the coverage of NCV + CL2
 (figure in (f)).
 
@@ -1226,7 +1226,7 @@ fixed $\boldsymbol\rho$ and $\hat{\boldsymbol\rho}$ the selected value with limi
 Implicit differentiation of the estimating equation $\sum_i\mathbf u_i(\hat{\boldsymbol\theta}) = \mathbf S\hat{\boldsymbol\theta}$
 (Appendix A.1 of the paper) in $\rho_k$ gives $-\mathbf F\,\partial\hat{\boldsymbol\theta}/\partial\rho_k - \dot{\mathbf S}_k\hat{\boldsymbol\theta} = \mathbf 0$,
 so the columns of $\mathbf J = \partial\hat{\boldsymbol\theta}/\partial\boldsymbol\rho^\top$ are
-$\mathbf J_k = -\mathbf V_p\dot{\mathbf S}_k\hat{\boldsymbol\theta}$ (mgcv's `db.drho`). To first order
+$\mathbf J_k = -\mathbf V_p\dot{\mathbf S}_k\hat{\boldsymbol\theta}$ (mgcv's `db.drho`). To first order,
 $$
 \hat{\boldsymbol\theta}(\hat{\boldsymbol\rho}) - \hat{\boldsymbol\theta}(\boldsymbol\rho_0) \approx \mathbf J(\hat{\boldsymbol\rho} - \boldsymbol\rho_0),
 \qquad
@@ -1235,13 +1235,13 @@ $$
 with the cross covariance $\mathbf C = \mathrm{Cov}\{\hat{\boldsymbol\theta}(\boldsymbol\rho_0), \hat{\boldsymbol\rho}\}\mathbf J^\top$.
 The terms left out (the dependence of $\mathbf V_p$ and $\mathbf J$ on $\boldsymbol\rho$, the curvature of
 $\hat{\boldsymbol\theta}(\boldsymbol\rho)$) are of order $G^{-1}$ relative to the first-order term when
-$\hat{\boldsymbol\rho}$ is $\sqrt G$-regular. For the surface penalty under dependence it is not: the sampling
+$\hat{\boldsymbol\rho}$ is $\sqrt G$-regular. For the surface penalty under dependence, it is not: the sampling
 distribution of $\log\hat\lambda$ is flat or bimodal at $G = 40$, and its SD shrinks by a factor of only
 `r f(lcc_shrink, 2)` from $G = 40$ to $G = 100$ (REML; $\sqrt{40/100} = `r f(sqrt(0.4), 2)`$).
 
 *Derivation: mgcv's $\mathbf V_c$.* @WoodPyaSafken2016 argue in the Bayesian model: given $\boldsymbol\rho$,
 $\boldsymbol\theta \mid \mathbf y, \boldsymbol\rho \sim N\{\hat{\boldsymbol\theta}(\boldsymbol\rho), \mathbf V_p(\boldsymbol\rho)\}$,
-and with a flat prior the Laplace approximation gives
+and, with a flat prior, the Laplace approximation gives
 $\boldsymbol\rho \mid \mathbf y \approx N(\hat{\boldsymbol\rho}, \mathbf H^{-1})$, with $\mathbf H$ the Hessian of the
 negative log restricted likelihood in the outer parameters (block $\boldsymbol\rho\boldsymbol\rho$ of its
 inverse, if the scale is estimated). The law of total variance and the linearization
@@ -1250,14 +1250,14 @@ give $\mathbf V_c = \mathbf V_p + \mathbf J\mathbf H^{-1}\mathbf J^\top$, to whi
 term. Two working assumptions are built in. First, $\mathbf H^{-1}$ is the variance of
 $\hat{\boldsymbol\rho}$ only if the information identity holds, i.e. if the variance of the gradient of
 the criterion equals its expected Hessian, which is the case when the $N$ rows are independent with
-variance $\phi V(\mu)$. For Gaussian responses the data enter the $\rho_k$-gradient through
+variance $\phi V(\mu)$. For Gaussian responses, the data enter the $\rho_k$-gradient through
 $\tfrac12\hat{\boldsymbol\theta}^\top\dot{\mathbf S}_k\hat{\boldsymbol\theta} = \tfrac12\mathbf y^\top\mathbf Q_k\mathbf y$ with
 $\mathbf Q_k = \mathbf W\mathbf X\mathbf V_p\dot{\mathbf S}_k\mathbf V_p\mathbf X^\top\mathbf W$; for $\mathrm E\mathbf y = \mathbf m$ and
-$\mathrm{Var}\,\mathbf y = \boldsymbol\Sigma$ its variance is
+$\mathrm{Var}\,\mathbf y = \boldsymbol\Sigma$, its variance is
 $\tfrac12\operatorname{tr}(\mathbf Q_k\boldsymbol\Sigma\mathbf Q_k\boldsymbol\Sigma) + \mathbf m^\top\mathbf Q_k\boldsymbol\Sigma\mathbf Q_k\mathbf m$,
-whereas $\mathbf H$ corresponds to $\boldsymbol\Sigma = \phi\mathbf I$. In the dependent main-factorial settings
+whereas $\mathbf H$ corresponds to $\boldsymbol\Sigma = \phi\mathbf I$. In the dependent main-factorial settings,
 mgcv's $\mathbf H^{-1}$ gives standard deviations of the surface penalty's $\log\hat\lambda$ of
-`r rng(lcc_naive)` times its Monte Carlo SD (median over replicates; REML). Second, the law of total variance has no cross term: in the Bayesian model
+`r rng(lcc_naive)` times its Monte Carlo SD (median over replicates; REML). Second, the law of total variance has no cross term: in the Bayesian model,
 $\boldsymbol\theta$ given $\boldsymbol\rho$ is the posterior. Over repeated samples with a fixed truth,
 $\hat{\boldsymbol\theta}$ and the gradient are correlated: for symmetric errors
 $\mathrm{Cov}(\mathbf y^\top\mathbf Q_k\mathbf y, \mathbf a^\top\mathbf y) = 2\mathbf m^\top\mathbf Q_k\boldsymbol\Sigma\mathbf a$, so
@@ -1295,7 +1295,7 @@ $$
 a sandwich for $\hat{\boldsymbol\omega}$ with the curves as clusters. It differs from mgcv's
 $\mathbf H^{-1}$ in the meat and agrees with it when $\hat{\mathbf M} = \mathbf H_\omega$. (ii) The one-step
 leave-curve-out (OS) estimator: at $\hat{\boldsymbol\rho}$, $\hat{\boldsymbol\theta}_{(-i)} = \hat{\boldsymbol\theta} - (\mathbf F - \tilde{\mathbf X}_i^\top\tilde{\mathbf X}_i)^{-1}\mathbf u_i$
-(exact for Gaussian responses; for GLMs the start of penalized IRLS at fixed $\hat{\boldsymbol\rho}$, iterated
+(exact for Gaussian responses; for GLMs, the start of penalized IRLS at fixed $\hat{\boldsymbol\rho}$, iterated
 to convergence), then one Newton step in the outer parameters,
 $\boldsymbol\Delta_i = -\mathbf H_\omega^{-1}\{\nabla\mathcal V_{(-i)}(\hat{\boldsymbol\omega}) - \nabla\mathcal V(\hat{\boldsymbol\omega})\}$,
 with the leave-out gradient evaluated exactly (re-evaluated weights, $\mathbf F$ and number of
@@ -1323,7 +1323,7 @@ $$
 \hat{\mathbf V}_\times = \frac{G}{G-1}\sum_i(\mathbf k_i + \mathbf J\mathbf d_{i,\rho})(\mathbf k_i + \mathbf J\mathbf d_{i,\rho})^\top + (\mathbf V_p - \mathbf V_e)
 = \hat{\mathbf V}_{\mathrm{CL2}} + \mathbf J\hat{\mathbf V}_\rho\mathbf J^\top + \frac{G}{G-1}\sum_i(\mathbf k_i\mathbf d_{i,\rho}^\top\mathbf J^\top + \mathbf J\mathbf d_{i,\rho}\mathbf k_i^\top),
 $$
-the plug-in for $\mathbf C + \mathbf C^\top$ above. For leave-out changes $\mathbf d_{i,\rho}$ is replaced by
+the plug-in for $\mathbf C + \mathbf C^\top$ above. For leave-out changes, $\mathbf d_{i,\rho}$ is replaced by
 $-(\boldsymbol\Delta_{i,\rho} - \bar{\boldsymbol\Delta}_\rho)$ rescaled by $(G-1)/G$, so that the
 $\boldsymbol\rho\boldsymbol\rho$-part equals the jackknife variance in both forms. The result is a CL2-based
 hybrid, not a sandwich derived from one estimating equation. Assumptions: independent curves, a
@@ -1339,8 +1339,8 @@ $$
 $$
 and the curve-blocked NCV criterion of §2 of the paper, divided by $\phi$, is
 $\mathcal V(\boldsymbol\rho; \mathbf c) = \sum_i c_i\mathbf r_i^\top\mathbf W_i\mathbf r_i$ with
-$\mathbf r_i = \mathbf y_i - \mathbf X_i\mathbf t_i$. For Gaussian responses mgcv's Newton-step leave-out fit is
-exact, so this is mgcv's criterion; the factor $1/\phi$ cancels in $\mathbf H_\rho^{-1}\mathbf s_i$, and there is
+$\mathbf r_i = \mathbf y_i - \mathbf X_i\mathbf t_i$. For Gaussian responses, mgcv's Newton-step leave-out fit is
+exact, so the criterion above is mgcv's criterion; the factor $1/\phi$ cancels in $\mathbf H_\rho^{-1}\mathbf s_i$, and there is
 no scale parameter among the outer parameters. A zero weight removes curve $i$ from the loss and from every
 other leave-out fit. With $\mathbf v_{ik} = \mathbf F_{(-i)}^{-1}\dot{\mathbf S}_k\mathbf t_i$,
 $\partial\mathbf t_i/\partial\rho_k = -\mathbf v_{ik}$, and with
@@ -1402,25 +1402,25 @@ weights, the Newton step and the leave-out predictions now move with $\boldsymbo
 through $\hat{\boldsymbol\eta}$, there is no scale parameter, and $\mathbf J_k = -\mathbf V_p\dot{\mathbf S}_k\hat{\boldsymbol\theta}$
 at the converged weights. A smoothing parameter whose curvature is below $10^{-3}$ times the largest
 diagonal entry of $\mathbf H_\rho$ lies on a flat stretch of the criterion ($\lambda_k \to \infty$, the fit
-no longer depends on it); as in mgcv's Newton iteration it is treated as fixed ($d_{i,k} = 0$) and the IJ
+no longer depends on it); as in mgcv's Newton iteration, it is treated as fixed ($d_{i,k} = 0$) and the IJ
 uses the sub-matrices of the free components. This rule cannot represent jumps of $\hat{\boldsymbol\rho}$
 between interior and boundary solutions.
 
-*Result.* In the main factorial (200 replicates, dependent errors) the term without the cross term
+*Result.* In the main factorial (200 replicates, dependent errors), the term without the cross term
 raises NCV + CL2's coverage of $\beta$ from
 `r rng(c(lam_sv("gaussian", 40, "cl2"), lam_sv("gaussian", 100, "cl2")))` to
 `r rng(c(lam_sv("gaussian", 40, "ij_lin"), lam_sv("gaussian", 100, "ij_lin")))` for Gaussian responses, at
 `r rng(c(lam_sv("gaussian", 40, "ij_lin", "wr"), lam_sv("gaussian", 100, "ij_lin", "wr")), 2)` times the
-width; for binary responses with 40 curves it reaches `r f(lam_sv("binomial", 40, "ij_lin"))`. On the
-plasmode datasets with independent source curves it raises the mean coverage of $\beta$ from
-`r f(lpv("cl2", "cov"))` to `r f(lpv("ij_lin", "cov"))` (range over combinations
-`r rng(c(lpv("ij_lin", "cmin"), lpv("ij_lin", "cmax")))`). Without the cross term the variance is
+width; for binary responses with 40 curves, it reaches `r f(lam_sv("binomial", 40, "ij_lin"), 2)`. On the
+plasmode datasets with independent source curves, it raises the mean coverage of $\beta$ from
+`r f(lpv("cl2", "cov"), 2)` to `r f(lpv("ij_lin", "cov"), 2)` (range over combinations
+`r rng(c(lpv("ij_lin", "cmin"), lpv("ij_lin", "cmax")))`). Without the cross term, the variance is
 closer to the replicate variance (SE/SD `r rng(c2v("ncv_ij", "se_sd"))` per plasmode dataset, against
 `r rng(c2v("ncv_ijx", "se_sd"))` with it) and coverage is lower by
 `r rng_pp(c2_gap$cross_gain)` per dataset (second figure in (f)).
 
 *Reason.* The term addresses only the variance part of (a), not the smoothing bias. For binary
-responses the selected smoothing parameters jump between interior and boundary solutions, which a
+responses, the selected smoothing parameters jump between interior and boundary solutions, which a
 first-order term cannot represent.
 
 ```{r t-s5-lam}
@@ -1436,7 +1436,7 @@ held fixed at $\hat{\boldsymbol\rho}$: the construction is a *frozen-map approxi
 $\partial\mathbf A/\partial\boldsymbol\rho$ (derivation below).
 
 *Derivation.* The corrected estimate is $\tilde{\boldsymbol\theta}(\hat{\boldsymbol\rho}) = \mathbf M(\hat{\boldsymbol\rho})\hat{\boldsymbol\theta}(\hat{\boldsymbol\rho})$.
-For Gaussian responses $\partial\mathbf V_p/\partial\rho_k = -\mathbf V_p\dot{\mathbf S}_k\mathbf V_p$, so
+For Gaussian responses, $\partial\mathbf V_p/\partial\rho_k = -\mathbf V_p\dot{\mathbf S}_k\mathbf V_p$, so
 $\partial\mathbf A/\partial\rho_k = \partial(\mathbf I - \mathbf V_p\mathbf S)/\partial\rho_k = -\mathbf V_p\dot{\mathbf S}_k\mathbf A$ and
 $$
 \frac{\partial\tilde{\boldsymbol\theta}}{\partial\rho_k} = \mathbf M\mathbf J_k - \frac{\partial\mathbf A}{\partial\rho_k}\hat{\boldsymbol\theta}
@@ -1453,16 +1453,16 @@ $\mathbf V_{f,\rho}$ is the frequentist CL2 plus the term of (e), with or withou
 the allowance is propagated as in (d). With two steps, $\mathbf M_2$ and $(\mathbf I - \mathbf A)^2$ replace
 $\mathbf M$ and $\mathbf I - \mathbf A$.
 
-*Result.* On 100 fresh synthetic replicates per setting the version with the cross term covers
-$\beta$ at `r f(csv_("smooth truth, Gaussian", "rbc_p_ijx", "cov"))` on smooth truths and
-`r f(csv_("rough truth, Gaussian", "rbc_p_ijx", "cov"))` on rough truths, at
+*Result.* On 100 fresh synthetic replicates per setting, the version with the cross term covers
+$\beta$ at `r f(csv_("smooth truth, Gaussian", "rbc_p_ijx", "cov"), 2)` on smooth truths and
+`r f(csv_("rough truth, Gaussian", "rbc_p_ijx", "cov"), 2)` on rough truths, at
 `r f(csv_("smooth truth, Gaussian", "rbc_p_ijx", "wr"), 2)` and
 `r f(csv_("rough truth, Gaussian", "rbc_p_ijx", "wr"), 2)` times REML + CL2's width, with
 SE/SD `r rng(c(csv_("smooth truth, Gaussian", "rbc_p_ijx", "se_sd"), csv_("rough truth, Gaussian", "rbc_p_ijx", "se_sd")), 2)`;
-without the cross term `r f(c2s("rbc_p_ij", "smooth"))` and `r f(c2s("rbc_p_ij", "wiggly"))`.
+without the cross term, it covers `r f(c2s("rbc_p_ij", "smooth"), 2)` and `r f(c2s("rbc_p_ij", "wiggly"), 2)`.
 
 On the
-plasmode data the combined construction was run on replicates 1--50 of each plasmode combination; REML + CL2 comes
+plasmode data, the combined construction was run on replicates 1--50 of each plasmode combination; REML + CL2 comes
 from replicates 1--100 of the bias-correction run on the same combinations. The comparison is
 therefore only partly paired, and small differences are descriptive, not evidence of equivalence or
 of a precise ranking. The combined construction covers $\beta$ at
@@ -1472,14 +1472,14 @@ the width, with lower tails `r rng(cpv("rbc_p_ijx", "q05"))` (REML + CL2
 `r rng(reml_p_app$q05[reml_p_app$app %in% APP_COUNTED])`), and `r rng(cpv("rbc_p_ijx", "cov", "stress test"))`
 on the datasets with dependent source curves. By truth source, coverage is `r f(combo_truth$cov[combo_truth$truth == "REML"], 2)`
 (REML-fitted), `r f(combo_truth$cov[combo_truth$truth == "MID"], 2)` (midpoint),
-`r f(combo_truth$cov[combo_truth$truth == "NCV"], 2)` (NCV-fitted). Without the cross term it covers
+`r f(combo_truth$cov[combo_truth$truth == "NCV"], 2)` (NCV-fitted). Without the cross term, it covers
 `r rng(c2v("rbc_p_ij", "cov", "counted"))` on the datasets with independent source curves and stays below 0.85 on
 `r paste(app_lab(as.character(c2_fail$app)), collapse = ", ")`. Of the `r combo_missing_p$tasks`
 plasmode replicate fits, `r combo_missing_p$miss` failed the internal consistency check of the
 smoothing-parameter derivatives; they are reported as missing, not replaced.
 
-*Reason.* On synthetic data the excess variance of the term offsets the bias the correction leaves
-(SE/SD above 1). On the plasmode data the remaining bias is larger, and this construction offers no
+*Reason.* On synthetic data, the excess variance of the term offsets the bias the correction leaves
+(SE/SD above 1). On the plasmode data, the remaining bias is larger, and this construction offers no
 width advantage over REML + CL2 while its lower tails are worse. The conclusion is about the
 frozen-map approximation evaluated here; whether the full derivative, including
 $-(\partial\mathbf A/\partial\boldsymbol\rho)\hat{\boldsymbol\theta}$, would change it was not studied.
@@ -1508,7 +1508,7 @@ misspecified truths of S5.1 (default basis, 100 replicates).
 
 *Result.* For T2, whose missing part loads on directions the covariates barely excite, every
 NCV-centered interval covers $\beta$ at `r rng(c2m("T2", c("iid", "fpc")))`. For T1 (a local bump)
-under independent errors they cover `r rng(c2m("T1", "iid"))` with lower tails
+under independent errors, they cover `r rng(c2m("T1", "iid"))` with lower tails
 `r rng(c2m("T1", "iid", "coverage_q05"))`.
 
 *Reason.* A bias that the spline space cannot represent is invisible to every estimate the corrections
@@ -1525,10 +1525,10 @@ errors, $G = 100$, default signal; replicates 1--`r max(JF_S$n_rep)`) and in the
 
 *Derivation: what mgcv computes.* The description follows `?NCV`, @Wood2024 and the source of mgcv
 1.9-5 (functions `gam.outer` and `neicov`). mgcv specifies NCV per observation: each observation $n$
-is predicted from the fit with a set $\alpha(n)$ of observations dropped. For each $n$ mgcv computes
+is predicted from the fit with a set $\alpha(n)$ of observations dropped. For each $n$, mgcv computes
 the change of the coefficients when $n$ alone is left out, $\mathbf d_n = \hat{\boldsymbol\theta}_{-n} - \hat{\boldsymbol\theta}$,
 by one Newton step at the selected $\boldsymbol\lambda$, multiplied by $\{(N - 1)/N\}^{0.4}$. To first
-order $\mathbf d_n \approx -\mathbf V_p\tilde{\mathbf x}_nz_n$ (Appendix A.1 of the paper). The
+order, $\mathbf d_n \approx -\mathbf V_p\tilde{\mathbf x}_nz_n$ (Appendix A.1 of the paper). The
 neighborhood-aware estimator is
 $$
 \hat{\mathbf V}_{\mathrm{nei}} = \frac{N}{N - \tau}\sum_{n=1}^N\tilde{\mathbf d}_n\Bigl(\sum_{m \in \alpha(n)}\tilde{\mathbf d}_m\Bigr)^{\!\top}
@@ -1543,7 +1543,7 @@ and $\hat{\mathbf V}^{(0)}_{\mathrm{nei}}$ is the same sum with $\mathbf d_n$ in
 If $\alpha(n)$ is the curve of observation $n$, the sum equals $\frac{N}{N-\tau}\sum_i\mathbf D_i\mathbf D_i^\top$ with
 $\mathbf D_i = \sum_{n \in i}\tilde{\mathbf d}_n \approx -\mathbf V_p\tilde{\mathbf X}_i^\top\mathbf z_i$: a curve-cluster
 sandwich of CR0 type with the penalized bread and without CL2's leverage adjustment, plus a
-rescaled smoothing-bias allowance $a(\mathbf V_p - \mathbf V_e)$. With `nei$jackknife = TRUE` mgcv instead
+rescaled smoothing-bias allowance $a(\mathbf V_p - \mathbf V_e)$. With `nei$jackknife = TRUE`, mgcv instead
 returns the jackknife over the folds,
 $\sum_i\{(N - D_i)/N\}^{0.8}\mathbf d_i\mathbf d_i^\top + a'(\mathbf V_p - \mathbf V_e)$, with $\mathbf d_i$
 the one-step change when curve $i$ is left out and $a' = \operatorname{tr}(\cdot)/\operatorname{tr}\mathbf V_e$ of
@@ -1552,13 +1552,13 @@ the first sum.
 *The block specification.* refund specifies the same NCV criterion in block form: $G$ folds, each
 dropping and predicting a whole curve. Both forms select the same smoothing parameters and give the
 same coefficients, but mgcv 1.9-5 computes its covariance only for the per-observation form. For the
-block form it returns the Bayesian $\mathbf V_p$ when `jackknife` is unset. With `jackknife = TRUE` its
+block form, it returns the Bayesian $\mathbf V_p$ when `jackknife` is unset. With `jackknife = TRUE`, its
 routine `nei_cov()` reads the $N \times p$ matrix of the changes $\mathbf d_n$ with row stride $G$, so it
 uses the wrong entries: the sum has a trace of about $10^{-3}$ times $\operatorname{tr}\mathbf V_e$ or less,
 $a = 1$, and the returned covariance is $\mathbf V_p - \mathbf V_e$, the smoothing-bias allowance alone.
 Its standard errors relative to the Bayesian ones are
 $\{\mathbf a^\top(\mathbf V_p - \mathbf V_e)\mathbf a/\mathbf a^\top\mathbf V_p\mathbf a\}^{1/2} < 1$ for every contrast
-$\mathbf a$ with $\mathbf a^\top\mathbf V_e\mathbf a > 0$. This explains the result of `jackknife = TRUE` in the three
+$\mathbf a$ with $\mathbf a^\top\mathbf V_e\mathbf a > 0$. This returned covariance explains the result of `jackknife = TRUE` in the three
 synthetic settings (`r max(jack_s5$reps)` replicates): standard errors `r rng(jkv("jack_Vp", "ser"))`
 times the Bayesian ones and coverage of the mean and $\beta$ of `r rng(jkv("jack_Vp"))`. The
 correction will be part of a forthcoming mgcv release.
@@ -1567,14 +1567,14 @@ correction will be part of a forthcoming mgcv release.
 computes from the block fit what mgcv returns for the per-observation form with $\alpha(n)$ = the curve
 of $n$: the single-observation Newton changes, the residual ratios at the leave-curve-out fit, both
 sums, $a$ and $a'$. It needs no refit and takes about `r f(median(c(JF_SI$time_jack, JF_PI$time_jack)), 0)` s
-per study fit (median), about as long as CL2. In small examples it reproduces mgcv's covariance for the
+per study fit (median), about as long as CL2. In small examples, it reproduces mgcv's covariance for the
 per-observation form to a relative difference of $10^{-14}$ (Gaussian) and $10^{-12}$ (Poisson); its
 leave-curve-out steps agree with exact leave-one-curve-out refits at fixed smoothing parameters to
 $10^{-13}$ for Gaussian responses and to within a few percent for Poisson responses (one Newton step).
 At study scale (setting 12, replicate 1), a pffr fit with per-observation neighborhoods selects the same
 smoothing parameters (largest difference in $\log\lambda$: `r f(max(JF_PW$max_abs_diff_log_sp), 0)`), and
 `jackfix_vcov()` of the block fit reproduces its $\mathbf V_p$ and $\mathbf V_c$ to a relative difference of
-`r sprintf("%.1e", max(JF_PW$reldiff_Vp, JF_PW$reldiff_Vc))`; the per-observation fit took
+`r sprintf("%.1e", max(JF_PW$reldiff_Vp, JF_PW$reldiff_Vc))`. The per-observation fit took
 `r f(JF_PW$time_pointwise_fit, 0)` s against `r f(JF_PW$time_block_fit, 0)` s for the block fit (one fit each, timed
 in a separate run, not comparable with the benchmark times of Appendix C of
 the paper). The NCV and
@@ -1582,31 +1582,31 @@ REML estimates and CL2 standard errors of the re-evaluation reproduce the study'
 absolute difference `r sprintf("%.0e", max(JF_CRN[, c("est_NCV", "se_cl2_NCV", "est_REML", "se_cl2_REML")]))`).
 No replicate fit failed (`r sum(JF_FAIL$n_fail)` failures).
 
-*Result.* On synthetic data (next table) the corrected covariance is conservative: it covers $\beta$ at
+*Result.* On synthetic data (next table), the corrected covariance is conservative: it covers $\beta$ at
 `r rng(jf_sv("jk_nei", "beta"))` (NCV + CL2 `r rng(jf_sv("ncv_cl2", "beta"))`, REML + CL2
 `r rng(jf_sv("reml_cl2", "beta"))`) with SE/SD `r rng(jf_sv("jk_nei", "beta", "se_sd"), 2)`, at
 `r rng(jf_sv("jk_nei", "beta", "width_vs_ncv_cl2"), 2)` times NCV + CL2's width and
 `r rng(jf_sv("jk_nei", "beta", "width_vs_reml_cl2"), 2)` times REML + CL2's. Its sampling part alone
 behaves like CL2 (SE/SD for $\beta$ `r rng(jf_sv("jk_cv", "beta", "se_sd"), 2)`). The median of $a$ is
 `r rng(JF_SI$alpha_nei, 1)` per setting, so the bias allowance $a(\mathbf V_p - \mathbf V_e)$ adds a large
-term. For binary responses it covers the mean, $\alpha(t)$ and $\gamma(t)$ at
+term. For binary responses, the corrected covariance covers the mean, $\alpha(t)$ and $\gamma(t)$ at
 `r rng(jf_sv("jk_nei", c("mean", "alpha", "gamma"), fam = "binomial"))`, below REML + CL2
 (`r rng(jf_sv("reml_cl2", c("mean", "alpha", "gamma"), fam = "binomial"))`). The variant with the
 $\hat\lambda$ correction and mgcv's `jackknife = TRUE` estimate differ from it by at most
 `r f(max(abs(c(JF_S$coverage[JF_S$arm == "jk_nei_vc"] - JF_S$coverage[JF_S$arm == "jk_nei"], JF_S$coverage[JF_S$arm == "jk_raw"] - JF_S$coverage[JF_S$arm == "jk_nei"]))), 3)` in coverage.
 
-On the plasmode data, over the `r jf_pa("jk_nei", "cells")` combinations, it covers $\beta$ at
+On the plasmode data, over the `r jf_pa("jk_nei", "cells")` combinations, the corrected covariance covers $\beta$ at
 `r f(jf_pa("jk_nei"), 2)` on average (5% quantile `r f(jf_pa("jk_nei", "q05"), 2)`, lowest combination
 `r f(jf_pa("jk_nei", "min"), 2)`), against `r f(jf_pa("ncv_cl2"), 2)` (`r f(jf_pa("ncv_cl2", "q05"), 2)`) for
-NCV + CL2 and `r f(jf_pa("reml_cl2"), 3)` (`r f(jf_pa("reml_cl2", "q05"), 2)`) for REML + CL2, at
-`r f(jf_pa("jk_nei", "w2"), 2)` times REML + CL2's width (geometric mean). Per dataset it raises the
+NCV + CL2 and `r f(jf_pa("reml_cl2"), 2)` (`r f(jf_pa("reml_cl2", "q05"), 2)`) for REML + CL2, at
+`r f(jf_pa("jk_nei", "w2"), 2)` times REML + CL2's width (geometric mean). By truth source, averaged over the `r jf_p_truth("MID", "cells")` combinations of each, it covers $\beta$ at `r f(jf_p_truth("REML"), 2)` under the REML-fitted truth, `r f(jf_p_truth("MID"), 2)` under the midpoint truth and `r f(jf_p_truth("NCV"), 2)` under the NCV-fitted truth. Per dataset, it raises the
 coverage of NCV + CL2 for $\beta$ by `r rng(jf_pb$jk_nei - jf_pb$ncv_cl2, 2)` and stays below REML + CL2 on
 `r if (all(jf_pb$jk_nei < jf_pb$reml_cl2)) "every dataset" else paste(sum(jf_pb$jk_nei < jf_pb$reml_cl2), "of", nrow(jf_pb), "datasets")`
 (by `r rng(jf_pb$reml_cl2 - jf_pb$jk_nei, 3)`).
 
 *Reason.* Computed correctly, mgcv's neighborhood covariance is a curve-cluster sandwich plus a
-smoothing-bias allowance that is several times $\mathbf V_p - \mathbf V_e$. On synthetic data this
-allowance makes the intervals conservative. On the plasmode data they still undercover. Residual
+smoothing-bias allowance that is several times $\mathbf V_p - \mathbf V_e$. On synthetic data, this
+allowance makes the intervals conservative. On the plasmode data, they still undercover. Residual
 smoothing bias of the NCV estimate is a plausible contributor (S4.1(a)), which a covariance alone does
 not remove; variance and tail-calibration errors are not excluded (SE/SD `r f(jfsd("ecg_roahd"), 2)` on
 ECG 8-lead and `r f(jfsd("running"), 2)` on running; second table below). No unique cause of the failure to reach nominal coverage on
@@ -1640,7 +1640,7 @@ $$
 $$
 with $\mathbf W_{\mathbf c} = \mathrm{diag}(c_{i(n)}w_n)$, $M_p$ the dimension of the null space of the
 penalty, $\boldsymbol\omega = (\boldsymbol\rho, \tau)$ with $\tau = \log\phi$ for Gaussian responses and
-$\boldsymbol\omega = \boldsymbol\rho$, $\phi = 1$ for Poisson and binary responses. For Gaussian responses
+$\boldsymbol\omega = \boldsymbol\rho$, $\phi = 1$ for Poisson and binary responses. For Gaussian responses,
 $-\ell_{\mathbf c} = \mathcal D_{\mathbf c}/(2\phi) + (N_{\mathbf c}/2)\log(2\pi\phi)$ with the weighted residual sum
 of squares $\mathcal D_{\mathbf c}$ and $N_{\mathbf c} = \sum_i c_iD_i$. Write
 $\mathbf F_{\mathbf c} = \mathbf X^\top\mathbf W_{\mathbf c}\mathbf X + \mathbf S$. Because $\hat{\boldsymbol\theta}$ maximizes the
@@ -1656,12 +1656,12 @@ $$
 \quad\text{(Gaussian)},
 $$
 where $w'_n = dw_n/d\eta_n$ (zero for Gaussian responses), $\mathbf x_n^\top$ is row $n$ of $\mathbf X$
-and $\mathbf J_k = -\mathbf F_{\mathbf c}^{-1}\dot{\mathbf S}_k\hat{\boldsymbol\theta}$. In the $\tau$-derivative
+and $\mathbf J_k = -\mathbf F_{\mathbf c}^{-1}\dot{\mathbf S}_k\hat{\boldsymbol\theta}$. In the $\tau$-derivative,
 $\mathbf S = \sum_k(\lambda_k/\phi)\mathbf S_k$ moves with $\phi$ at fixed $\boldsymbol\lambda$, and the two
 log-determinants contribute $-p/2$ and $(p - M_p)/2$. $\mathbf H_\omega$ is mgcv's Hessian of this
 criterion.
 
-*Derivation: curve scores.* At $\mathbf c = \mathbf 1$ the fixed-$\boldsymbol\lambda$ influence of curve $i$ on
+*Derivation: curve scores.* At $\mathbf c = \mathbf 1$, the fixed-$\boldsymbol\lambda$ influence of curve $i$ on
 $\hat{\boldsymbol\theta}$ is $\boldsymbol\delta_i = \partial\hat{\boldsymbol\theta}/\partial c_i = \mathbf V_p\mathbf u_i$ (implicit
 differentiation of $\sum_h c_h\mathbf u_h = \mathbf S\hat{\boldsymbol\theta}$), and
 $\partial\mathbf F/\partial c_i = \mathbf X^\top\mathrm{diag}(\mathbf b_i)\mathbf X$ with
@@ -1683,11 +1683,11 @@ bracket is the route through $\log\lvert\mathbf F\rvert$: the trace term changes
 $\mathbf F^{-1}$ (first sum), through the weights of curve $i$ and their change with $\hat{\boldsymbol\eta}$
 (second and third sums), and through $\mathbf J_k$, whose derivative is
 $\partial\mathbf J_k/\partial c_i = -\mathbf V_p\mathbf X^\top\mathrm{diag}(\mathbf b_i)\mathbf X\mathbf J_k - \mathbf V_p\dot{\mathbf S}_k\boldsymbol\delta_i$
-(last two terms). For Gaussian responses only the first sum remains; it varies over curves because
+(last two terms). For Gaussian responses, only the first sum remains; it varies over curves because
 their designs $\mathbf X_i$ differ (functional covariates). The scale enters through the curve's share of
 the residual sum of squares and of $N$. The cost is $O(GNp + KNp^2)$ per fit. The penalty and $M_p$ do not scale with $\mathbf c$, so the scores are centered as in S4.1(e), and the
 estimators (IJ, OS, exact curve jackknife, regularized) and the two ways of adding the term to CL2 are
-those of S4.1(e). For Poisson and binary responses OS evaluates the leave-out gradient at the converged
+those of S4.1(e). For Poisson and binary responses, OS evaluates the leave-out gradient at the converged
 penalized IRLS solution without curve $i$.
 
 *Derivation: non-linear variants.* Because $\mathrm{Var}(\log\hat\lambda)$ of the surface penalty is large and
@@ -1696,18 +1696,18 @@ of $\hat{\boldsymbol\theta}$. The non-linear variants replace it by
 $\hat{\boldsymbol\theta}_{(-i)}(\hat{\boldsymbol\rho} + \boldsymbol\Delta_{i,\rho}) - \hat{\boldsymbol\theta}_{(-i)}(\hat{\boldsymbol\rho})$, refitted by
 penalized IRLS at fixed smoothing parameters, for the one-step and the exact jackknife changes.
 
-*Result.* In the dependent main-factorial settings the term raises REML + CL2's coverage of $\beta$ from `r f(lc_v("cl2", g = 40))` to `r f(lc_v("ij_lin", g = 40))`
-($G = 40$) and from `r f(lc_v("cl2", g = 100))` to `r f(lc_v("ij_lin", g = 100))` ($G = 100$) at
+*Result.* In the dependent main-factorial settings, the term raises REML + CL2's coverage of $\beta$ from `r f(lc_v("cl2", g = 40), 2)` to `r f(lc_v("ij_lin", g = 40), 2)`
+($G = 40$) and from `r f(lc_v("cl2", g = 100), 2)` to `r f(lc_v("ij_lin", g = 100), 2)` ($G = 100$), at
 `r rng(c(lc_v("ij_lin", "wr", g = 40), lc_v("ij_lin", "wr", g = 100)), 2)` times the width, with interval
 score ratios `r rng(c(lc_v("ij_lin", "sr", g = 40), lc_v("ij_lin", "sr", g = 100)), 3)`. The within-setting rank correlation between a replicate's
 standard-error inflation and CL2's share of missed grid points in that replicate is
 `r f(lc_target$m[lc_target$G == 40], 2)` at $G = 40$ and `r f(lc_target$m[lc_target$G == 100], 2)` at
 $G = 100$. As a diagnostic, a refit with the smoothing parameters fixed at the setting's
 geometric-mean REML value, computed from the same replicates, is narrower than CL2 and covers better
-(`r f(lc_v("fix", g = 40))`, interval score ratio `r f(lc_v("fix", "sr", g = 40), 3)` at $G = 40$); it
+(`r f(lc_v("fix", g = 40), 2)`, interval score ratio `r f(lc_v("fix", "sr", g = 40), 2)` at $G = 40$); it
 changes both the typical amount of smoothing and its variability, so it does not separate the two.
 
-On the plasmode data the term
+On the plasmode data, the term
 raises REML + CL2's coverage of $\beta$ by `r rng_pp(lcp_w$gain)` per combination at interval score
 ratios `r rng(lcp_w$sr, 2)`.
 
@@ -1748,7 +1748,7 @@ smooth errors is `r rng(MS$mse[MS$basis == "xlarge" & MS$error == "fpc" & MS$est
 against `r rng(MS$mse[MS$basis == "xlarge" & MS$error == "fpc" & MS$estimand == "beta" & MS$arm == "ncv_cl2"], 2)`
 for NCV.
 
-Under independent errors the finer basis does not restore REML + CL2 (T2 $\beta$
+Under independent errors, the finer basis does not restore REML + CL2 (T2 $\beta$
 `r f(msv("T2", "iid", 100, "xlarge", "beta", "reml_cl2"), 2)`). Coverage of $\alpha$ and $\gamma$ is unaffected
 (REML + CL2 `r rng(MS$coverage[MS$estimand %in% c("alpha", "gamma") & MS$arm == "reml_cl2"])`).
 
@@ -1867,7 +1867,7 @@ smoothing-parameter terms and NCV-centered corrections, S4; the comparators, S3.
 misspecified truths, S5.1; the principal component term, S1.9).
 
 The patch changes $\mathbf V_c$ of NCV fits (in the unpatched build it
-holds only the smoothing-parameter correction and is not a valid covariance; with the patch it is
+holds only the smoothing-parameter correction and is not a valid covariance; with the patch, it is
 $\mathbf V_p$ plus that correction) and two `bam()` paths (NCV, and non-Gaussian discrete fits with
 AR(1) errors). The REML, NCV and CL2 computations evaluated here use none of these; the study uses
 $\mathbf V_p$ as the model-based covariance of NCV fits throughout, so only the row "... with

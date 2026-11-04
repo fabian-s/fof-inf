@@ -10,7 +10,7 @@ plasmode data. @fig-time shows the median, the quartiles, the 90% quantile and t
 
 ```{r}
 #| label: fig-time
-#| fig-cap: "Computing time in seconds per fit or per covariance, by method and data source (A: local benchmark, Gaussian, G = 100, D = 61; B: comparator runs, Gaussian synthetic settings and plasmode datasets with independent source curves; C: main-factorial settings; D: plasmode data); n: number of timed fits or covariances; log scale. Point: median; thick bar: quartiles; thin bar: up to the 90% quantile; cross: maximum. CL2 and the smoothing-parameter terms are computed on top of an existing fit."
+#| fig-cap: "Computing time in seconds per fit or per covariance, by method and data source (A: local benchmark, Gaussian, G = 100, D = 61; B: comparator runs, Gaussian synthetic settings and plasmode datasets with independent source curves; C: main-factorial settings; D: plasmode data); n: number of timed fits or covariances; log scale. Point: median; thick bar: quartiles; thin bar: up to the 90% quantile; cross: maximum. CL2 and the smoothing-parameter terms are computed on top of an existing fit. Times for pcre and GLS include the REML pilot fit and, where used, the FPCA of its residual curves."
 #| fig-height: 3.6
 fig_time(time_tab)
 ```

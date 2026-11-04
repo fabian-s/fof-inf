@@ -135,12 +135,12 @@ A curve-clustered sandwich covariance with a leverage adjustment for the penaliz
 computed after the usual REML fit (REML + CL2), brings coverage of fitted means and $\beta(s,t)$ close to
 nominal in the simulation's main settings. On the real residual curves of the plasmode study, it falls a few
 percentage points short on eight of nine datasets but Satterthwaite degrees of freedom recover most of the remaining shortfall at the cost of
-wider intervals. In the simulation they do so also with 20 curves, and with 40 or 100 curves they keep the
+wider intervals. In the simulation, they do so also with 20 curves, and with 40 or 100 curves they keep the
 pointwise false-positive rate for a zero surface close to nominal under smooth errors.
 
 Neither the REML nor the NCV fit gave both a good estimate and calibrated intervals for the surface.
 REML + CL2 intervals are wide because REML's estimate is noisy. Intervals centered at the NCV estimate
-are narrow but undercover. In the simulation the cause is smoothing bias; on the plasmode data the
+are narrow but undercover. In the simulation, the cause is smoothing bias; on the plasmode data the
 diagnostics suggest smoothing bias and the variability of the selected smoothing parameters. The
 corrections we tried did not calibrate these intervals on the plasmode data.
 
@@ -421,9 +421,9 @@ REML's error rises to `r f(rs("beta", "dependent", "reml_cl2", "rel"), 2)` (maxi
 `r f(rs("beta", "dependent", "reml_cl2", "rel_max"), 1)`), NCV's to
 factorial, the median RMSE ratio of the two (REML to NCV) is `r rng(rr(TRUE), 1)` under dependence and `r rng(rr(FALSE), 1)`
 under independence, at every signal level; with 20 curves it is `r rng(rr20(TRUE), 1)` and
-`r rng(rr20(FALSE), 1)`. On a four times denser grid it reaches `r rng(rr_block("dense_grid"), 1)` and with
+`r rng(rr20(FALSE), 1)`. On a four times denser grid, it reaches `r rng(rr_block("dense_grid"), 1)` and with
 the larger bases `r rng(rr_block("basis_size"), 1)`; it is smaller with a rough truth
-(`r rng(rr_block("rough_truth"), 1)`) and under misregistration (`r rng(rr_block("warp"), 1)`). NCV estimates $\beta$ better also under independent
+(`r rng(rr_block("rough_truth"), 1)`) and under misregistration (`r rng(rr_block("warp"), 1)`). For a smooth effect $f(x,t)$ in place of the functional term, it is `r rng(rr_est("f"), 1)`. NCV estimates $\beta$ better also under independent
 Gaussian errors (ratio of mean squared errors NCV/REML `r rng(beta_ratio_iid_gau)`), so part of the gap reflects the
 smooth truths rather than the dependence.
 
@@ -439,7 +439,7 @@ Estimates for the mean, the intercept and the scalar effect depend much less str
 errors, the median relative error over the settings is `r f(rs("mean", "independent", "reml_cl2", "rel"), 2)` (REML) and
 `r f(rs("mean", "independent", "ncv_cl2", "rel"), 2)` (NCV) for the mean,
 `r f(rs("alpha", "independent", "reml_cl2", "rel"), 2)` and `r f(rs("alpha", "independent", "ncv_cl2", "rel"), 2)` for $\alpha(t)$, and
-`r f(rs("gamma", "independent", "reml_cl2", "rel"), 2)` and `r f(rs("gamma", "independent", "ncv_cl2", "rel"), 2)` for $\gamma(t)$. Under dependence it is
+`r f(rs("gamma", "independent", "reml_cl2", "rel"), 2)` and `r f(rs("gamma", "independent", "ncv_cl2", "rel"), 2)` for $\gamma(t)$. Under dependence, it is
 `r f(rs("mean", "dependent", "reml_cl2", "rel"), 2)` and `r f(rs("mean", "dependent", "ncv_cl2", "rel"), 2)`,
 `r f(rs("alpha", "dependent", "reml_cl2", "rel"), 2)` and `r f(rs("alpha", "dependent", "ncv_cl2", "rel"), 2)`, and
 `r f(rs("gamma", "dependent", "reml_cl2", "rel"), 2)` and `r f(rs("gamma", "dependent", "ncv_cl2", "rel"), 2)`
@@ -483,7 +483,7 @@ for $\beta$, relative to NCV's (geometric mean over settings), is `r f(cmg("pcre
 that generate the plasmode errors). Both are thus much better than REML, worse than NCV in the
 simulation and comparable to NCV in that plasmode comparison. Including the REML pilot fit, a pcre fit took `r f(min(time_ratio("PCRE", "synthetic")), 1)`--`r f(max(time_ratio("PCRE", "synthetic")), 0)` times as long as an NCV fit in the simulation
 and `r f(min(time_ratio("PCRE", "plasmode")), 1)`--`r f(max(time_ratio("PCRE", "plasmode")), 0)` times as long on the plasmode data; a GLS fit took `r f(min(time_ratio("GLSfpc", "synthetic")), 1)`--`r f(max(time_ratio("GLSfpc", "synthetic")), 1)` and
-`r f(min(time_ratio("GLSfpc", "plasmode")), 1)`--`r f(max(time_ratio("GLSfpc", "plasmode")), 1)` times as long (medians per setting). The GLS algorithm is given in Supplement S3.2.
+`r f(min(time_ratio("GLSfpc", "plasmode")), 1)`--`r f(max(time_ratio("GLSfpc", "plasmode")), 1)` times as long (medians per setting). The GLS algorithm -- only applicable for Gaussian data -- is given in Supplement S3.2.
 
 
 ::: {#fig-intervals layout-nrow=2}
@@ -510,78 +510,54 @@ Grid-averaged coverage of nominal 95% pointwise intervals, main factorial at the
 ## Intervals for the REML fit {#sec-res-intervals}
 
 Model-based intervals undercover in every dependent setting and every family
-(@fig-coverage): `r rng(cov_of(core_dep, "reml_model"))` for the mean and $\beta(s,t)$ with
-100 curves. On a four times denser grid ($D = 241$) their coverage of $\beta$ drops from
-`r rng(grid_cov("reml_model", 61))` to `r rng(grid_cov("reml_model", 241))`. REML + CL2 covers
-the mean and $\beta$ at `r rng(cov_of(core_dep, "reml_cl2"))` with 100 curves and stays at
-`r rng(grid_cov("reml_cl2", 241))` for $\beta$ at $D = 241$. The same holds for
-$\alpha(t)$ and $\gamma(t)$ of Gaussian and count responses, for scaled $t$, beta and
-negative-binomial responses, for the smooth-effect model, for sign-changing and heteroskedastic
-errors, and for misregistered Gaussian curves (mean and $\beta$ `r rng(warp_gau$coverage_mean)`;
-Supplement S1.1--S1.3).
+(@fig-coverage): `r rng(cov_of(core_dep, "reml_model"))` for the mean and $\beta(s,t)$ with 100 curves. On a
+four times denser grid ($D = 241$), their coverage of $\beta$ drops to `r rng(grid_cov("reml_model", 241))`.
+REML + CL2 covers the mean and $\beta$ at `r rng(cov_of(core_dep, "reml_cl2"))` with 100 curves and stays at
+`r rng(grid_cov("reml_cl2", 241))` for $\beta$ at $D = 241$. The same holds for $\alpha(t)$ and $\gamma(t)$ of
+Gaussian and count responses, for scaled $t$, beta and negative-binomial responses, for the smooth-effect
+model, for sign-changing and heteroskedastic errors, and for misregistered Gaussian curves (Supplement
+S1.1--S1.3; misregistered Gaussian curves: mean and $\beta$ `r rng(warp_gau$coverage_mean)`). In the dependent main-factorial settings, REML + CL2's coverage is also
+much more even over the grid: the lower tail for the mean and $\beta$ is `r rng(tq("reml_cl2", 100))` with 100 curves and `r rng(tq("reml_cl2", 40))`
+with 40, against `r rng(tq("reml_model", 100))` for the model-based intervals with 100 curves.
 
-Under independent errors with 100 curves, CL2 gives up `r rng_pp(iid_cost100)`
-of coverage for the mean and $\beta$ against the model-based intervals (averaged over signal levels
-within each family); for binary responses at the default signal it gives up
-`r pp(bin100$cost[bin100$estimand == "mean"])` (mean), `r pp(bin100$cost[bin100$estimand == "alpha"])`
-($\alpha(t)$) and `r pp(bin100$cost[bin100$estimand == "gamma"])` ($\gamma(t)$). With 40 curves it gives
-up `r pp(max(bin40$cost))` for the binary mean (`r f(bin40$reml_cl2[which.max(bin40$cost)], 3)` against
-`r f(bin40$reml_model[which.max(bin40$cost)], 3)`, where the model-based intervals do not overcover)
-and `r pp(abl_bin("alpha", "iid", "model") - abl_bin("alpha", "iid", "cl2e_b"))` and
-`r pp(abl_bin("gamma", "iid", "model") - abl_bin("gamma", "iid", "cl2e_b"))` for its $\alpha(t)$ and
-$\gamma(t)$ at the default signal (Appendix A.6).
+Under independent errors with 100 curves, CL2 gives up `r rng_pp(iid_cost100)` of coverage against the model-based intervals for the mean and
+$\beta$ (averaged over signal levels within each family). For binary responses with 40 curves at the default signal, it gives up
+`r pp(max(bin40$cost))` for the mean, where the model-based intervals do not overcover (`r f(bin40$reml_cl2[which.max(bin40$cost)], 2)` against
+`r f(bin40$reml_model[which.max(bin40$cost)], 2)`), and `r pp(abl_bin("alpha", "iid", "model") - abl_bin("alpha", "iid", "cl2e_b"))` and
+`r pp(abl_bin("gamma", "iid", "model") - abl_bin("gamma", "iid", "cl2e_b"))` for $\alpha(t)$ and $\gamma(t)$ (Appendix A.6).
 
-*Lower tails.* The 5% quantile of pointwise coverage for the mean and $\beta$ is
-`r rng(tq("reml_cl2", 100))` for REML + CL2 with 100 curves and `r rng(tq("reml_cl2", 40))` with
-40; for the model-based intervals it is `r rng(tq("reml_model", 100))`. REML + CL2 provides a much more uniform coverage over the grid than the model-based intervals.
+*Fewer curves.* With 40 curves, REML + CL2 covers the mean and $\beta$ at `r rng(cov_of(core_dep40, "reml_cl2"))`.
+With 20 curves, it covers the mean, $\beta$ and $\gamma$ at `r rng(l20("reml_cl2"))` and $\alpha(t)$ at
+`r rng(l20("reml_cl2", e = "alpha"))`. Satterthwaite degrees of freedom recover most of this shortfall
+(@fig-satt): with 20 curves and the default signal, coverage of the mean, $\beta$ and $\gamma$ rises from
+`r rng(sv("cov_z", 20))` to `r rng(sv("cov_satt", 20))`, at up to `r f(max(sv("wr", 20)), 2)` times the width;
+with 100 curves, the change is small. The binary intercept stays short (`r f(sv("cov_satt", 20, e = "alpha", fam = "binomial"), 2)`
+with 20 curves, `r f(satt_bin_alpha, 2)` with 40). The degrees of freedom are about a third of $G - 1$ for the mean,
+$\beta$ and $\gamma$, and larger for $\alpha(t)$. In the extensions, they never lower coverage. There, with Satterthwaite degrees of freedom, coverage stays below
+`r f(LEVEL - ADEQUATE, 2)` in `r nrow(satx_low)` of `r n_satx` combinations of setting and estimand, all under misregistration or for binary
+intercepts and scalar effects (Supplement S1.7).
 
-*Fewer curves.* With 40 curves, REML + CL2 covers the mean and $\beta$ at
-`r rng(cov_of(core_dep40, "reml_cl2"))`, `r rng_pp(gl("reml_cl2"))` less than with 100 curves; with 20
-curves it covers the mean, $\beta$ and $\gamma$ at `r rng(l20("reml_cl2"))` and $\alpha(t)$ at
-`r rng(l20("reml_cl2", e = "alpha"))` (per setting, all signal levels). Satterthwaite degrees of
-freedom recover most of this shortfall (@fig-satt; default signal): with 20 curves, coverage of the
-mean, $\beta$ and $\gamma$ moves from `r rng(sv("cov_z", 20))` to `r rng(sv("cov_satt", 20))`, at
-`r rng(sv("wr", 20), 2)` times the width; with 100 curves the change is small. The binary intercept
-reaches only `r f(sv("cov_satt", 20, e = "alpha", fam = "binomial"), 3)` with 20 and
-`r f(satt_bin_alpha, 3)` with 40 curves.
+*CL2 and CR1.* Under dependence and with the normal critical value, CL2 covers the mean and $\beta$
+`r rng_pp(cr1_gain(40))` more than CR1 with the same allowance with 40 curves, at `r rng(cr1_wr(40), 1)` times its
+width, and `r rng_pp(cr1_gain(100))` more with 100, at `r rng(cr1_wr(100), 2)` times (Appendix A.6). For fixed
+smoothing parameters and a fixed basis, the two covariances agree to first order as the number of curves grows
+(Appendix A.5). CR1 was not run with 20 or with more than 100 curves. The leverage adjustment costs a median of `r f(cl2_time, 1)` s per fit with 100 curves.
 
-The per-point degrees of freedom are about a third of $G - 1$
-for the mean, $\beta$ and $\gamma$ (medians `r rng(satt_df_rel)` times $G - 1$ in every synthetic
-setting), larger for $\alpha(t)$. In the extensions they add `r pp(sxc(40))` of coverage with 40 curves
-and `r pp(sxc(100))` with 100 on average and never lower it; coverage stays below
-`r f(LEVEL - ADEQUATE, 2)` in `r nrow(satx_low)` of `r n_satx` combinations of setting and estimand,
-all under misregistration or for binary intercepts and scalar effects (Supplement S1.7).
+*Where CL2 falls short.* For binary responses, REML + CL2 covers the functional intercept and the scalar effect
+at `r rng(ag_bin(TRUE))` under dependence and `r rng(ag_bin(FALSE))` under independent errors. Under independent errors with 40 curves, the
+intercept's studentized error is centered but too spread out, which is compatible with a standard error that is too small, although local biases of
+opposite sign are not excluded. Under dependence, it is also shifted (Supplement S1.4). Fixing the smoothing parameters at their typical value raises coverage of the binary
+$\gamma(t)$ under independent errors from `r f(abl_bin("gamma", "iid", "cl2e_b"), 2)` to
+`r f(abl_bin("gamma", "iid", "fix_cl2e_b"), 2)` and of $\alpha(t)$ under smooth errors from
+`r f(abl_bin("alpha", "fpc", "cl2e_b"), 2)` to `r f(abl_bin("alpha", "fpc", "fix_cl2e_b"), 2)` (40 curves), so part of the
+shortfall is likely due to uncounted smoothing-parameter variability; $\alpha(t)$ under independent errors stays at
+`r f(abl_bin("alpha", "iid", "fix_cl2e_b"), 2)` (Appendix A.6, Supplement S1.4). With 20 curves and independent errors, every
+interval undercovers binary $\alpha(t)$ and $\gamma(t)$, the model-based ones included
+(`r rng(c(l20("reml_model", "independent", c("alpha", "gamma"), "binomial"), l20("reml_cl2", "independent", c("alpha", "gamma"), "binomial"), l20("ncv_cl2", "independent", c("alpha", "gamma"), "binomial")))`),
+so this shortfall is not specific to the sandwich.
 
-*CL2 and CR1.* With the normal critical value and under dependence, CL2 covers the mean and $\beta$
-`r rng_pp(cr1_gain(40))` more than CR1 with the same allowance with 40 curves, at `r rng(cr1_wr(40), 2)` times
-its width, and `r rng_pp(cr1_gain(100))` more with 100, at `r rng(cr1_wr(100), 2)` times (per setting at the
-default signal; coverage in Appendix A.6). CR1 was not run with 20
-or with more than 100 curves; for fixed smoothing parameters and a fixed basis the two covariances agree to
-first order as the number of curves grows (Appendix A.5). The adjustment costs little: a median
-`r f(cl2_time, 1)` s per fit with 100 curves.
-
-*Where CL2 falls short.* For binary responses, the functional intercept and the scalar effect are
-covered at `r rng(ag_bin(TRUE))` under dependence and `r rng(ag_bin(FALSE))` under independent
-errors. Under independent errors with 40 curves, the studentized error of the intercept is centered
-(mean `r f(zbv(FALSE, 40, "m"), 2)`) but has standard deviation `r f(zbv(FALSE, 40, "s"), 2)`
-(model-based `r f(zbv(FALSE, 40, "sm"), 2)`; averages over the two signal levels); under dependence it
-is also shifted (mean `r zbe_rng(40)` with 40 curves and `r zbe_rng(100)` with 100, per dependent
-error process and averaged over the signal levels). This is compatible with a CL2 standard error that is too small for this term; pooled
-studentized errors cannot exclude local biases of opposite sign.
-
-Fixing the smoothing parameters at
-their typical value raises coverage of the binary $\gamma(t)$ under independent errors from
-`r f(abl_bin("gamma", "iid", "cl2e_b"), 3)` to `r f(abl_bin("gamma", "iid", "fix_cl2e_b"), 3)` and of
-$\alpha(t)$ under smooth errors from `r f(abl_bin("alpha", "fpc", "cl2e_b"), 3)` to
-`r f(abl_bin("alpha", "fpc", "fix_cl2e_b"), 3)` (40 curves), so part of the shortened standard error is likely due to uncounted smoothing-parameter variability; $\alpha(t)$ under independent errors stays at
-`r f(abl_bin("alpha", "iid", "fix_cl2e_b"), 3)` (Appendix A.6, Supplement S1.4). With 20 curves and
-independent errors every interval undercovers binary $\alpha(t)$ and $\gamma(t)$, the model-based ones
-included (`r rng(c(l20("reml_model", "independent", c("alpha", "gamma"), "binomial"), l20("reml_cl2", "independent", c("alpha", "gamma"), "binomial"), l20("ncv_cl2", "independent", c("alpha", "gamma"), "binomial")))`
-per setting), so this shortfall is not specific to the sandwich.
-
-For misregistered counts the working
-model for the mean is wrong: REML + CL2 covers the mean of misregistered Poisson responses at
-`r rng(wp("reml_cl2"))` (model-based `r rng(wp("reml_model"))`).
+For misregistered counts, the working model for the mean is wrong: REML + CL2 covers the mean of misregistered
+Poisson responses at `r rng(wp("reml_cl2"))` (model-based `r rng(wp("reml_model"))`).
 
 ## The trade-off for the coefficient surface {#sec-res-tradeoff}
 
@@ -605,90 +581,72 @@ fig_tradeoff_summary(trade_tab)
 fig_tradeoff(fig2b)
 ```
 
-The median half-width of REML + CL2 for $\beta$ under dependence is
-`r f(rs("beta", "dependent", "reml_cl2", "hw"), 2)` times the size of the effect, and it detects only
-`r f(rs("beta", "dependent", "reml_cl2", "det"), 2)` of the grid points where the true value
-exceeds 25% of its maximum (@fig-tradeoff-summary, @fig-tradeoff). The REML + CL2 intervals are
-`r f(rs("beta", "dependent", "reml_cl2", "hw") / rs("beta", "dependent", "ncv_cl2", "hw"), 1)`
-times as wide as those of NCV + CL2, which detects `r f(rs("beta", "dependent", "ncv_cl2", "det"), 2)` but covers less
-(median `r f(rs("beta", "dependent", "ncv_cl2", "coverage"), 3)`, lower tail
-`r f(rs("beta", "dependent", "ncv_cl2", "q05"), 2)`). The interval score of NCV + CL2 is
-`r f(scr("beta", "ncv_cl2"), 2)` times REML + CL2's: the score rewards its accurate, narrow intervals
-more than it punishes the additional misses, while the model-based REML intervals score
-`r f(scr("beta", "reml_model"), 2)` times. We nevertheless do not recommend NCV + CL2 for inference:
-its coverage is too low on the real residual curves (@sec-plasmode).
+Under dependence, the median half-width of REML + CL2 for $\beta$ is
+`r f(rs("beta", "dependent", "reml_cl2", "hw"), 1)` times the size of the effect, and it detects only
+`r f(rs("beta", "dependent", "reml_cl2", "det"), 2)` of the grid points where the true value exceeds 25% of its
+maximum (@fig-tradeoff-summary, @fig-tradeoff). Its intervals are
+`r f(rs("beta", "dependent", "reml_cl2", "hw") / rs("beta", "dependent", "ncv_cl2", "hw"), 1)` times as wide as those of
+NCV + CL2, which detects `r f(rs("beta", "dependent", "ncv_cl2", "det"), 2)` but covers less (median
+`r f(rs("beta", "dependent", "ncv_cl2", "coverage"), 2)`, lower tail `r f(rs("beta", "dependent", "ncv_cl2", "q05"), 2)`). The
+interval score of NCV + CL2 is `r f(scr("beta", "ncv_cl2"), 2)` times REML + CL2's: the score rewards its accurate,
+narrow intervals more than it punishes the additional misses. We nevertheless do not recommend NCV + CL2 for
+inference, because its coverage is too low on the real residual curves (@sec-plasmode).
 
-In the simulation the shortfall
-of NCV + CL2 is smoothing bias: subtracting the bias of the NCV estimate, estimated from the
-replicates, raises its coverage from `r rng(nd("core", "coverage"))` to `r rng(nd("core", "coverage_bias_elim"))` in the
-main factorial with 100 curves. With 20 curves and dependent errors NCV + CL2 covers the four estimands
-at `r rng(l20("ncv_cl2", e = c("mean", "beta", "alpha", "gamma")))`, with lower tails down to
-`r f(min(l20("ncv_cl2", e = c("mean", "beta", "alpha", "gamma"), col = "pointwise_q05")), 2)`. With a rough truth, NCV + CL2 covers `r rng(rn("ncv_cl2"))` with
-lower tails `r rng(rn("ncv_cl2", "pointwise_q05"))` (REML + CL2: `r rng(rn("reml_cl2"))`), and for
-binary responses with 40 curves `r rng(bin40_ncv)`.
+In the simulation, the shortfall of NCV + CL2 is smoothing bias: subtracting the bias of the NCV estimate, estimated
+from the replicates, raises its coverage from `r rng(nd("core", "coverage"))` to
+`r rng(nd("core", "coverage_bias_elim"))` in the main factorial with 100 curves. NCV + CL2 covers less with 20 curves
+and dependent errors (`r rng(l20("ncv_cl2", e = c("mean", "beta", "alpha", "gamma")))` for the four estimands), with a
+rough truth (`r rng(rn("ncv_cl2"))`; REML + CL2: `r rng(rn("reml_cl2"))`) and for binary responses with 40 curves
+(`r rng(bin40_ncv)`).
 
-The trade-off grows with the basis: with the
-largest basis REML + CL2's half-width for $\beta$ reaches `r rng(hwb("reml_cl2", "xlarge"))` times
-the effect and its detection rate `r rng(hwb("reml_cl2", "xlarge", "detect"))`, while its coverage
-stays at `r rng(cov_bb("reml_cl2", "xlarge"))` (smooth errors). Wrong-sign exclusions are rare for
-REML + CL2 (at most `r f(100 * rs("beta", "dependent", "reml_cl2", "wrong"), 1)`% of the grid in
-any dependent setting); false detections of a zero surface are in @sec-res-null.
+The trade-off grows with the basis: with the largest basis and smooth errors, REML + CL2's half-width for $\beta$
+reaches `r rng(hwb("reml_cl2", "xlarge"), 0)` times the effect and its detection rate falls to
+`r rng(hwb("reml_cl2", "xlarge", "detect"))`, while its coverage stays at `r rng(cov_bb("reml_cl2", "xlarge"))`.
+Wrong-sign exclusions are rare for REML + CL2 (at most `r f(100 * rs("beta", "dependent", "reml_cl2", "wrong"), 1)`% of
+the grid in any dependent setting).
 
-For the mean, $\alpha(t)$ and $\gamma(t)$ REML + CL2's intervals are wider
-than NCV + CL2's (mean: `r f(rs("mean", "dependent", "reml_cl2", "hw") / rs("mean", "dependent", "ncv_cl2", "hw"), 2)`
-times), but they cover, the estimates of $\alpha(t)$ and $\gamma(t)$ are about as accurate, and
-$\gamma(t)$ is detected at `r f(rs("gamma", "dependent", "reml_cl2", "det"), 2)`, so the trade-off is mild.
+For the mean, $\alpha(t)$ and $\gamma(t)$, the trade-off is mild: REML + CL2's intervals are wider than NCV + CL2's (mean:
+`r f(rs("mean", "dependent", "reml_cl2", "hw") / rs("mean", "dependent", "ncv_cl2", "hw"), 1)` times), but they cover, the
+estimates of $\alpha(t)$ and $\gamma(t)$ are about as accurate, and $\gamma(t)$ is detected at
+`r f(rs("gamma", "dependent", "reml_cl2", "det"), 2)`.
 
-The model-based intervals of pcre and GLS with an FPCA residual covariance show the trade-off from
-the other side. In the `r n_cmp_dep` Gaussian main-factorial settings with dependent errors they cover
-$\beta$ at `r rng(c(cmq("pcre"), cmq("gls_fpc")))`, at
-`r rng(c(cmq("pcre", col = "wr"), cmq("gls_fpc", col = "wr")))` times REML + CL2's width and
-`r rng(c(cmq("pcre", col = "sr"), cmq("gls_fpc", col = "sr")))` times its interval score, but pcre's
-intervals cover the mean at only `r rng(cmq("pcre", "mean"))` and $\alpha(t)$ at
-`r rng(cmq("pcre", "alpha"))`; on real residual curves both cover $\beta$ at only
+The model-based intervals of pcre and GLS with an FPCA residual covariance show the trade-off from the other side.
+In the `r n_cmp_dep` Gaussian main-factorial settings with dependent errors, they cover $\beta$ at
+`r rng(c(cmq("pcre"), cmq("gls_fpc")))`, at `r rng(c(cmq("pcre", col = "wr"), cmq("gls_fpc", col = "wr")), 1)` times REML + CL2's width and
+about half its interval score, but pcre's intervals cover the mean at only `r rng(cmq("pcre", "mean"))` and $\alpha(t)$ at
+`r rng(cmq("pcre", "alpha"))`. On real residual curves, both cover $\beta$ at only
 `r rng(c(cmp_cov("pcre", "plasmode"), cmp_cov("gls_fpc", "plasmode")))` (@sec-plasmode).
 
-GLS whitens the data within curves, so curves stay independent clusters and CL2 applies to the
-whitened fit; pcre + CL2 is CL2 on the pcre fit (Supplement S3.2; replicates 1--100, where all
-constructions exist). Under dependent synthetic errors GLS-FPCA + CL2 covers $\beta$ at
-`r f(cav("gls_fpc_cl2", "dependent"), 3)` at `r f(cav("gls_fpc_cl2", "dependent", "wr"), 2)` times
-REML + CL2's width (interval score `r f(cav("gls_fpc_cl2", "dependent", "sr"), 2)` times), and
-pcre + CL2 repairs pcre's intervals for $\alpha(t)$ (`r f(cav("pcre", "dependent", e = "alpha"), 2)`
-to `r f(cav("pcre_cl2", "dependent", e = "alpha"), 2)`). On the real residual curves GLS-FPCA + CL2
-covers $\beta$ at `r f(cav("gls_fpc_cl2", "plasmode"), 3)` (`r rng(ca_pm_app$v)` by dataset;
-REML + CL2 `r f(cav("reml_cl2", "plasmode"), 3)`), pcre + CL2 at `r f(cav("pcre_cl2", "plasmode"), 3)`.
-There the standard error of GLS-FPCA + CL2 is close to the spread of the estimate on average (ratio
-`r f(cav("gls_fpc_cl2", "plasmode", "se_sd"), 2)`), consistent with residual smoothing bias, but an
-average ratio does not exclude local or tail errors in the standard error. GLS with the raw residual
-covariance fails with or without CL2 (`r f(cav("gls_raw_cl2", "dependent"), 2)` under dependent
-synthetic errors). Fits that smooth more thus estimate better, and the sandwich repairs much, but not
-all, of their undercoverage.
+CL2 also applies to these fits: GLS whitens the data within curves, so curves stay independent clusters, and pcre + CL2 is
+CL2 on the pcre fit (Supplement S3.2). Under dependent synthetic errors, GLS-FPCA + CL2 covers $\beta$ at
+`r f(cav("gls_fpc_cl2", "dependent"), 2)`, at `r f(cav("gls_fpc_cl2", "dependent", "wr"), 1)` times REML + CL2's width, and
+pcre + CL2 repairs pcre's intervals for $\alpha(t)$ (`r f(cav("pcre", "dependent", e = "alpha"), 2)` to
+`r f(cav("pcre_cl2", "dependent", e = "alpha"), 2)`). On the real residual curves, GLS-FPCA + CL2 covers $\beta$ at
+`r f(cav("gls_fpc_cl2", "plasmode"), 2)` (`r rng(ca_pm_app$v)` by dataset) and pcre + CL2 at `r f(cav("pcre_cl2", "plasmode"), 2)`, against
+`r f(cav("reml_cl2", "plasmode"), 2)` for REML + CL2. GLS with the raw residual covariance fails with or without CL2
+(`r f(cav("gls_raw_cl2", "dependent"), 2)` under dependent synthetic errors). Fits that smooth more thus estimate better (@sec-res-estimation),
+and the sandwich repairs much, but not all, of their undercoverage.
 
 ## A zero coefficient surface {#sec-res-null}
 
-With $\beta \equiv 0$ the share of grid points at which an interval excludes zero is the pointwise
-false-positive rate, nominally 0.05 (@fig-null). Under smooth errors it is
-`r rng(nl("reml_cl2"), 3)` for REML + CL2 with the normal critical value and
-`r rng(nl("reml_cl2_satt"), 3)` with Satterthwaite degrees of freedom, against
-`r rng(nl("ncv_cl2"), 2)` for NCV + CL2 and `r rng(c(nl("reml_model"), nl("ncv_model")), 2)` for the
-model-based intervals of either fit. Under independent errors REML + CL2 has
-`r rng(c(nl("reml_cl2", "iid", g = 100), nl("reml_cl2", "iid", "binomial", 40)), 3)`, except
+With $\beta \equiv 0$, the share of grid points at which an interval excludes zero is the pointwise
+false-positive rate, nominally 0.05 (@fig-null). Under smooth errors, it is `r rng(nl("reml_cl2"))` for REML + CL2
+with the normal critical value and `r rng(nl("reml_cl2_satt"))` with Satterthwaite degrees of freedom, against
+`r rng(nl("ncv_cl2"))` for NCV + CL2 and `r rng(c(nl("reml_model"), nl("ncv_model")))` for the model-based intervals of
+either fit. Under independent errors, REML + CL2 has
+`r rng(c(nl("reml_cl2", "iid", g = 100), nl("reml_cl2", "iid", "binomial", 40)))`, except
 `r f(nl("reml_cl2", "iid", "gaussian", 40), 3)` for Gaussian responses with 40 curves (NCV + CL2:
-`r f(nl("ncv_cl2", "iid", "gaussian", 40), 3)`). There REML
-shrinks the surface to near the null space of its penalty in most replicates and in some of these the
-interval excludes zero over much of the grid (`r f(nl("reml_cl2", "iid", "gaussian", 40, "share_gt_5pct"), 2)`
-of replicates have more than 5% of the grid excluding zero), a known weakness of intervals for terms
-shrunk to their null space [@MarraWood2012].
+`r f(nl("ncv_cl2", "iid", "gaussian", 40), 3)`). There, REML shrinks the surface to near the null space of its penalty in
+most replicates, and in some of these the interval excludes zero over much of the grid, a known weakness of intervals for
+terms shrunk to their null space [@MarraWood2012].
 
-Under smooth errors REML's estimate of the zero surface has
-`r rng(nl("reml_cl2", col = "rms_rel"), 2)` times the root-mean-square size of the non-zero surface in
-the corresponding setting: spurious structure. NCV's estimate is `r rng(nrr("fpc"), 1)` times
-smaller. Under independent errors both are close to zero.
+Under smooth errors, REML's estimate of the zero surface has `r rng(nl("reml_cl2", col = "rms_rel"), 1)` times the
+root-mean-square size of the non-zero surface in the corresponding setting: spurious structure. NCV's estimate is
+`r rng(nrr("fpc"), 0)` times smaller. Under independent errors, both are close to zero.
 
-Pointwise intervals do not answer whether $\beta$ is zero everywhere: under smooth errors
-`r rng(nl("reml_cl2_satt", col = "any_excl"), 2)` of the replicates have at least one grid point where
-the Satterthwaite interval excludes zero. That question needs simultaneous bands or global tests,
-which this study does not evaluate.
+Pointwise intervals do not answer whether $\beta$ is zero everywhere: under smooth errors,
+`r rng(nl("reml_cl2_satt", col = "any_excl"), 2)` of the replicates have at least one grid point where the Satterthwaite
+interval excludes zero. That question needs simultaneous bands or global tests, which this study does not evaluate.
 
 ```{r}
 #| label: fig-null
@@ -701,46 +659,40 @@ fig_null(SGN, ERR3)
 
 We also evaluated the following constructions.
 
-- *Intervals centered at the NCV estimate.* We tried widening by the NCV--REML difference, the NCV
-  estimate with REML + CL2's half-width, a one-step bias correction of the NCV estimate and a
-  cluster-robust term for the variability of the selected smoothing parameters, alone and combined.
-  The combination is a frozen-map approximation: it propagates the smoothing-parameter term through the
-  bias-correction map but ignores how that map changes with the smoothing parameters. It covers
-  $\beta$ at `r f(cbs("rbc_p_ijx", "core"), 3)` (smooth truths) and
-  `r f(cbs("rbc_p_ijx", "rough_truth"), 3)` (rough truths) in Gaussian settings, but undercovers on the
-  plasmode data (@sec-plasmode-results; Supplement S4.1).
-- *mgcv's neighborhood covariance for NCV fits.* For curve blocks the mgcv version used here returns the Bayesian
+- *Intervals centered at the NCV estimate.* We tried widening by the NCV--REML difference, the NCV estimate with REML + CL2's half-width, a one-step bias correction of the NCV
+  estimate and a cluster-robust term for the variability of the selected smoothing parameters, alone and combined. The combination is a frozen-map
+  approximation: it propagates the smoothing-parameter term through the bias-correction map but ignores how that map changes with the smoothing
+  parameters. In Gaussian settings, it covers $\beta$ at `r f(cbs("rbc_p_ijx", "core"), 2)` (smooth truths) and `r f(cbs("rbc_p_ijx", "rough_truth"), 2)` (rough truths), but none of these constructions held its level across the plasmode datasets (@sec-plasmode-results; Supplement S4.1).
+- *mgcv's neighborhood covariance for NCV fits.* For curve blocks, the mgcv version used here returns the Bayesian
   $\mathbf V_p$ or, with `jackknife = TRUE`, essentially $\mathbf V_p - \mathbf V_e$; it computes this
   covariance correctly only for per-point neighborhoods. Computed correctly from the block fit, it is
-  conservative in the simulation for $\beta$ (`r rng(jfs("jk_nei"))` with smooth errors and 100 curves,
-  at `r rng(jfs("jk_nei", "width_vs_reml_cl2"), 2)` times REML + CL2's width) and for Gaussian and
-  Poisson responses, but covers binary $\alpha(t)$ and $\gamma(t)$ at only
-  `r rng(c(jf_bin("alpha"), jf_bin("gamma")))`. On the plasmode data it undercovers $\beta$:
-  `r f(mean(jfp("jk_nei")), 2)` on average over the 42 combinations of the six datasets with independent
-  source curves (`r f(mean(jf_app_mean$c), 2)` over datasets; NCV + CL2 `r f(mean(jfp("ncv_cl2")), 2)`,
-  REML + CL2 `r f(mean(jfp("reml_cl2")), 2)`), and `r f(jf_truth$c[jf_truth$truth == "REML"], 2)`,
-  `r f(jf_truth$c[jf_truth$truth == "MID"], 3)` and `r f(jf_truth$c[jf_truth$truth == "NCV"], 2)` under
-  the REML-fitted, midpoint and NCV-fitted truths. Residual smoothing bias of the NCV estimate is a
-  plausible contributor; variance and tail errors are not excluded (SE/SD `r f(jfsd("ecg_roahd"), 2)` on
-  ECG 8-lead, `r f(jfsd("running"), 2)` on running; Supplement S4.2).
+  conservative in the simulation for $\beta$ (`r rng(jfs("jk_nei"))` with smooth errors and 100 curves, at about half of
+  REML + CL2's width) and for Gaussian and Poisson responses, but it covers binary $\alpha(t)$ and $\gamma(t)$ at only
+  `r rng(c(jf_bin("alpha"), jf_bin("gamma")))`. Over the combinations of truth and residual source on the six plasmode datasets with independent source curves, it
+  undercovers $\beta$ (`r f(mean(jfp("jk_nei")), 2)` on average; NCV + CL2 `r f(mean(jfp("ncv_cl2")), 2)`,
+  REML + CL2 `r f(mean(jfp("reml_cl2")), 2)`). Residual smoothing bias of the NCV estimate is a plausible
+  contributor; variance and tail errors are not excluded (Supplement S4.2).
 - *A smoothing-parameter uncertainty term for REML + CL2* raises coverage of $\beta$ by
   `r rng_pp(tapply(lc$gain, lc$G, mean))` without improving the interval score (Supplement S4.3).
 - *An AR(1) working model* (`bam()` with AR(1) errors restarting at each curve, correlation profiled
   by the restricted-likelihood criterion; Appendix B.1) covers `r rng(ar1_main$coverage_mean)` on the
   nine plasmode datasets (Supplement S3.1).
 - *The curve bootstrap* (resampling curves and refitting) covers `r rng(cmp_cov("boot_pct", "plasmode"))`
-  on real residual curves, with intervals `r f(cmp_wr("boot_pct", "plasmode"), 2)` times as wide as
+  on real residual curves, with intervals `r f(cmp_wr("boot_pct", "plasmode"), 1)` times as wide as
   REML + CL2's and a median of `r f(boot_time, 0)` s per analyzed dataset (Supplement S3.2).
-- *Penalized functional GEE* [@LoewingerLevisCuiPereira2025], in the R package fastFGEE, under
-  dependent errors improves the surface over REML by less than NCV (mean squared error `r rng(fg_vs_ncv)` times NCV's);
-  Wald intervals from its sandwich covariance cover $\beta$ at `r rng(fgb)`. Its wild-bootstrap critical
-  value, which its interface offers for intercepts and scalar effects and which we obtain for the surface
-  from its internal routine, gives `r rng(fgb_cal(TRUE)$coverage)` under dependent errors at
-  `r rng(fgb_cal(TRUE)$wr)` times the width of REML + CL2 with the normal critical value, and
-  `r rng(fgb_cal(FALSE)$coverage)` under independent errors. On the six plasmode datasets with
-  independent source curves it gives `r rng(fgp_cal(FALSE)$coverage)` at `r rng(fgp_cal(FALSE)$wr)` times
-  that width with all subjects; with 40 subjects its $t$ adjustment can reach its floor of one degree
-  of freedom and the intervals are up to `r f(max(fgp_cal(TRUE)$wr), 1)` times as wide (Supplement S3.3).
+- *Penalized functional GEE* [@LoewingerLevisCuiPereira2025], in the R package fastFGEE. Under dependent errors, it improves the surface over REML
+  by less than NCV (mean squared error `r rng(fg_vs_ncv, 1)` times NCV's), and Wald intervals from its sandwich covariance cover $\beta$ at `r rng(fgb)`.
+  Its interface offers a wild-bootstrap critical value for intercepts and scalar effects; we obtained it for the surface and fitted means from an internal
+  routine. With an independence working correlation and its $t$ adjustment, the intervals for $\beta$ under dependence in the simulation were conservative and narrower than
+  REML + CL2 with the Satterthwaite critical value: coverage `r rng(fg_beta_dep$coverage)` against `r rng(fg_beta_dep$cov_satt)`, lower tail
+  `r rng(fg_beta_dep$pointwise_q05)` against `r rng(fg_beta_dep$q05_satt)`, at `r rng(fg_beta_dep$wr_satt)` times the width. On the `r nrow(fgp_all)` plasmode
+  datasets with independent source curves (midpoint truth, REML residuals) and all subjects, they were again narrower (`r rng(fgp_all$wr_satt, 1)` times) and covered
+  `r rng(fgp_all$coverage)` against `r rng(fgp_all$cov_satt)`, but on `r nrow(fgp_all_lowq)` of them their coverage was much less even (lower tail
+  `r rng(fgp_all_lowq$pointwise_q05)` against `r rng(fgp_all_lowq$q05_satt)`). With 40 subjects, the $t$ adjustment often reached its floor of one degree of freedom
+  and made them `r rng(fgp_40$wr_satt, 1)` times that width; without it, they covered down to `r f(min(fgp_40_not$coverage), 2)`, against
+  `r rng(fgp_40_not$cov_satt)`. For fitted means under dependence, without the $t$ adjustment, intervals were narrower in the simulation with similar coverage
+  (`r rng(fg_mean_dep$coverage)` against `r rng(fg_mean_dep$cov_satt)`, at `r rng(fg_mean_dep$wr_satt, 1)` times the width), but covered less on these plasmode datasets
+  (`r rng(fgp_mean_not$coverage)` against `r rng(fgp_mean_not$cov_satt)`). Details, also for independent errors: Supplement S3.3.
 
 # Plasmode study {#sec-plasmode}
 
@@ -758,9 +710,9 @@ residual curve: the construction is a Rademacher wild cluster bootstrap around t
 not a model of new real curves. Its truths are exactly representable by the fitted model, so it
 cannot evaluate misspecification of the mean.
 
-In six datasets the source curves are independent:
+In six datasets, the source curves are independent:
 ECG-derived myocardial strain, atrial strain from a randomized trial, knee moments during running and
-walking, the DTI tract profiles and an eight-lead ECG dataset. In three the source curves are serially
+walking, the DTI tract profiles and an eight-lead ECG dataset. In three, the source curves are serially
 or spatially dependent (monthly ocean profiles, weather stations, weekly electricity demand); their
 simulated errors are still independent across curves, except in block-flip runs reported in the
 supplement. The midpoint fit lies between the REML and NCV fits for every term on only
@@ -780,16 +732,15 @@ and with 40, with `r n_rep` replicates; the mean is scored for a fixed set of 50
 fig_plasmode_est(fig4)
 ```
 
-*Estimation.* The median relative errors are `r rng(ptab$rel_reml_cl2)` for REML and `r rng(ptab$rel_ncv_cl2)` for NCV across
-datasets (@fig-plasmode-est, @fig-plasmode-info). Weak identification of $\beta$ in directions the
-functional covariate barely excites is a possible reason for their size (@sec-intro). Which fit is better depends on the truth. The ratio of NCV's
-to REML's relative error is `r rng(ptr("NCV"))` under the NCV-fitted truth,
-`r rng(ptr("MID"))` under the midpoint truth and `r rng(ptr("REML"))` under the REML-fitted
-truth, where NCV is worse on `r sum(ptr("REML") > 1)` of the 9 datasets. A fit used as truth is
-shaped like the selector that produced it, so the truth source favors that selector; the
-simulation, whose truths come from neither fit, is the cleaner comparison, although part of its gap
-reflects its smooth truths (@sec-res-estimation). For the mean the
-ratio of NCV's to REML's relative error is `r rng(pm_mean_ratio$q)` per dataset.
+*Estimation.* The median relative errors are `r rng(ptab$rel_reml_cl2, 1)` for REML and `r rng(ptab$rel_ncv_cl2, 1)` for
+NCV across datasets (@fig-plasmode-est, @fig-plasmode-info). Weak identification of $\beta$ in directions the
+functional covariate barely excites is a possible reason for their size (@sec-intro). Which fit is better depends on the
+truth: NCV's relative error is `r rng(ptr("NCV"))` times REML's under the NCV-fitted truth, `r rng(ptr("MID"))` times
+under the midpoint truth and `r rng(ptr("REML"))` times under the REML-fitted truth, where NCV is worse on
+`r sum(ptr("REML") > 1)` of the 9 datasets. A fit used as truth is shaped like the selector that produced it, so the truth
+source favors that selector; the simulation, whose truths come from neither fit, is the cleaner comparison, although
+part of its gap reflects its smooth truths (@sec-res-estimation). For the mean, NCV's relative error is
+`r rng(pm_mean_ratio$q)` times REML's per dataset.
 
 ```{r}
 #| label: fig-plasmode
@@ -798,53 +749,35 @@ ratio of NCV's to REML's relative error is `r rng(pm_mean_ratio$q)` per dataset.
 fig_plasmode(fig3)
 ```
 
-*Intervals.* With curve flips the simulated errors are independent across curves on all nine
-datasets, so CL2's assumption holds on all of them. Model-based intervals cover
-`r rng(c(pm("reml_model", c("mean", "beta")), pm("reml_model", c("mean", "beta"), "stress test")))`
-for the mean and $\beta$. REML + CL2 covers `r rng(pm9("beta"))` for $\beta$ and `r rng(pm9("mean"))`
-for the mean (@fig-plasmode): `r rng(others_beta$c)` for $\beta$ on eight datasets, and
-`r f(mean(wthr$coverage_mean), 2)` (`r rng(wthr$coverage_mean)` over truth and residual sources) on
-the weather data, which combine few curves (`r wds$G`), a functional covariate of rank
-`r wds$rank_X` and rough residuals (lag-one correlation `r f(wds$lag1, 2)`, `r wds$fpc90` principal
-components for 90% of the residual variance).
+*Intervals.* With curve flips, the simulated errors are independent across curves on all nine datasets, so CL2's
+assumption holds on all of them. Model-based intervals cover
+`r rng(c(pm("reml_model", c("mean", "beta")), pm("reml_model", c("mean", "beta"), "stress test")))` for the mean and
+$\beta$. REML + CL2 covers the mean at `r rng(pm9("mean"))` on all nine datasets and $\beta$ at `r rng(others_beta$c)` on eight
+(@fig-plasmode), but $\beta$ at only `r f(mean(wthr$coverage_mean), 2)` on the weather data, which combine few curves
+(`r wds$G`), a functional covariate of rank `r wds$rank_X` and rough residuals.
 
-REML + CL2's coverage of $\beta$ is below 0.95 in all
-`r nrow(p_ind)` combinations of truth, residual source and number of subjects on the six datasets
-with independent source curves, and in `r n_p_below` of `r n_p_all` over all nine datasets and
-construction variants; the combinations share data and are not independent confirmations. Its
-standard error is somewhat smaller than the replicate spread of the estimate (median ratio
-`r rng(cl2_sesd_p$s, 2)` per dataset over all nine datasets). A ratio of 0.90 alone would give a
-centered normal estimator coverage of about `r f(illus90, 2)`, so these ratios are consistent with a
-standard error a little short, plus further error on some datasets. The lower tail for $\beta$ is
-lower under the REML-fitted truth (`r rng(ct("REML"))`) than under the NCV-fitted truth
-(`r rng(ct("NCV"))`).
+REML + CL2's coverage of $\beta$ is below 0.95 in `r n_p_below` of `r n_p_all` combinations of dataset, truth, residual
+source, number of subjects and construction variant; these combinations share data and are not independent
+confirmations. Its standard error is somewhat smaller than the replicate spread of the estimate (median ratio
+`r rng(cl2_sesd_p$s, 2)` per dataset), which is consistent with a standard error a little short, plus further error on some datasets.
+With 40 subjects on the six datasets with independent source curves, REML + CL2 covers $\beta$ `r rng_pp(g40a("beta"))` below
+nominal and the mean `r rng_pp(g40a("mean"))` below; on the weather data, it covers $\beta$ at `r rng(wthr40$coverage_mean)`.
 
-With 40 subjects REML + CL2 covers $\beta$ `r rng_pp(g40a("beta"))` below nominal
-and the mean `r rng_pp(g40a("mean"))` below on the six datasets with independent source curves, and
-$\beta$ at `r rng(wthr40$coverage_mean)` on the weather data.
+With Satterthwaite degrees of freedom (Supplement S2.1), REML + CL2 covers $\beta$ at `r f(spm("satt", "all"), 2)` on average over
+the nine datasets with all subjects and `r f(spm("satt", "40"), 2)` with 40 (normal critical value:
+`r f(spm("z", "all"), 2)` and `r f(spm("z", "40"), 2)`), at `r f(spm("satt", "all", col = "wr"), 2)` and
+`r f(spm("satt", "40", col = "wr"), 2)` times the width. It covers the mean, $\alpha(t)$ and $\gamma(t)$ at
+`r rng(sapply(c("mean", "alpha", "gamma"), \(e) c(spm("satt", "all", e), spm("satt", "40", e))), 2)`. The weather surface
+stays short (`r f(spa("satt", "all", apps = "aemet"), 2)` with all subjects, `r f(spa("satt", "40", apps = "aemet"), 2)` with 40). Adding
+the smoothing-parameter uncertainty term and using the $t_{G-1}$ critical value helps about as much, with the weather
+surface again short (Supplement S4.3).
 
-With Satterthwaite degrees of
-freedom (Supplement S2.1), REML + CL2 covers $\beta$ at `r f(spm("satt", "all"), 3)` on average over the
-nine datasets with all subjects and at `r f(spm("satt", "40"), 3)` with 40 (normal critical value:
-`r f(spm("z", "all"), 3)` and `r f(spm("z", "40"), 3)`), at `r f(spm("satt", "all", col = "wr"), 2)` and
-`r f(spm("satt", "40", col = "wr"), 2)` times the width, and the mean, $\alpha(t)$ and $\gamma(t)$ at
-`r rng(sapply(c("mean", "alpha", "gamma"), \(e) c(spm("satt", "all", e), spm("satt", "40", e))), 3)`;
-the weather surface stays short (`r f(spa("satt", "all", apps = "aemet"), 3)` with all subjects,
-`r f(spa("satt", "40", apps = "aemet"), 3)` with 40). Adding the smoothing-parameter uncertainty term
-and using the $t_{G-1}$ critical value helps about as much (Supplement S4.3): $\beta$ at
-`r rng(lcpv("ij_lin", "t"), 2)` on eight datasets with all subjects (`r rng(lcpv("ij_lin", "t", "40"), 2)`
-with 40), but only `r f(lcpv("ij_lin", "t", weather = TRUE), 2)` (`r f(lcpv("ij_lin", "t", "40", TRUE), 2)`)
-on the weather data.
-
-On the six datasets with independent source curves NCV + CL2 covers $\beta$ at
-`r rng(pm("ncv_cl2", "beta"))` with lower tails `r rng(pm("ncv_cl2", "beta", col = "q05_mean"))` and
-loses up to `r pp(max(g40v("ncv_cl2", "beta")))` with 40 subjects. The diagnostics suggest two
-contributions. Its standard error is short (median ratio to the replicate standard deviation
-`r rng(ncv_sesd$se_sd, 2)` across datasets), which a refit with the smoothing parameters fixed at their
-median restores (`r rng(FX$se_sd, 2)`), but its coverage then still stays at `r rng(FX$cov)`. Fixing
-the smoothing parameters changes both the amount and the variability of smoothing, so this is a
-diagnostic, not an exact decomposition; it suggests smoothing bias as the larger part
-(Supplement S4.1).
+On the six datasets with independent source curves, NCV + CL2 covers $\beta$ at `r rng(pm("ncv_cl2", "beta"))`, with lower
+tails `r rng(pm("ncv_cl2", "beta", col = "q05_mean"))`, and loses up to `r pp(max(g40v("ncv_cl2", "beta")), 0)` with 40
+subjects. Its standard error is short (median ratio to the replicate standard deviation `r rng(ncv_sesd$se_sd[ncv_sesd$role == "counted"], 2)` across
+these datasets). A refit with the smoothing parameters fixed at their median restores it (`r rng(FX$se_sd[FX$role == "counted"], 2)`), but coverage then
+still stays at `r rng(FX$cov[FX$role == "counted"])`. Fixing the smoothing parameters changes both the amount and the variability of smoothing, so
+this is a diagnostic, not an exact decomposition; it suggests smoothing bias as the larger part (Supplement S4.1).
 
 ```{r}
 #| label: fig-plasmode-info
@@ -853,131 +786,87 @@ diagnostic, not an exact decomposition; it suggests smoothing bias as the larger
 fig_plasmode_info(ptab)
 ```
 
-*Informativeness.* As in the simulation, REML + CL2 is close to nominal but wide for $\beta$: its
-half-width is `r rng(ptab$hw_reml_cl2, 1)` times the effect and it detects
-`r rng(ptab$det_reml_cl2)` of the grid points where the true value exceeds 25% of its maximum.
-NCV + CL2 detects more (`r rng(ptab$det_ncv_cl2)`) but does not hold its level, and here its
-interval score is `r rng(ptab$score_ncv, 2)` times REML + CL2's: higher on
-`r sum(ptab$score_ncv > 1)` of the 9 datasets.
+*Informativeness.* As in the simulation, REML + CL2 is close to nominal but wide for $\beta$: its half-width is
+`r rng(ptab$hw_reml_cl2, 1)` times the effect, and it detects `r rng(ptab$det_reml_cl2)` of the grid points where the true
+value exceeds 25% of its maximum. NCV + CL2 detects more (`r rng(ptab$det_ncv_cl2)`) but does not hold its level, and here
+its interval score is `r rng(ptab$score_ncv, 1)` times REML + CL2's (higher on `r sum(ptab$score_ncv > 1)` of the 9 datasets).
 
-Intervals centered at the NCV estimate with a bias
-correction and a smoothing-parameter term (@sec-res-other) cover $\beta$ at
+Intervals centered at the NCV estimate with a bias correction and a smoothing-parameter term (@sec-res-other) cover $\beta$ at
 `r rng(cbv("rbc_p_ijx", "counted"))` on the six datasets with independent source curves, against
-`r rng(rbv("reml_cl2", "counted"))` for REML + CL2, at `r rng(cbc$wr, 2)` times its width and with lower
-tails as low as
-`r f(min(CB_P$coverage_q05[CB_P$arm == "rbc_p_ijx" & CB_P$estimand == "beta" & CB_P$role == "counted"]), 2)`
-in single combinations, and at `r rng(cbv("rbc_p_ijx", "stress test"))` on the three with dependent
-source curves (Supplement S4.1). These are descriptive comparisons on different replicate windows
-(replicates 1--50 for the combination, 1--100 for REML + CL2), without a paired measure of
-precision. The NCV estimate with REML + CL2's half-width covers
-`r f(hyb_v("hybrid", "REML"), 3)` under the REML-fitted truth, with a lower tail of
-`r f(hyb_v("hybrid", "REML", "pointwise_q05"), 2)` against `r f(hyb_v("reml_cl2", "REML", "pointwise_q05"), 2)`
-for REML + CL2.
+`r rng(rbv("reml_cl2", "counted"))` for REML + CL2, at `r rng(cbc$wr, 1)` times its width and with lower tails as low as
+`r f(min(CB_P$coverage_q05[CB_P$arm == "rbc_p_ijx" & CB_P$estimand == "beta" & CB_P$role == "counted"]), 2)` in single
+combinations. On the three datasets with dependent source curves, they cover `r rng(cbv("rbc_p_ijx", "stress test"))` (Supplement
+S4.1). These comparisons are descriptive, on different replicate windows, without a paired measure of precision. The NCV
+estimate with REML + CL2's half-width covers `r f(hyb_v("hybrid", "REML"), 2)` under the REML-fitted truth, but its lower tail is
+`r f(hyb_v("hybrid", "REML", "pointwise_q05"), 2)`, against a lower tail of `r f(hyb_v("reml_cl2", "REML", "pointwise_q05"), 2)` for REML + CL2.
 
 # Recommendations and software {#sec-recommend}
 
 ::: {.callout-note title="Recommendations for applied work with pffr()"}
 1. **Assume within-curve dependence.** Expect REML to undersmooth coefficient surfaces, and do not use
-   model-based intervals of the working-independence fit; they undercover, more so on dense grids.
+   model-based intervals of the working-independence fit: they undercover, more so on dense grids
+   (@sec-res-estimation, @sec-res-intervals).
 2. **Shape of the surface: a fit that typically smooths more than REML.** By default, fit the same model with
    `method = "NCV"` and show its surface estimate as the description of the effect. The forthcoming
    refund releases then set one neighborhood per curve (per `cluster` if given); in earlier releases and in plain `gam()`,
    `method = "NCV"` alone leaves out single points, and the neighborhoods must be supplied through
-   `nei`. In the plasmode study NCV estimated the surface worse than REML on `r sum(ptr("REML") > 1)` of
-   the 9 datasets under the REML-fitted truth, which favors REML. Apart from misregistration, about `r f(100 * lowsm("share_low"), 0)`% of NCV fits
-   under dependence had an unusually small smoothing parameter and about `r f(lowsm("within_ncv_low"), 1)` times the typical error,
-   almost never flagged outside scaled-$t$ responses; NCV still estimated the surface better than REML on
-   `r f(100 * lowsm("ncv_beats_reml_low"), 0)`% of these replicates (@sec-res-estimation). For Gaussian
-   responses, a functional random effect per curve (pcre) or GLS with an FPCA residual covariance
-   estimated the surface much better than REML; they were worse than NCV in the four synthetic
-   settings compared and comparable to it in a plasmode comparison with six datasets. When the surface was zero, the NCV estimate stayed much closer to zero than REML's, which showed
-   structure. Do not attach the REML + CL2 band to these estimates, and do not use NCV + CL2 intervals for
-   inference. NCV's gain in estimation also holds, more weakly, for smooth effects of scalar covariates
-   that vary along $t$ (REML's error `r rng(rr_est("f"), 1)` times NCV's); for the intercept, scalar effects
-   and fitted means, REML + CL2 gives both the estimate and the intervals, with the exceptions in 5.
-   fastFGEE's fit with its wild-bootstrap critical value, an independence working correlation and no
-   $t$ adjustment gave narrower intervals for fitted means under dependence in the simulation
-   (coverage `r rng(fg_mean_dep$coverage)` at `r rng(fg_mean_dep$wr_satt)` times the width of REML + CL2
-   with the Satterthwaite critical value, which covered `r rng(fg_mean_dep$cov_satt)`), but lower coverage
-   on `r nrow(fgp_all)` plasmode datasets with independent source curves, with all or 40 subjects
-   (`r rng(fgp_mean_not$coverage)` against `r rng(fgp_mean_not$cov_satt)`; Supplement S3.3). With the $t$
-   adjustment its intervals were up to `r f(max(fg_mean_dep_t$wr_satt), 1)` times that width with 40 curves,
-   and fastFGEE's interface does not offer this critical value for fitted means. If
-   mgcv flags an NCV fit as not converged, as it usually did for scaled-$t$ responses, refitting from other
-   starting smoothing parameters and comparing the criterion and the surface is a simple check (Appendix
-   B.1); it was not evaluated as a procedure.
-3. **Inference: REML + CL2 with Satterthwaite degrees of freedom.** Fit by REML and use the
-   curve-clustered CL2 covariance with the full block and the Satterthwaite critical value. This was
-   evaluated for all four estimands in the main factorial at the default signal with 20, 40 and 100
-   curves, in all extensions and in the plasmode study. Under dependence it covered the mean, $\beta$ and
-   $\gamma$ at `r rng(c(sv("cov_satt", 20), sv("cov_satt", 40), sv("cov_satt", 100)))` in the main
-   factorial, and $\beta$ at `r f(spm("satt", "all"), 3)` on average in the plasmode study, but at
-   `r f(spa("satt", "all", apps = "aemet"), 2)` on one dataset with few curves and a low-rank covariate.
-   The price is width: up to `r f(max(ls20_wr$wr[ls20_wr$dependence == "dependent"]), 2)` times the
-   width with the normal critical value with 20 curves, about `r f(sxc(100, "width_ratio"), 2)` times
-   with 100. The intervals for the surface are wide; report them as they are. Under dependence in the
-   simulation, fastFGEE's fit with its wild-bootstrap critical value, $t$ adjustment and an
-   independence working correlation gave conservative, narrower intervals for $\beta$: coverage
-   `r rng(fg_beta_dep$coverage)` at `r rng(fg_beta_dep$wr_satt)` times the width of REML + CL2 with the
-   Satterthwaite critical value, which covered `r rng(fg_beta_dep$cov_satt)`, and a lower tail of
-   `r rng(fg_beta_dep$pointwise_q05)` against `r rng(fg_beta_dep$q05_satt)`
-   (@sec-res-other; Supplement S3.3). On the `r nrow(fgp_all)` plasmode datasets with independent source
-   curves and all subjects its intervals were again narrower (`r rng(fgp_all$wr_satt)` times that width)
-   and covered `r rng(fgp_all$coverage)` on average against `r rng(fgp_all$cov_satt)`, but on
-   `r nrow(fgp_all_lowq)` of them the lower tail was `r rng(fgp_all_lowq$pointwise_q05)` against
-   `r rng(fgp_all_lowq$q05_satt)`. With 40 subjects the $t$ adjustment, which often reached its floor of
-   one degree of freedom, made them `r rng(fgp_40$wr_satt, 1)` times that width; without it they covered
-   down to `r f(min(fgp_40_not$coverage), 2)` against `r rng(fgp_40_not$cov_satt)`. We keep REML + CL2
-   because on these datasets its pointwise coverage was more even and it kept its coverage at 40 subjects
-   without that width. fastFGEE's interface does not offer this critical value for the surface. Only pointwise
-   intervals were evaluated: a pointwise band answers "is there an effect, and where" poorly
-   (detection rates of `r rng(ptab$det_reml_cl2)` in the plasmode study) and "is $\beta$ zero
-   everywhere" not at all, which needs simultaneous bands or global tests.
+   `nei`. NCV's gain in estimation also holds, more weakly, for smooth effects of scalar covariates that vary along $t$ (@sec-res-estimation).
+   Do not attach the REML + CL2 band to NCV estimates, and do not use NCV + CL2 intervals for inference
+   (@sec-res-tradeoff, @sec-plasmode-results). For the intercept, scalar effects and fitted means, REML + CL2 gives both the estimate and the
+   intervals, with the exceptions in 5.
+
+   NCV is not uniformly better: it was worse on some plasmode datasets under the REML-fitted truth, which favors REML
+   (@sec-plasmode-results). Apart from misregistration, a small share of its fits under dependence have an unusually small smoothing parameter and a
+   larger error, which convergence flags rarely reveal outside scaled-$t$ responses, although NCV still estimated the surface better than REML on
+   nearly all of these replicates (@sec-res-estimation). When the surface was zero, its estimate stayed much closer to zero than REML's, which showed
+   structure (@sec-res-null). For Gaussian responses, pcre and GLS with an FPCA residual covariance also estimated the surface much better than REML,
+   but worse than NCV in the simulation and comparably to it in a plasmode comparison (@sec-res-estimation). If mgcv flags an NCV fit as not
+   converged, as it usually did for scaled-$t$ responses, refitting from other starting smoothing parameters and comparing the
+   criterion and the surface is a simple check (Appendix B.1); it was not evaluated as a procedure.
+3. **Inference: REML + CL2 with Satterthwaite degrees of freedom.** Fit by REML and use the curve-clustered CL2
+   covariance with the full block and the Satterthwaite critical value. This was evaluated for all four estimands in the
+   main factorial at the default signal with 20, 40 and 100 curves, in all extensions and in the plasmode study. Under dependence, it was close to
+   nominal for the mean, $\beta$ and $\gamma$ in the main factorial and for $\beta$ on average in the plasmode study, but not on one dataset with few curves and
+   a low-rank covariate (@sec-res-intervals, @sec-plasmode-results); for further exceptions, see 5. The price is width, which is largest with few curves.
+   The intervals for the surface are wide; report them as they are. fastFGEE's wild-bootstrap intervals for $\beta$, obtained from an internal routine, were conservative and narrower under dependence in the
+   simulation, but we keep REML + CL2 because on most of the six plasmode datasets with independent source curves its pointwise coverage was more even, and it kept its coverage at
+   40 subjects without the large widening of fastFGEE's $t$ adjustment (@sec-res-other). Only pointwise intervals were evaluated: a pointwise band answers "is there an effect, and
+   where" poorly (@sec-plasmode-results) and "is $\beta$ zero everywhere" not at all, which needs simultaneous bands or
+   global tests (@sec-res-null).
 4. **Both goals: fit twice.** When the shape and error rates both matter, fit the model by NCV and by
-   REML. The two fits differ only in how the smoothing parameters are chosen; in Gaussian fits with 100
-   curves and 61 grid points NCV took a median `r f(med_time("NCV"), 1)` s against
-   `r f(med_time("REML"), 1)` s for REML. Take the surface from the NCV fit and disregard that fit's
-   standard errors; take the intervals from the REML fit. Report them side by side, for example the NCV
-   surface next to REML + CL2's map of grid points whose interval excludes zero, labeled as pointwise,
-   not as a band around the NCV surface. Under a zero surface most replicates show some excluded points
-   (@sec-res-null); this display and disagreements between the two fits were not evaluated.
-   @sec-res-tradeoff explains why the two fits differ. If only fitted means, the intercept or scalar
-   effects matter, one REML fit with these intervals is enough, with the exceptions in 5.
+   REML. The two fits differ only in how the smoothing parameters are chosen; @sec-res-tradeoff explains why they differ. In our Gaussian
+   benchmark with 100 curves, an NCV fit took about `r f(tt("curve-blocked NCV fit", "A") / tt("REML fit", "A"), 0)` times as long as a REML fit (Appendix C). Take the surface from the NCV fit and
+   disregard that fit's standard errors; take the intervals from the REML fit. Report them side by side, for example the NCV
+   surface next to REML + CL2's map of grid points whose interval excludes zero, labeled as pointwise, not as a band around the
+   NCV surface. Under a zero surface, most replicates show some excluded points (@sec-res-null); this display and
+   disagreements between the two fits were not evaluated. If only fitted means, the intercept or scalar effects matter, one REML
+   fit with these intervals is enough, with the exceptions in 5.
 5. **Exceptions.** Treat intervals for the intercept and scalar effects of binary responses and for
-   misregistered counts as approximate; they undercover, also with Satterthwaite degrees of freedom.
-6. **Few curves.** Evaluated down to 20 curves in the main factorial. With 20 curves and dependent
-   errors REML + CL2 with Satterthwaite degrees of freedom covered the mean, $\beta$ and $\gamma$ at
-   `r rng(ls20("satt"))` and binary intercepts at `r rng(ls20("satt", e = "alpha", fam = "binomial"))`;
-   under independent errors every interval undercovered binary intercepts and scalar effects. Nothing
-   below 20 curves, or with 20 curves outside the main factorial, was evaluated; treat intervals there
-   as approximate. The weather data with block flips have `r n_blocks_weather` independent
-   blocks; block-clustered CL2 covered $\beta$ at `r f(blk_weather$estimate[blk_weather$estimand == "beta"], 2)`
-   there (Supplement S2.3). With five curves per subject in a function-on-scalar design, subject-clustered CL2
-   covered `r rng(fga_cl2(25))` with 25 subjects (Supplement S3.3).
-7. **Several curves per subject.** Cluster by subject (`cluster =`); in the function-on-scalar design
-   just mentioned this covered `r rng(fga_cl2(c(100, 500)))` with 100 or 500 subjects. It leaves fewer
-   clusters and does not address dependence between subjects. With `method = "NCV"` the same argument gives
-   subject neighborhoods, which were not evaluated.
+   misregistered counts as approximate; they undercover, also with Satterthwaite degrees of freedom (@sec-res-intervals).
+6. **Few curves.** Use the Satterthwaite critical value. With 20 curves and dependent errors in the main factorial, it brought the mean, $\beta$ and $\gamma$
+   close to nominal, but not binary intercepts (@sec-res-intervals); with 20 curves and independent errors, every interval undercovered binary intercepts and
+   scalar effects. Nothing below 20 curves, or with 20 curves outside the main factorial, was evaluated; treat intervals there as approximate. On the weather
+   data with `r n_blocks_weather` independent blocks and in a function-on-scalar design with 25 subjects, block- and subject-clustered CL2 covered below
+   nominal (Supplement S2.3, S3.3).
+7. **Several curves per subject.** Cluster by subject (`cluster =`); in a function-on-scalar design with five curves per subject,
+   this was close to nominal with 100 or 500 subjects (Supplement S3.3). It leaves fewer clusters and does not address dependence
+   between subjects. With `method = "NCV"`, the same argument gives subject neighborhoods, which were not evaluated.
 8. **Basis and identification.** Refit with a richer basis and compare. A richer basis protects
-   against approximation bias but widens REML + CL2's intervals. It does not help where the
+   against approximation bias but widens REML + CL2's intervals (@sec-res-tradeoff). It does not help where the
    functional covariate carries little information about a direction of the surface: the surface is
    then weakly identified [@ScheiplGreven2016]. Refrain from interpreting the surface's shape when
    the estimate or its interval changes substantially with the basis, or when the covariate's
    principal components leave the relevant directions poorly covered given the penalty's null
    space; agreement between two penalized fits does not certify identification. Fitted means or
-   well-supported contrasts are then safer targets, though not protected against misspecification.
+   well-supported contrasts are then safer targets, though not protected against misspecification (Supplement S5).
 9. **Covariates with few principal components.** If the functional covariate's variation is
    concentrated in a few principal components, an `ffpc()` term with a small number of components
-   can replace `ff()`. With the low-rank covariate of one synthetic setting, the
-   `r ffv(FFPC_LR, "p095", col = "K_median")` components that explain 95% of its variance estimated
-   $\beta$ with a relative root-mean-square error of `r f(ffv(FFPC_LR, "p095"), 2)`, against
-   `r f(ffv(FFPC_LR, "k3", "ff_ncv_cl2"), 2)` for NCV and `r f(ffv(FFPC_LR, "k3", "ff_reml_cl2"), 2)`
-   for REML with `ff()`, and their CL2 intervals with the normal critical value covered
-   `r f(ffv(FFPC_LR, "p095", col = "coverage"), 3)`
-   (`r f(ffv(FFPC_LR, "k5", col = "coverage"), 3)` with five components; Supplement S1.9). For
-   covariates with a richer spectrum keep `ff()`: few components truncate the surface and the
+   can replace `ff()`. With the low-rank covariate of one synthetic setting, the `r ffv(FFPC_LR, "p095", col = "K_median")` components that explain 95% of its variance
+   estimated $\beta$ about as well as NCV with `ff()` and much better than REML with `ff()`; their CL2 intervals with the normal critical value covered
+   `r f(ffv(FFPC_LR, "p095", col = "coverage"), 2)` (`r f(ffv(FFPC_LR, "k5", col = "coverage"), 2)` with five components; Supplement S1.9). For
+   covariates with a richer spectrum, keep `ff()`: few components truncate the surface and the
    intervals undercover, and a high variance-explained threshold, such as 0.99 (the default of current refund releases),
-   gives unstable, very noisy estimates.
+   gives unstable, very noisy estimates, as is known for functional principal component regression, an ill-posed problem [@HallHorowitz2007; @ReissOgden2007].
 :::
 
 Forthcoming releases of refund (version X.Y or later) and mgcv (version X.Y or later) will
@@ -988,11 +877,11 @@ used in the study and a reproduction route.
 
 # Discussion {#sec-discussion}
 
-Under within-curve dependence the working-independence REML fit of a penalized function-on-function
+Under within-curve dependence, the working-independence REML fit of a penalized function-on-function
 regression gives an undersmoothed, noisy estimate of the coefficient surface and model-based intervals
 that are far too narrow. A fit that typically smooths more, by default curve-blocked NCV, improves the estimate
 but not the intervals. A curve-clustered sandwich with a leverage adjustment for the penalized
-hat and Satterthwaite degrees of freedom brings the intervals close to nominal for Gaussian, count
+hat and Satterthwaite degrees of freedom brings the intervals close to nominal for most estimands of Gaussian, count
 and binary responses in the simulation, down to 20 curves, and for the surface on eight of the nine
 plasmode datasets, but it cannot improve the estimate it is centered on. The two remedies thus show the
 undersmoothing-versus-bias-correction tension of nonparametric inference
@@ -1001,20 +890,16 @@ tests of $\beta \equiv 0$ and simultaneous bands are the natural next steps; the
 here. The evidence has the following limits.
 
 - *Binary responses.* REML + CL2 undercovers intercepts and scalar effects of binary responses, also
-  under independent errors (as low as `r f(min(ag_bin(FALSE)), 3)`) and with Satterthwaite degrees of
-  freedom; with 20 curves and independent errors the model-based intervals undercover them too. The
-  diagnostics are compatible with a standard error that is too small for these terms, partly through
-  smoothing-parameter variability; local bias is not excluded. Every interval centered at the NCV
-  estimate undercovers for binary responses (Supplement S4.1).
+  under independent errors and with Satterthwaite degrees of freedom. The diagnostics are compatible with a standard error
+  that is too small for these terms, partly through smoothing-parameter variability; local bias is not excluded. Every
+  interval centered at the NCV estimate undercovers for binary responses (Supplement S4.1).
 - *Misregistration.* When curves are observed on their own clocks, the observed-clock mean of a
   count response is not a generalized linear predictor, and no method covers it; for Gaussian
-  responses REML + CL2 is unaffected.
+  responses, REML + CL2 is unaffected.
 - *Design.* The synthetic design has 20 curves only in the main factorial, a zero surface only for
   Gaussian and binary responses with independent and smooth errors, one empirically derived smooth
   error kernel (from the DTI data) beside parametric kernels, and first-order difference penalties
-  throughout. In the plasmode study with 40 subjects REML + CL2 with Satterthwaite degrees of freedom
-  covers $\beta$ at `r rng(spa("satt", "40", apps = APP_COUNTED), 3)` on the six datasets with
-  independent source curves.
+  throughout.
 - *Truths outside the spline space.* All synthetic truths in the main study are representable. For
   a truth with components the covariates barely excite and the default basis cannot represent
   (Supplement S5), REML + CL2 covers $\beta$ at only `r rng(msv("T2", "default", "reml_cl2", err = "fpc"))`
@@ -1022,22 +907,18 @@ here. The evidence has the following limits.
   errors. A basis with four times finer knot spacing restores `r rng(msv("T2", "xlarge", "reml_cl2", err = "fpc"))`
   under smooth errors, at the price of wider intervals, but only
   `r f(msv("T2", "xlarge", "reml_cl2", err = "iid"), 2)` under independent errors; NCV + CL2 stays short
-  even then. These coverages refer to the exact truth, which mixes approximation bias with weak identification of directions the
-  covariates barely excite.
+  even then. These coverages refer to the exact truth, which mixes approximation bias with weak identification.
 - *Plasmode study.* Fits used as truths favor their own selector, the errors are sign-flipped
   fitted residuals with independent signs across curves, the truths are representable by the model,
   and all nine datasets are Gaussian and were chosen, not sampled.
 - *Intervals around the NCV estimate.* Their shortfall is smoothing bias in the simulation; on the
-  plasmode data the diagnostics suggest smoothing bias and the variability of the selected smoothing
+  plasmode data, the diagnostics suggest smoothing bias and the variability of the selected smoothing
   parameters, but fixing the smoothing parameters changes both. Neither a one-step bias correction nor
-  a variance term for the smoothing parameters, nor their combination as a frozen-map approximation,
-  gave a narrower calibrated interval in the plasmode study. Calibrated intervals after data-driven
-  heavier smoothing remain open for the NCV fit. A wild-bootstrap critical value around fastFGEE's fit
-  gave conservative intervals for $\beta$, narrower than REML + CL2 with the Satterthwaite critical value,
-  under dependence in the simulation. On `r nrow(fgp_all)` plasmode datasets its pointwise coverage
-  was less even with all subjects, and with 40 subjects its intervals were very wide with the $t$
-  adjustment and undercovered without it. That fit's mean squared error for $\beta$ under dependence
-  in the simulation is still `r rng(fg_vs_ncv)` times NCV's (@sec-res-other).
+  a variance term for the smoothing parameters, nor their combination as a frozen-map approximation, gave a narrower calibrated interval in the
+  plasmode study. Calibrated intervals after data-driven heavier smoothing remain open for the NCV fit. A wild-bootstrap critical value around fastFGEE's fit gave conservative intervals for $\beta$, narrower than REML + CL2 with the Satterthwaite critical
+  value, under dependence in the simulation. On most of the plasmode datasets with independent source curves, its coverage was less even with all subjects, and with 40 subjects its
+  intervals were very wide with the $t$ adjustment and undercovered without it. That fit's mean squared error for $\beta$ under dependence in the simulation is still
+  `r rng(fg_vs_ncv, 1)` times NCV's (@sec-res-other).
 
 # Code and data availability {.unnumbered}
 

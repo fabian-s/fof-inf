@@ -95,7 +95,7 @@ We refitted flagged scaled-$t$ fits from the REML smoothing parameters and from 
 `r nrow(scat_same)` reach the same criterion within `r f(max(scat_same$crit), 3)`, the same surface within
 `r f(max(scat_same$surf), 3)` and the same CL2 standard errors within `r f(100 * max(scat_same$se), 1)`%, consistent with
 a flat optimum; in an 18th the study fit's criterion is `r f(scat_near$study_above, 1)` above the refits', with the surface
-within `r f(scat_near$surf, 2)`. In the other two a refit returns a materially different fit, its surface moved by about
+within `r f(scat_near$surf, 2)`. In the other two, a refit returns a materially different fit, its surface moved by about
 twice the root-mean-square size of the true surface (`r f(scat_truth_rms, 1)`). In one, the study fit has the worse
 criterion, by `r f(scat_study_worse$study_above, 0)`, and the standard errors differ by up to
 `r f(100 * scat_study_worse$se, 0)`%; in the other, a refit is worse by `r f(scat_refit_worse$worst_refit_above, 0)`, with standard errors
@@ -114,8 +114,8 @@ assigned and the comparison is descriptive.
 
 Low-smoothing NCV fits (@sec-res-estimation) were examined in the main factorial and in the settings with denser
 grids, other families, rough truths, AR(1) errors and misregistration (`r lowsm("n_cells", "independent") + lowsm("n_cells") + sum(LOWSM_WARP$n_cells)` settings with 40 or 100 curves), with the tail defined on the first surface penalty.
-Under dependence, apart from misregistration, cutoffs of $e^4$ and $e^2$ give `r f(100 * lowsm("share_low", thr = 4), 0)`% and `r f(100 * lowsm("share_low", thr = 2), 0)`% of NCV fits, and applying the $e^3$ cutoff to either penalty
-gives `r f(100 * lowsm("share_low_either"), 1)`%. Under misregistration NCV's smoothing parameters are the more variable
+Under dependence, apart from misregistration, cutoffs of $e^4$ and $e^2$ give `r f(100 * lowsm("share_low", thr = 4), 0)`% and `r f(100 * lowsm("share_low", thr = 2), 0)`% of NCV fits, and applying the $e^3 \approx 20$ cutoff to either penalty
+gives `r f(100 * lowsm("share_low_either"), 1)`%. Under misregistration, NCV's smoothing parameters are the more variable
 ones, with up to `r f(100 * max(LOWSM_WARP$share_low), 0)`% of fits below the $e^3$ cutoff (Poisson).
 Under dependence, apart from misregistration, the share of low-smoothing fits is `r rng(100 * LOWSM_DEP$share_low, 1)`% across families and
 error processes, and these fits have `r f(lowsm("within_edf_low"), 1)` times their setting's median surface EDF, still fewer than REML's on all of them.

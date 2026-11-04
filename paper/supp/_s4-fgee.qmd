@@ -154,7 +154,7 @@ With `r max(s5_A$n_i)` curves per subject, CL2 clustered by subject on the initi
 coverage by at most
 `r f(max(abs(s5_a("refund_cl2") - s5_a("reml_cl2"))), 3)`. fastFGEE's one-step intervals with its
 calibrated critical values cover `r rng(s5_a(c("fgee_independent_independent_wild", "fgee_ar1_exchangeable_wild"), 5))`
-in this design; with a normal critical value they cover
+in this design; with a normal critical value, they cover
 `r rng(s5_a(c("fgee_independent_independent", "fgee_ar1_exchangeable"), 5, c(25, 100)))` with
 at most 100 subjects and `r rng(s5_a(c("fgee_independent_independent", "fgee_ar1_exchangeable"), 5, 500))`
 with 500. The one-step estimate of $\beta_1$ has a root-mean-square error of
@@ -183,14 +183,14 @@ The initial-fit sandwich of fastFGEE 0.2.2 (`gee.fit = FALSE`), which the simula
 @LoewingerLevisCuiPereira2025 calls for their pffr baseline, differs in the penalty scale: it adds
 $\mathbf S_{\boldsymbol\lambda}$ to the averaged bread, a penalty larger by the factor $n\phi$
 (for the Gaussian, approximately $n\sigma^2$). The estimate is the unchanged pffr estimate, but the
-inverse bread, and with it the standard errors, shrink. In their design the ratio of mean
+inverse bread, and with it the standard errors, shrink. In their design, the ratio of mean
 standard error to the empirical standard deviation of $\hat\beta_1$ is
 `r rng(s5_as("fgee_base", "beta1", "se_sd_ratio"))` for this sandwich and does not improve with the
 number of subjects (`r rng(s5_as("fgee_base", "beta1", "se_sd_ratio", 25))` with 25,
 `r rng(s5_as("fgee_base", "beta1", "se_sd_ratio", 500))` with 500), because the penalty-scale
 difference does not vanish.
 
-With `r max(s5_A$n_i)` curves per subject its pooled coverage is
+With `r max(s5_A$n_i)` curves per subject, its pooled coverage is
 `r rng(s5_a("fgee_base", 5, fam = "gaussian"))` for Gaussian,
 `r rng(s5_a("fgee_base", 5, fam = "poisson"))` for Poisson and
 `r rng(s5_a("fgee_base", 5, fam = "binomial"))` for binary responses (@tbl-s4-fgee-a); its coverage here is in
@@ -208,7 +208,7 @@ grid point instead of using one $\sigma^2$.
 CL2 on the same fit covers
 `r rng(s5_a("refund_cl2", n = c(100, 500)))` with 100 or 500 subjects and
 `r rng(s5_a("refund_cl2", n = 25))` with 25; the lowest single coefficient function is
-`r f(s5_cl2_low$coverage, 3)` ($\beta_`r sub("beta", "", s5_cl2_low$estimand)`$,
+`r f(s5_cl2_low$coverage, 2)` ($\beta_`r sub("beta", "", s5_cl2_low$estimand)`$,
 `r c(gaussian = "Gaussian", poisson = "Poisson", binomial = "binary")[s5_cl2_low$family]`,
 `r s5_cl2_low$N` subjects, `r s5_cl2_low$n_i` curve per subject). Its gain over the rescaled sandwich at
 25 subjects, `r rng(s5_a("refund_cl2", n = 25) - s5_a("fgee_base_fixed", n = 25), 3)`, combines
@@ -231,17 +231,17 @@ averaged over these points and not coverage at each point.
 
 The interval interface of fastFGEE covers the
 functional intercept and scalar-covariate effects but not $\mathrm{ff}$ surfaces or fitted means. For
-$\alpha(t)$ and $\gamma(t)$ we transfer its critical value for the term to our evaluation points; the
+$\alpha(t)$ and $\gamma(t)$, we transfer its critical value for the term to our evaluation points; the
 calibration on the package's own term grid need not carry over to other points. For $\beta(s,t)$ and
-the mean we call the package's internal bootstrap routine with our evaluation matrix as the linear
-map and all other inputs as `fgee()` sets them; with the package's own term maps this call reproduced
+the mean, we call the package's internal bootstrap routine with our evaluation matrix as the linear
+map and all other inputs as `fgee()` sets them; with the package's own term maps, this call reproduced
 its stored critical values exactly in the settings we checked.
 
 The $t$ adjustment multiplies the
 critical value by the ratio of $t$ and normal quantiles, with degrees of freedom equal to the number of
 curves minus the effective degrees of freedom of the coefficients the map involves, floored at 1. The
-surface and the mean involve many more coefficients than the package's term maps, so with few
-curves the floor can be reached, where the factor is `r f(s5_t_floor, 2)`. We therefore report these
+surface and the mean involve many more coefficients than the package's term maps, so, with few
+curves, the floor can be reached, where the factor is `r f(s5_t_floor, 2)`. We therefore report these
 intervals with and without the adjustment. Monte Carlo standard errors of coverage are at most
 `r f(max(s5_B$coverage_mc_se), 3)`.
 
@@ -271,7 +271,7 @@ s5_B |>
 ```
 
 The Wald intervals for $\beta$ and the mean use the sandwich covariance fastFGEE 0.2.2 returns for
-its one-step estimate under the stated working correlation. Under dependent errors they cover
+its one-step estimate under the stated working correlation. Under dependent errors, they cover
 $\beta$ at
 `r rng(s5_b(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", TRUE))` against
 `r rng(s5_b("reml_cl2", "beta", TRUE))` for REML + CL2 (@tbl-s4-fgee-b). Smoothing bias alone does not
@@ -312,7 +312,7 @@ s5_B |>
 
 Under dependent errors, with independence working correlation, the calibrated intervals cover $\beta$
 at `r rng(s5_b(s5_ind_cal, "beta", TRUE))` (5% quantile of pointwise coverage
-`r rng(s5_b(s5_ind_cal, "beta", TRUE, "pointwise_q05"))`) at
+`r rng(s5_b(s5_ind_cal, "beta", TRUE, "pointwise_q05"))`), at
 `r rng(s5_b(s5_ind_cal, "beta", TRUE, "wr"))` times the width and
 `r rng(s5_b(s5_ind_cal, "beta", TRUE, "sr"))` times the interval score of REML + CL2 with the normal
 critical value, which covers `r rng(s5_b("reml_cl2", "beta", TRUE))`
@@ -320,38 +320,38 @@ critical value, which covers `r rng(s5_b("reml_cl2", "beta", TRUE))`
 degrees of freedom covers `r rng(s5_vs_satt$cov_satt)` (`r rng(s5_vs_satt$q05_satt)`), and the calibrated
 intervals are `r rng(s5_vs_satt$wr_satt)` times its width.
 
-For fitted means REML + CL2 with Satterthwaite degrees of freedom covers
-`r rng(s5_mean_satt("fgee_independent_wildL_noT")$coverage_satt)`; without the $t$ adjustment the calibrated
+For fitted means, REML + CL2 with Satterthwaite degrees of freedom covers
+`r rng(s5_mean_satt("fgee_independent_wildL_noT")$coverage_satt)`; without the $t$ adjustment, the calibrated
 intervals cover `r rng(s5_mean_satt("fgee_independent_wildL_noT")$coverage)` at
-`r rng(s5_mean_satt("fgee_independent_wildL_noT")$wr_satt)` times its width, and with the adjustment they are
+`r rng(s5_mean_satt("fgee_independent_wildL_noT")$wr_satt)` times its width, and, with the adjustment, they are
 up to `r f(max(s5_mean_satt("fgee_independent_wildL")$wr_satt), 2)` times its width with 40 curves.
 
 The median critical value without the $t$ adjustment is
 `r rng(s5_bc("beta", TRUE, "crit_no_t_median"))`, whereas the normal quantile divided by SE/SD is
 `r rng(qnorm(0.975) / s5_b("fgee_independent", "beta", TRUE, "se_sd_ratio"))`. Over the three working
-correlations the coverage is `r rng(s5_b(s5_all_cal, "beta", TRUE))` for $\beta$ and
+correlations, the coverage is `r rng(s5_b(s5_all_cal, "beta", TRUE))` for $\beta$ and
 `r rng(s5_b(s5_all_cal, "mean", TRUE))` for the mean, the lowest values for FPCA with 40 curves. Under
-independent errors the intervals with independence working correlation cover $\beta$ at
+independent errors, the intervals with independence working correlation cover $\beta$ at
 `r rng(s5_b(s5_ind_cal, "beta", FALSE))`, the lowest values for binary responses, at
 `r rng(s5_b(s5_ind_cal, "beta", FALSE, "wr"))` times the width and
 `r rng(s5_b(s5_ind_cal, "beta", FALSE, "sr"))` times the interval score of REML + CL2, which covers
 `r rng(s5_b("reml_cl2", "beta", FALSE))`.
 
-With independence working correlation the $t$ adjustment changes the coverage of $\beta$ by at most
+With independence working correlation, the $t$ adjustment changes the coverage of $\beta$ by at most
 `r f(max(abs(s5_b(s5_ind_cal, "beta", c(TRUE, FALSE)) - s5_b(s5_ind_not, "beta", c(TRUE, FALSE)))), 3)`
 (`r f(max(abs(s5_b("fgee_fpca_wildL", "beta", c(TRUE, FALSE)) - s5_b("fgee_fpca_wildL_noT", "beta", c(TRUE, FALSE)))), 3)` with FPCA),
 but the adjustment strongly affects the mean with 40 curves, where it sits at the floor on up to
-`r f(100 * max(s5_bc("mean", c(TRUE, FALSE), "at_floor", 40)), 0)`% of the replicates of a setting. There the
+`r f(100 * max(s5_bc("mean", c(TRUE, FALSE), "at_floor", 40)), 0)`% of the replicates of a setting. There, the
 intervals for the mean are up to `r f(max(s5_b(s5_ind_cal, "mean", c(TRUE, FALSE), "wr", 40)), 2)` times as
 wide as REML + CL2's, with an interval score up to
 `r f(max(s5_b(s5_ind_cal, "mean", c(TRUE, FALSE), "sr", 40)), 2)` times that of REML + CL2, and cover
-`r rng(s5_b(s5_ind_cal, "mean", c(TRUE, FALSE), g = 40))`. Without the adjustment they cover
+`r rng(s5_b(s5_ind_cal, "mean", c(TRUE, FALSE), g = 40))`. Without the adjustment, they cover
 `r rng(s5_b(s5_ind_not, "mean", TRUE, g = 40))` under dependent errors at
 `r rng(s5_b(s5_ind_not, "mean", TRUE, "wr", 40))` times REML + CL2's width and
 `r rng(s5_b(s5_ind_not, "mean", FALSE, g = 40))` under independent errors at
-`r rng(s5_b(s5_ind_not, "mean", FALSE, "wr", 40))` times that width. With 100 curves the two versions
+`r rng(s5_b(s5_ind_not, "mean", FALSE, "wr", 40))` times that width. With 100 curves, the two versions
 differ by at most `r f(max(abs(s5_b(s5_ind_cal, c("beta", "mean"), c(TRUE, FALSE), g = 100) - s5_b(s5_ind_not, c("beta", "mean"), c(TRUE, FALSE), g = 100))), 3)` in coverage.
-For $\alpha$ and $\gamma$ the calibrated intervals cover
+For $\alpha$ and $\gamma$, the calibrated intervals cover
 `r rng(s5_b(c("fgee_independent_wild", "fgee_ar1_wild", "fgee_fpca_wild"), c("alpha", "gamma"), TRUE))`
 under dependence. These results concern a use of fastFGEE's bootstrap routine that its interface does
 not offer, for targets other than those of its own function-on-scalar setting studied above.
@@ -380,13 +380,13 @@ s5_BP |>
     col.names = c("Estimand", "Errors", "Settings", unname(s5_ct)))
 ```
 
-Under dependent errors the one-step update reduces the mean squared error of $\beta$ relative to REML
+Under dependent errors, the one-step update reduces the mean squared error of $\beta$ relative to REML
 (`r rng(s5_bp("fgee_ind_vs_reml", "beta", TRUE)$est)`), by less than curve-blocked NCV
 (`r rng(s5_bp("ncv_vs_reml", "beta", TRUE)$est)`): the ratio fGEE/NCV is
 `r rng(s5_bp("fgee_ind_vs_ncv", "beta", TRUE)$est)`, with every bootstrap interval above one (lowest
 lower bound `r f(min(s5_bp("fgee_ind_vs_ncv", "beta", TRUE)$lower), 2)`). Choosing, after the fact,
 the working correlation with the lowest mean squared error in each setting gives a ratio of
-`r rng(s5_bp("fgee_best_vs_ncv", "beta", TRUE)$est)`. Under independent errors the ratio fGEE/REML for
+`r rng(s5_bp("fgee_best_vs_ncv", "beta", TRUE)$est)`. Under independent errors, the ratio fGEE/REML for
 $\beta$ is `r rng(s5_bp("fgee_ind_vs_reml", "beta", FALSE)$est)`, above one in the settings with
 $G = 40$ (`r rng(s5_bp("fgee_ind_vs_reml", "beta", FALSE)$est[s5_bp("fgee_ind_vs_reml", "beta", FALSE)$G == 40])`).
 For $\alpha$ and $\gamma$, the ratio fGEE/NCV is `r rng(s5_bp("fgee_ind_vs_ncv", c("alpha", "gamma"), c(TRUE, FALSE))$est)`.
@@ -397,7 +397,7 @@ The plasmode comparison uses the six datasets with independent curves, the midpo
 the geometric mean of the REML and NCV smoothing parameters), the REML residual curves attached
 to their own subjects with signs flipped per curve, all subjects and 40 subjects,
 `r min(s5_P$R)` replicates per combination, and the plasmode study's own datasets; methods and interval
-definitions are those of the main factorial settings (Gaussian responses). For the two cardiology datasets
+definitions are those of the main factorial settings (Gaussian responses). For the two cardiology datasets,
 only aggregate results are reported. Monte Carlo standard errors of coverage are at most
 `r f(max(s5_P$coverage_mc_se), 3)`.
 
@@ -420,7 +420,7 @@ with SE/SD `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", "
 `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "gamma"))`, the lowest values for the
 randomized treatment effect in the AF trial
 (`r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "gamma", apps = "af"))`). With
-calibrated critical values the intervals for $\alpha$ and $\gamma$ cover
+calibrated critical values, the intervals for $\alpha$ and $\gamma$ cover
 `r rng(s5_p(c("fgee_independent_wild", "fgee_ar1_wild", "fgee_fpca_wild"), c("alpha", "gamma")))`.
 
 ```{r}
@@ -483,24 +483,24 @@ With all subjects and independence working correlation, the calibrated intervals
 `r rng(s5_p(s5_ind_cal, "beta", all_subj = TRUE))` (5% quantile of pointwise coverage
 `r rng(s5_p(s5_ind_cal, "beta", "pointwise_q05", all_subj = TRUE))`; REML + CL2 with the normal
 critical value `r rng(s5_p("reml_cl2", "beta", all_subj = TRUE))` and
-`r rng(s5_p("reml_cl2", "beta", "pointwise_q05", all_subj = TRUE))`) at
+`r rng(s5_p("reml_cl2", "beta", "pointwise_q05", all_subj = TRUE))`), at
 `r rng(s5_p(s5_ind_cal, "beta", "wr", all_subj = TRUE))` times the width and
 `r rng(s5_p(s5_ind_cal, "beta", "sr", all_subj = TRUE))` times the interval score of REML + CL2
 (@tbl-s4-fgee-cal-p).
 
-With 40 subjects the $t$ adjustment sits at the floor on
+With 40 subjects, the $t$ adjustment sits at the floor on
 `r rng(100 * s5_pc("beta", FALSE, "at_floor"), 0)`% of the replicates for $\beta$ and
 `r rng(100 * s5_pc("mean", FALSE, "at_floor"), 0)`% for the mean. The intervals for $\beta$ then cover
 `r rng(s5_p(s5_ind_cal, "beta", all_subj = FALSE))` at
-`r rng(s5_p(s5_ind_cal, "beta", "wr", all_subj = FALSE))` times REML + CL2's width, and without the
-adjustment `r rng(s5_p(s5_ind_not, "beta", all_subj = FALSE))` at
+`r rng(s5_p(s5_ind_cal, "beta", "wr", all_subj = FALSE))` times REML + CL2's width, and, without the
+adjustment, `r rng(s5_p(s5_ind_not, "beta", all_subj = FALSE))` at
 `r rng(s5_p(s5_ind_not, "beta", "wr", all_subj = FALSE))` times that width
 (`r rng(s5_p(s5_all_not, "beta", all_subj = FALSE))` over the three working correlations).
 
 For the mean,
 the intervals without the adjustment cover `r rng(s5_p(s5_ind_not, "mean", all_subj = TRUE))` with all
 subjects and `r rng(s5_p(s5_ind_not, "mean", all_subj = FALSE))` with 40, at
-`r rng(s5_p(s5_ind_not, "mean", "wr"))` times REML + CL2's width. With the adjustment they are up to
+`r rng(s5_p(s5_ind_not, "mean", "wr"))` times REML + CL2's width. With the adjustment, they are up to
 `r f(max(s5_p(s5_ind_cal, "mean", "wr", all_subj = FALSE)), 2)` times as wide with 40 subjects and up to
 `r f(max(s5_p(s5_ind_cal, "mean", "wr", all_subj = TRUE)), 2)` times with all subjects: the floor also
 applies to the `r s5_P_ALL[["ecg_roahd"]]` subjects of the ECG 8-lead data, whose bases have more coefficients
@@ -519,6 +519,6 @@ the best working correlation per combination, chosen after the fact, gives a rat
 `r rng(s5_pp("fgee_ind_vs_ncv", "gamma")$est)`, with the interval below one in
 `r sum(s5_pp("fgee_ind_vs_ncv", "gamma")$upper < 1)` combinations
 (`r knitr::combine_words(unique(s5_apps[s5_pp("fgee_ind_vs_ncv", "gamma")$app[s5_pp("fgee_ind_vs_ncv", "gamma")$upper < 1]]))`)
-and above one in `r sum(s5_pp("fgee_ind_vs_ncv", "gamma")$lower > 1)`; for $\alpha$ it is
+and above one in `r sum(s5_pp("fgee_ind_vs_ncv", "gamma")$lower > 1)`; for $\alpha$, it is
 `r rng(s5_pp("fgee_ind_vs_ncv", "alpha")$est)`.
 
