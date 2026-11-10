@@ -1,4 +1,4 @@
-# Estimation and inference in penalized function-on-function regression with dependent residual curves
+# Estimation and inference in penalized function-on-function regression with within-curve residual dependence
 
 Code and aggregate results for the paper by Fabian Scheipl (LMU Munich, MCML).
 Paper: [arXiv:2610.04677](https://arxiv.org/abs/2610.04677). Paper, supplement and the detailed write-up of all
@@ -185,7 +185,7 @@ order (first column varies fastest): `mean` → (curve, t); `beta` → (s, t); `
 ## Citation
 
 Scheipl, F. (2026). Estimation and inference in penalized function-on-function regression with
-dependent residual curves. Manuscript. <!-- TODO: journal / arXiv reference -->
+within-curve residual dependence. arXiv:2610.04677.
 
 ## License
 

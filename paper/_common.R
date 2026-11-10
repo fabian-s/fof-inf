@@ -919,6 +919,13 @@ SATX <- read_rel("satterthwaite/summaries/satt-syn-cells.csv")
 SATXC <- read_rel("satterthwaite/summaries/satt-syn-contrasts.csv")
 SATXD <- read_rel("satterthwaite/summaries/satt-syn-df.csv")
 SATXI <- read_rel("satterthwaite/summaries/satt-syn-info.csv")
+# Count and binary responses under misregistration are scored for the mean only (as in
+# R/summarise.R): their coefficient targets are link-scale approximations, not exact.
+drop_warp_coef <- \(x)
+  filter(x, !(error == "warp" & family != "gaussian" & estimand != "mean"))
+SATX <- drop_warp_coef(SATX)
+SATXC <- drop_warp_coef(SATXC)
+SATXD <- drop_warp_coef(SATXD)
 SATP <- read_rel("satterthwaite/summaries/satt-plasmode-cells.csv") |>
   mutate(
     role = if_else(app %in% APP_COUNTED, "counted", "stress test"),

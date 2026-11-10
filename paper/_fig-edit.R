@@ -36,11 +36,15 @@ ARM_STYLE <- tibble::tribble(
   22L,
   "hyb",
   "#56B4E9",
+  23L,
+  "satt",
+  "#003F5C",
   23L
 )
 arm_key <- function(x) {
   x <- as.character(x)
   dplyr::case_when(
+    grepl("Satterthwaite", x) ~ "satt",
     grepl("freq", x) & grepl("bias|widen|NCV–REML", x) ~ "widef",
     grepl("bias|widen|NCV–REML", x) ~ "wide",
     grepl("AR\\(1\\)", x) ~ "ar1",
@@ -264,7 +268,7 @@ fig_coverage <- function(fig1) {
     facet_grid(panel ~ family) +
     scale_x_continuous(breaks = COV_BREAKS(0.1), labels = num_lab) +
     scale_y_discrete(expand = expansion(add = 0.55)) +
-    scale_arm(lv) +
+    scale_arm(lv, nrow = 2) +
     labs(x = "coverage (grid average)", y = NULL) +
     theme_fig()
 }
@@ -409,8 +413,8 @@ fig_tradeoff <- function(fig2b) {
       colour = REF,
       linewidth = 0.35
     ) +
-    geom_point(aes(fill = I(.fill)), size = 1.5, stroke = 0.45, alpha = 0.85) +
-    facet_wrap(~panel, ncol = 2) +
+    geom_point(aes(fill = I(.fill)), size = 1.1, stroke = 0.4, alpha = 0.85) +
+    facet_wrap(~panel, nrow = 1, labeller = label_wrap_gen(20)) +
     scale_colour_manual(
       values = setNames(arm_col(levels(d$arm)), levels(d$arm)),
       name = NULL
@@ -419,7 +423,7 @@ fig_tradeoff <- function(fig2b) {
       values = setNames(arm_shape(levels(d$arm)), levels(d$arm)),
       name = NULL
     ) +
-    scale_x_continuous(breaks = seq(0.75, 1, 0.05), labels = num_lab) +
+    scale_x_continuous(breaks = seq(0.8, 1, 0.1), labels = num_lab) +
     scale_y_continuous(
       limits = c(0, 1),
       breaks = seq(0, 1, 0.2),

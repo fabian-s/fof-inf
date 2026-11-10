@@ -152,7 +152,8 @@ With `r max(s5_A$n_i)` curves per subject, CL2 clustered by subject on the initi
 `r rng(s5_a("refund_cl2", 5, c(100, 500)))` with 100 or 500 subjects and
 `r rng(s5_a("refund_cl2", 5, 25))` with 25. Refitting by gam and REML changes the pooled CL2
 coverage by at most
-`r f(max(abs(s5_a("refund_cl2") - s5_a("reml_cl2"))), 3)`. fastFGEE's one-step intervals with its
+`r f(max(abs(s5_a("refund_cl2") - s5_a("reml_cl2"))), 3)`. The intervals of fastFGEE's functional GEE
+(fGEE), a one-step update of the initial fit under the stated working correlations, with its
 calibrated critical values cover `r rng(s5_a(c("fgee_independent_independent_wild", "fgee_ar1_exchangeable_wild"), 5))`
 in this design; with a normal critical value, they cover
 `r rng(s5_a(c("fgee_independent_independent", "fgee_ar1_exchangeable"), 5, c(25, 100)))` with
@@ -272,7 +273,7 @@ s5_B |>
 
 The Wald intervals for $\beta$ and the mean use the sandwich covariance fastFGEE 0.2.2 returns for
 its one-step estimate under the stated working correlation. Under dependent errors, they cover
-$\beta$ at
+$\beta(s,t)$ at
 `r rng(s5_b(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", TRUE))` against
 `r rng(s5_b("reml_cl2", "beta", TRUE))` for REML + CL2 (@tbl-s4-fgee-b). Smoothing bias alone does not
 explain the shortfall: the root mean squared bias of the fGEE surface estimate is
@@ -393,7 +394,8 @@ For $\alpha$ and $\gamma$, the ratio fGEE/NCV is `r rng(s5_bp("fgee_ind_vs_ncv",
 
 ### Plasmode datasets
 
-The plasmode comparison uses the six datasets with independent curves, the midpoint truth (refit at
+The plasmode comparison uses the six datasets with independent source curves (observed curves
+independent across subjects), the midpoint truth (refit at
 the geometric mean of the REML and NCV smoothing parameters), the REML residual curves attached
 to their own subjects with signs flipped per curve, all subjects and 40 subjects,
 `r min(s5_P$R)` replicates per combination, and the plasmode study's own datasets; methods and interval
@@ -408,9 +410,9 @@ only aggregate results are reported. Monte Carlo standard errors of coverage are
 sfig_fgee_p(s5_P, s5_PP, s5_apps)
 ```
 
-Over the `r nrow(distinct(s5_P, app, G))` dataset and $G$ combinations, REML + CL2 covers $\beta$ at
-`r rng(s5_p("reml_cl2", "beta"))`, the mean at `r rng(s5_p("reml_cl2", "mean"))`, $\alpha$ at
-`r rng(s5_p("reml_cl2", "alpha"))` and $\gamma$ at `r rng(s5_p("reml_cl2", "gamma"))`; model-based
+Over the `r nrow(distinct(s5_P, app, G))` combinations of dataset and number of subjects $G$, REML + CL2 covers $\beta(s,t)$ at
+`r rng(s5_p("reml_cl2", "beta"))`, the mean at `r rng(s5_p("reml_cl2", "mean"))`, $\alpha(t)$ at
+`r rng(s5_p("reml_cl2", "alpha"))` and $\gamma(t)$ at `r rng(s5_p("reml_cl2", "gamma"))`; model-based
 REML intervals cover $\beta$ at `r rng(s5_p("reml_model", "beta"))` (@fig-s4-fgee-p). The fastFGEE 0.2.2 Wald
 intervals cover $\beta$ at `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta"))`
 with SE/SD `r rng(s5_p(c("fgee_independent", "fgee_ar1", "fgee_fpca"), "beta", "se_sd_ratio"))`

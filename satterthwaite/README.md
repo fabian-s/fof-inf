@@ -12,6 +12,9 @@ replicates; design, reproduction check and task claiming as in `../ablation/`.
   `coef.pffr(crit = "satterthwaite")` (`summaries/check-coef.txt`).
 - `analyse-satt.R`, `analyse.slurm` → `summaries/satt-cells.csv`, `satt-contrasts.csv`, `satt-df.csv`,
   `satt-failures.csv`, `SUMMARY.md`.
+- `analyse-detect.R` → `summaries/satt-detect.csv`: detection rate of REML + CL2 with the z and the
+  Satterthwaite critical value, and the share of grid points at which the NCV estimate lies outside the
+  REML + CL2 interval (re-scores the stored records of this folder and of the main study; no fits).
 
 ## Further settings and the plasmode cells
 

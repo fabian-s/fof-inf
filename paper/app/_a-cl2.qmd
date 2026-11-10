@@ -103,9 +103,17 @@ removes the residual shrinkage only approximately; it does not whiten correlated
 
 *Floor and factor.* The eigenvalues of $\mathbf R_i$ are floored at $10^{-6}$ before the inverse
 square root, which caps the inflation of any residual direction at a factor $10^3$. The floor binds
-only for curves whose data nearly determine a coefficient direction on their own; how often it
-bound in the studies was not recorded. CR2 carries no
-factor $G/(G-1)$; we keep it. The factor inflates frequentist CL2 standard errors by
+only for curves whose data nearly determine a coefficient direction on their own. How often it
+bound in the REML and NCV fits of the two studies was not recorded. In the comparator runs
+(@sec-res-tradeoff), it bound in no GLS fit and, among the pcre fits, only on the running data,
+there in `r floor_tab$floored[1]` of `r floor_tab$reps[1]` replicates with all subjects and in `r floor_tab$floored[2]` of `r floor_tab$reps[2]` with 40 subjects, so pcre + CL2 on
+that dataset depends on the floor. CR2 carries no
+factor $G/(G-1)$; we keep it. The factor and the uncentered scores of Appendix A.1 are each conservative at order $1/G$.
+At the estimate, the curve scores sum to $\mathbf S\hat{\boldsymbol\theta}$, so the uncentered meat adds about
+$\mathbf V_p\mathbf S\hat{\boldsymbol\theta}\hat{\boldsymbol\theta}^\top\mathbf S\mathbf V_p/G$ to the covariance, a plug-in
+for the squared smoothing bias divided by $G$. We keep both because, under dependence, the leverage adjustment removes the
+residual shrinkage only approximately and CL2's standard error is short even with them (Appendix A.6); their separate
+contributions were not evaluated. The factor inflates frequentist CL2 standard errors by
 `r f(100 * (sqrt(40 / 39) - 1), 1)`% at $G = 40$ and `r f(100 * (sqrt(100 / 99) - 1), 1)`% at
 $G = 100$; in the Bayesian form it multiplies only the sandwich part, so these are upper bounds.
 
@@ -201,7 +209,14 @@ and conservative otherwise; the Bayesian form adds $\mathbf J^{-1}\mathbf S_\inf
 $\sqrt G(\boldsymbol\theta^*_G - \boldsymbol\theta) \to \mathbf 0$ (which forces
 $\mathbf S_\infty\boldsymbol\theta = \mathbf 0$ even if $\mathbf S_\infty \neq \mathbf 0$), the frequentist CL2 interval for
 any fixed contrast is asymptotically valid for the true $\boldsymbol\theta$, and the Bayesian one is
-valid and conservative, asymptotically exact if $\mathbf S_\infty = \mathbf 0$.*
+valid and conservative, asymptotically exact if $\mathbf S_\infty = \mathbf 0$, provided the
+limiting variance $\mathbf a^\top\mathbf J^{-1}\mathbf M\mathbf J^{-1}\mathbf a$ of the contrast is positive.*
+
+The weights in $\tilde{\mathbf X}_1$ are evaluated at $\boldsymbol\theta^*_\infty$, and a dispersion or other
+nuisance parameter of the family is taken as known. The covariance in (a) is unconditional: with random
+covariates, $\mathbf M$ includes the variation over curves of the conditional mean of the score, which is
+not zero when $\boldsymbol\theta^*_\infty$ differs from $\boldsymbol\theta$. Appendix A.2 instead
+conditions on the design, where the same term appears as an upward bias of the meat.
 
 For Gaussian responses with identity link, the finite-sample target given the design is
 $\mathrm E(\hat{\boldsymbol\theta}) = (\mathbf I - \mathbf V_p\mathbf S)\boldsymbol\theta$, of which
@@ -315,7 +330,7 @@ With reselected smoothing parameters, the grid average of CL2's root-mean-square
 standard error divided by the empirical standard deviation of $\hat\beta$ under dependence is `r f(s1_sesd("cl2e_b", TRUE, 40), 2)` at $G = 40$ and
 `r f(s1_sesd("cl2e_b", TRUE, 100), 2)` at $G = 100$; with fixed smoothing parameters it is
 `r f(s1_sesd("fix_cl2e_b", TRUE, 40), 2)` and `r f(s1_sesd("fix_cl2e_b", TRUE, 100), 2)`, and CL2
-coverage of $\beta$ rises from `r f(s1_cta("cl2e_b", TRUE, 40), 3)` to
+coverage of $\beta(s,t)$ rises from `r f(s1_cta("cl2e_b", TRUE, 40), 3)` to
 `r f(s1_cta("fix_cl2e_b", TRUE, 40), 3)` at $G = 40$. Fixing the smoothing parameters, which @eq-s1-cl2 conditions on, at their typical level closes most
 of the remaining shortfall at $G = 40$; the $t_{G-1}$ critical value recovers
 `r pp(s1_ct("t - z (CL2)", TRUE, 40)[["diff"]])` of it.
@@ -341,7 +356,8 @@ fig_s1_cov(s1_long(s1_cells, s1_arms |> filter(arm %in% c("model", "cr1_b", "cl2
 For a contrast $\mathbf a^\top\boldsymbol\theta$ the sandwich part of @eq-s1-cl2 is a quadratic form
 in the whitened residuals, $\mathbf a^\top\mathbf V_p(\sum_i\mathbf U_i\mathbf U_i^\top)\mathbf V_p\mathbf a = \sum_i (\mathbf q_i^\top\mathbf z_i)^2$
 with $\mathbf q_i = \mathbf R_i^{-1/2}\tilde{\mathbf X}_i\mathbf V_p\mathbf a$ (times $G/(G-1)$). Under the
-Gaussian working model with fixed smoothing parameters, $\mathbf z = (\mathbf I - \tilde{\mathbf H})\boldsymbol\varepsilon$
+Gaussian working model with fixed smoothing parameters and no smoothing bias ($\mathbf S\boldsymbol\theta = \mathbf 0$, so
+that the residual mean $\mathbf m$ of @eq-s1-mean vanishes), $\mathbf z = (\mathbf I - \tilde{\mathbf H})\boldsymbol\varepsilon$
 with independent errors. The quadratic form then has mean $\operatorname{tr}\boldsymbol\Gamma$ and variance
 $2\operatorname{tr}(\boldsymbol\Gamma^2)$, where the $G \times G$ matrix $\boldsymbol\Gamma$ has entries
 $\Gamma_{ih} = \mathbf q_i^\top[(\mathbf I - \tilde{\mathbf H})(\mathbf I - \tilde{\mathbf H})^\top]_{ih}\mathbf q_h$.
@@ -355,6 +371,16 @@ uses $t_{\nu, 0.975}$ in place of $z_{0.975}$. The Satterthwaite intervals evalu
 whose term $\mathbf a^\top(\mathbf V_p - \mathbf V_e)\mathbf a$ is fixed, which increases $\nu$.
 Using only the diagonal of $\boldsymbol\Gamma$ gives practically the same $\nu$.
 
+With the floor inactive, $\Gamma_{ii} = \mathbf q_i^\top\mathbf R_i\mathbf q_i = \lVert\tilde{\mathbf X}_i\mathbf V_p\mathbf a\rVert^2$
+and $\operatorname{tr}\boldsymbol\Gamma = \mathbf a^\top\mathbf V_e\mathbf a$: $\Gamma_{ii}$ is the contribution of curve $i$ to
+the working-model variance of the contrast, and the diagonal version of $\nu$, an upper bound, is $(\sum_i\Gamma_{ii})^2/\sum_i\Gamma_{ii}^2$,
+an effective number of curves behind the contrast [compare @ImbensKolesar2016]. For the intercept, the curves contribute
+more equally and $\nu$ is larger. For a contrast that weights curves by a single covariate value or score $x_i$, as for $\gamma(t)$, $\Gamma_{ii}$ is roughly proportional to
+$x_i^2$, and for Gaussian $x_i$, $(\sum_i x_i^2)^2/\sum_i x_i^4 \approx G/3$. Contrasts that involve several scores, as for $\beta(s,t)$ and
+fitted means, tend to give somewhat more.
+The degrees of freedom are smaller with heavy-tailed covariates or single curves of high leverage, which the
+covariates of our simulation do not include.
+
 The Satterthwaite intervals use the REML fits and CL2 covariances of Appendix A.6 (the `r n_distinct(SAT$cell)`
 main factorial settings at the default signal level, `r unique(SAT$n_rep)` replicates); @sec-res-intervals,
 @sec-plasmode-results and Supplement S1.2, S1.7 and S2.1 give them with 20 curves, in the extensions and on the
@@ -366,7 +392,7 @@ per-point degrees of freedom are `r rng(SATD$df_median[SATD$G == 40], 0)` with $
 `r rng(SATD$df_median_rel, 2)` times $G - 1$.
 
 Under dependent errors, Satterthwaite intervals cover the
-mean, $\beta$ and $\gamma$ at `r rng(satv("satt", 40))` with 40 curves (normal critical value:
+mean, $\beta(s,t)$ and $\gamma(t)$ at `r rng(satv("satt", 40))` with 40 curves (normal critical value:
 `r rng(satv("z", 40))`) and at `r rng(satv("satt", 100))` with 100 (`r rng(satv("z", 100))`), at
 `r rng(satv("satt", 40, col = "wr"), 2)` and `r rng(satv("satt", 100, col = "wr"), 2)` times the width
 with the normal critical value (@fig-s1-satt).

@@ -553,3 +553,42 @@ stopifnot(
   lowsm_flag$n == 542,
   lowsm_flag$f == 1
 )
+
+# ---- review revision ---------------------------------------------------------------------------
+# REML / NCV ratio of the median relative errors of beta, range per block of settings (tbl-ratio)
+ratio_tab <- tibble::tribble(
+  ~settings,
+  ~ratio,
+  "main factorial, dependent errors",
+  rng(rr(TRUE), 1),
+  "main factorial, independent errors",
+  rng(rr(FALSE), 1),
+  "20 curves, dependent errors",
+  rng(rr20(TRUE), 1),
+  "20 curves, independent errors",
+  rng(rr20(FALSE), 1),
+  "four times denser grid",
+  rng(rr_block("dense_grid"), 1),
+  "larger bases",
+  rng(rr_block("basis_size"), 1),
+  "rough truth",
+  rng(rr_block("rough_truth"), 1),
+  "misregistration",
+  rng(rr_block("warp"), 1),
+  "smooth effect in place of the functional term",
+  rng(rr_est("f"), 1)
+)
+# REML / NCV ratio of mean squared errors of beta under independent errors, main factorial (smooth
+# truth, by family) and rough-truth block
+mse_iid <- \(blk, fam = unique(MSE_RATIO$family))
+  1 /
+    MSE_RATIO$ratio[
+      MSE_RATIO$block == blk &
+        MSE_RATIO$error == "iid" &
+        MSE_RATIO$estimand == "beta" &
+        MSE_RATIO$family %in% fam
+    ]
+stopifnot(
+  length(mse_iid("core", "binomial")) == 4,
+  length(mse_iid("rough_truth")) == 7
+)

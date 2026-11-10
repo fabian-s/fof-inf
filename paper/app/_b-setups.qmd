@@ -16,7 +16,7 @@ Truths are fixed functions projected by least squares onto the fitted bases, so 
 representable: $\beta(s,t) = \cos(\pi s)\sin(\pi t) + (s - 1/2)\cos(2\pi t)$,
 $f(x,t) = 2(x - 1/2)\cos(\pi t) + t\sin(\pi x)$, $\gamma(t) = \sin(2\pi t)$. The rough truth adds
 $0.6\sin(3\pi s)\sin(3\pi t)$ to $\beta$ and $f$ and $0.5\sin(5\pi t)$ to $\gamma$. Truths are scaled
-so that the non-intercept signal $S = \int \mathrm{Var}_{X,z}\{\eta(t) - \alpha(t)\}\,dt$ is 1 (80% from
+so that the non-intercept signal $S = \int \mathrm{Var}_{X,v}\{\eta(t) - \alpha(t)\}\,dt$ is 1 (80% from
 the main term, 20% from $\gamma$) and multiplied by $\sqrt S$ per family. The intercept is a Gaussian
 bump plus a constant that sets the average response level (mean count 3, prevalence 0.2).
 

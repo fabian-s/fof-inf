@@ -1030,3 +1030,73 @@ satt_df_rel <- c(
 # REML + CL2 with Satterthwaite: all estimands except weather beta, per dataset
 sp_ok <- satp_app |>
   filter(crit == "satt", !(app == "aemet" & estimand == "beta"))
+
+# ---- review revision: the recommended interval in the coverage figures -------------------------
+# REML + CL2 with the Satterthwaite critical value, from the same fits (satterthwaite/summaries/)
+LAB4 <- c(
+  LAB3[1:2],
+  reml_cl2_satt = "REML + CL2, Satterthwaite",
+  LAB3[3]
+)
+fig1 <- bind_rows(
+  fig1 |> mutate(arm = as.character(arm)),
+  SAT |>
+    filter(
+      crit == "satt",
+      estimand %in% c("mean", "beta"),
+      G %in% c(40, 100)
+    ) |>
+    transmute(
+      family = label_family(family),
+      error = factor(ERR3[error], rev(ERR3)),
+      G = paste0("G = ", G),
+      estimand = label_estimand(estimand),
+      arm = LAB4[["reml_cl2_satt"]],
+      coverage_mean = coverage,
+      coverage_se
+    )
+) |>
+  mutate(arm = factor(arm, LAB4))
+stopifnot(!anyNA(fig1$arm), !anyNA(fig1$error), nrow(fig1) == 4 * 36)
+fig3 <- bind_rows(
+  fig3 |> mutate(arm = as.character(arm)),
+  SATP |>
+    filter(crit == "satt", G_label == "all", estimand %in% c("mean", "beta")) |>
+    group_by(app, role, estimand) |>
+    summarise(
+      coverage_min = min(coverage),
+      coverage_max = max(coverage),
+      coverage_avg = mean(coverage),
+      .groups = "drop"
+    ) |>
+    transmute(
+      app = factor(APP_LABELS[app], rev(APP_LABELS)),
+      role = factor(
+        if_else(role == "counted", "indep. source", "dep. source"),
+        c("indep. source", "dep. source")
+      ),
+      estimand = label_estimand(estimand),
+      arm = LAB4[["reml_cl2_satt"]],
+      coverage = coverage_avg,
+      coverage_min,
+      coverage_max
+    )
+) |>
+  mutate(arm = factor(arm, LAB4))
+stopifnot(!anyNA(fig3$arm), !anyNA(fig3$app))
+# plasmode combinations with curve flips: coverage of beta below nominal, by critical value
+satp_beta <- SATP |> filter(estimand == "beta", crit %in% c("z", "satt"))
+n_satp <- sum(satp_beta$crit == "satt")
+n_satp_below <- \(cr) sum(satp_beta$coverage[satp_beta$crit == cr] < LEVEL)
+# lower tail expected if coverage were exactly nominal at every grid point (independent points)
+q05_null <- qbinom(0.05, n_rep, LEVEL) / n_rep
+# NCV estimate with REML + CL2's half-width, synthetic settings with dependent errors, G = 100
+hyb_syn <- HSUM_S |>
+  filter(
+    estimand == "beta",
+    arm == "hybrid",
+    error != "iid",
+    G == 100,
+    block %in% c("core", "rough_truth")
+  )
+hyb_truth <- \(tr) hyb_by_truth$cov_hybrid[hyb_by_truth$truth == tr]
